@@ -37,13 +37,18 @@
 static void start_profile(struct timeval* start)
 {
     (void)start;
+#ifdef DEBUG_CHECKER_TIME
     if(global_tool_stats_flags & STATS_CHECKER_TIME)
     {
         gettimeofday(start, NULL);
     }
+#endif
 }
 static void stop_profile_and_print(struct timeval* start, struct timeval* stop)
 {
+    (void)start;
+    (void)stop;
+#ifdef DEBUG_CHECKER_TIME
     if(global_tool_stats_flags & STATS_CHECKER_TIME)
     {
         static FILE * debug_out = NULL;
@@ -60,6 +65,7 @@ static void stop_profile_and_print(struct timeval* start, struct timeval* stop)
         fprintf(debug_out, "%lu\n", durr_us);
         fclose(debug_out);
     }
+#endif
 }
 
 void verify_buffer_on_host(uint32_t num_cl_mem, uint32_t num_svm,

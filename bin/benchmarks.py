@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 # coding=utf-8
-
 # Copyright (c) 2016 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -21,16 +20,20 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
+
 import os
+
+# Make sure that $BIN_DIR envvar points to the folder containing this script.
+# It allows "$BIN_DIR" to be used in paths to benchmarks so that this cript
+# can be run from anywhere.
+bin_dir = os.path.dirname(os.path.realpath(__file__))
+os.environ["BIN_DIR"] = bin_dir
 
 #List of test benchmarks.
 # Benchmarks: 21
-RODINIA_NV="backprop bfs b+tree cfd gaussian heartwall hotspot hotspot3D "
-RODINIA_NV+="hybridsort kmeans lavaMD leukocyte lud myocyte nn nw "
-RODINIA_NV+="particlefilter pathfinder srad streamcluster "
-# Removing dwt2d from NV runs, because it has some __local read overflow
-# that crashes on those systems, as far as I can tell.
-RODINIA=RODINIA_NV+"dwt2d "
+RODINIA="backprop bfs b+tree cfd dwt2d gaussian heartwall hotspot hotspot3D "
+RODINIA+="hybridsort kmeans lavaMD leukocyte lud myocyte nn nw "
+RODINIA+="particlefilter pathfinder srad streamcluster"
 
 # Benchmarks: 14
 SHOC="DeviceMemory MaxFlops BFS FFT GEMM MD md5hash Reduction Sort Scan Spmv "
@@ -47,26 +50,20 @@ OPENDWARFS="bwa_hmm crc csr nqueens swat tdm gem"
 PROXYAPPS="CoMD CoMD-LJ lulesh XSBench SNAP SNAP_MPI"
 
 # Benchmarks: 40
-AMDAPP_ON_NV="BlackScholes BlackScholesDP BinomialOption BitonicSort DCT "
-AMDAPP_ON_NV+="DwtHaar1D FastWalshTransform FloydWarshall ImageOverlap "
-AMDAPP_ON_NV+="MatrixMultiplication MatrixTranspose MonteCarloAsian "
-AMDAPP_ON_NV+="MonteCarloAsianDP QuasiRandomSequence RadixSort "
-AMDAPP_ON_NV+="RecursiveGaussian Reduction-AMD ScanLargeArrays "
-AMDAPP_ON_NV+="SimpleConvolution SobelFilter StringSearch URNG "
-# These require 'convert_uchar4_sat' type commands in OpenCL.
-# NV does not properly support them.
-AMDAPP=AMDAPP_ON_NV+"AdvancedConvolution BoxFilter "
-# This uses C++ in the kernel. Unsupported on NV.
-AMDAPP+="EigenValue MersenneTwister "
-# Crash on our NV test system for some reason.
-AMDAPP+="FluidSimulation2D GaussianNoise HDRToneMapping Histogram Mandelbrot "
-AMDAPP+="MatrixMulDouble NBody PrefixSum UnsharpMask "
+AMDAPP="AdvancedConvolution BlackScholes BlackScholesDP BinomialOption "
+AMDAPP+="BitonicSort BoxFilter BufferBandwidth BufferImageInterop DCT "
+AMDAPP+="DwtHaar1D EigenValue FastWalshTransform FloydWarshall "
+AMDAPP+="FluidSimulation2D GaussianNoise HDRToneMapping Histogram "
+AMDAPP+="ImageBandwidth ImageBinarization ImageOverlap KmeansAutoClustering "
+AMDAPP+="Mandelbrot MatrixMultiplication MatrixMulDouble MatrixTranspose "
+AMDAPP+="MersenneTwister MonteCarloAsian MonteCarloAsianDP NBody PrefixSum "
+AMDAPP+="QuasiRandomSequence RadixSort RecursiveGaussian Reduction-AMD "
+AMDAPP+="ScanLargeArrays SimpleConvolution SobelFilter StringSearch "
+AMDAPP+="UnsharpMask URNG"
 
 # Benchmarks: 6
-AMDAPP_CL2="BufferBandwidth BufferImageInterop BinarySearchDeviceSideEnqueue "
-AMDAPP_CL2+="CalcPie DeviceEnqueueBFS ExtractPrimes ImageBandwidth "
-AMDAPP_CL2+="ImageBinarization KmeansAutoClustering RangeMinimumQuery "
-AMDAPP_CL2+="SVMBinaryTreeSearch "
+AMDAPP_CL2="BinarySearchDeviceSideEnqueue CalcPie DeviceEnqueueBFS "
+AMDAPP_CL2+="ExtractPrimes RangeMinimumQuery SVMBinaryTreeSearch"
 
 # Benchmarks: 11
 PARBOIL="pb-bfs stencil mri-gridding lbm sad histo mri-q cutcp pb-sgemm "
@@ -93,8 +90,7 @@ FINANCEBENCH="FB-Black-Scholes FB-Monte-Carlo"
 GPUSTREAM="gpustream"
 
 # Benchmarks: 4
-MANTEVO_ON_NV="cloverleaf cloverleaf3d tealeaf "
-MANTEVO=MANTEVO_ON_NV+"tealeaf3d"
+MANTEVO="cloverleaf cloverleaf3d tealeaf tealeaf3d"
 
 # Benchmarks: 7
 HETEROMARK="aes_hm fir_hm hmm_hm iir_hm kmeans_hm pagerank_hm sw_hm"
@@ -116,23 +112,12 @@ VIENNACL+="blas3_solve-test-opencl sparse_prod-test-opencl"
 NPB_OCL="npb_ocl_bt npb_ocl_cg npb_ocl_ep npb_ocl_ft npb_ocl_is npb_ocl_lu "
 NPB_OCL+="npb_ocl_mg npb_ocl_sp"
 
-ALL_BENCHMARKS_AMD=""
-ALL_BENCHMARKS_NV=""
-
-# Benchmark suites that work on AMD GPUs (w/ OpenCL 2.0)
+ALL_BENCHMARKS=""
 for bench in [RODINIA, SHOC, PHORONIX, OPENDWARFS, PROXYAPPS, AMDAPP,
     AMDAPP_CL2, PARBOIL, PANNOTIA, STREAMMR, POLYBENCH, FINANCEBENCH,
     GPUSTREAM, MANTEVO, HETEROMARK, HETEROMARK_CL2, LINPACK, VIENNACL,
     NPB_OCL]:
-    ALL_BENCHMARKS_AMD+=bench + " "
-
-# Benchmark suites that work on Nvidia GPUs
-for bench in [RODINIA_NV, SHOC, OPENDWARFS, PROXYAPPS, AMDAPP_ON_NV,
-    PARBOIL, PANNOTIA, POLYBENCH, FINANCEBENCH, GPUSTREAM,
-    MANTEVO_ON_NV, HETEROMARK, VIENNACL, NPB_OCL]:
-    ALL_BENCHMARKS_NV+=bench + ""
-
-ALL_BENCHMARKS=ALL_BENCHMARKS_AMD
+    ALL_BENCHMARKS+=bench + " "
 
 #Declare HashMaps
 benchCD = {}

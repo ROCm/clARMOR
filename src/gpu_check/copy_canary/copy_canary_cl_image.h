@@ -20,10 +20,6 @@
  * THE SOFTWARE.
  ********************************************************************************/
 
-
-/*! \file copy_canary_cl_image.h
- */
-
 #ifndef __COPY_CANARY_CL_IMAGE_H
 #define __COPY_CANARY_CL_IMAGE_H
 
@@ -32,26 +28,6 @@
 
 #include "meta_data_lists/cl_kernel_lists.h"
 
-/*!
- * call this function to verify cl_mem image canary regions
- *
- * \param kern_ctx
- *      use this context
- * \param cmd_queue
- *      use this queue
- * \param num_images
- *      verify this many cl_mem images
- * \param image_ptrs
- *      array of cl_mem images
- * \param kern_info
- *      work kernel information
- * \param dupe
- *      duplicate arguments list
- * \param evt
- *      wait on this event
- * \param ret_evt
- *      return this finish event
- */
 void verify_cl_images_copy(cl_context kern_ctx, cl_command_queue cmd_queue,
         uint32_t num_images, void **image_ptrs, kernel_info *kern_info,
         uint32_t *dupe, const cl_event *evt, cl_event *ret_evt);

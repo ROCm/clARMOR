@@ -20,49 +20,24 @@
  * THE SOFTWARE.
  ********************************************************************************/
 
-#include "string.h"
+#ifndef _PSG_SHARED_H_
+#define _PSG_SHARED_H_
 
-#include "generic_lists.hpp"
-#include "meta_data_lists/dl_intercept_lists.h"
+#define CL_USE_DEPRECATED_OPENCL_1_1_APIS
+#define CL_USE_DEPRECATED_OPENCL_1_2_APIS
+#define CL_USE_DEPRECATED_OPENCL_2_0_APIS
+#include <CL/cl.h>
 
-pthread_mutex_t dl_protect_lock = PTHREAD_MUTEX_INITIALIZER;
+// This function takes an OpenCL error value, from a cl_int, and translates
+// it into the string that describes the error.
+// Argument: a cl_int that is returned from an OpenCL function
+// Returns: a C string that describes the return value.
+const char *cluErrorString(const cl_int);
 
-struct lessStr
-{
-    bool operator() ( const char* lhs, const char* rhs ) const
-    {
-        int ret = strcmp(lhs, rhs);
-        ret = (ret <= 0) ? 0 : 1;
-        //fprintf(stderr, "%s : %s : %d\n", lhs, rhs, ret);
-        return ret;
-    }
-};
+// This function checks a cl_int return value from an OpenCL API and prints
+// out an error message if it is not equal to CL_SUCCESS. It also exits
+// the program with '-1' if the API did not succeed.
+void check_cl_error(const char * const file_name, const int line_num,
+        const cl_int cl_err);
 
-std::set<const char*, lessStr> global_dl_protect;
-
-void* get_dl_protect(void)
-{
-    return &global_dl_protect;
-}
-
-int dl_protect_insert(void* set_v, const char *item)
-{
-    return set_insert<const char*, lessStr>(set_v, item, &dl_protect_lock);
-}
-
-const char * dl_protect_remove(void* set_v, const char *item)
-{
-    return set_remove<const char*, lessStr>(set_v, item, &dl_protect_lock);
-}
-
-const char * dl_protect_find(void* set_v, const char *item)
-{
-    return set_find<const char*, lessStr>(set_v, item, &dl_protect_lock);
-}
-
-int dl_protect_delete(char *item)
-{
-    if(item)
-        free(item);
-    return L_SUCCESS;
-}
+#endif // _SHARED_H_

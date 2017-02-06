@@ -29,7 +29,6 @@
 #include <sys/time.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdarg.h>
 #include <unistd.h>
 #include <execinfo.h>
 #include <sys/file.h>
@@ -50,15 +49,15 @@ static int get_env_util( char **env_, const char *env_var_nm_ )
     size_t var_len;
     if (env_ == NULL)
     {
-        det_fprintf(stderr, "%s (%d) error: trying ", __func__, __LINE__);
-        det_fprintf(stderr, "to store environment variable in NULL location.\n");
+        fprintf(stderr, "%s (%d) error: trying ", __func__, __LINE__);
+        fprintf(stderr, "to store environment variable in NULL location.\n");
         return -1;
     }
     if (env_var_nm_ == NULL)
     {
-        det_fprintf(stderr, "%s (%d) error: ", __func__, __LINE__);
-        det_fprintf(stderr, "trying to find environment variable, ");
-        det_fprintf(stderr, "but variable is NULL.\n");
+        fprintf(stderr, "%s (%d) error: ", __func__, __LINE__);
+        fprintf(stderr, "trying to find environment variable, ");
+        fprintf(stderr, "but variable is NULL.\n");
     }
     env_root = getenv(env_var_nm_);
     var_len = (env_root != NULL) ? strlen(env_root) : 0;
@@ -69,7 +68,7 @@ static int get_env_util( char **env_, const char *env_var_nm_ )
     CHECK_ASPRINTF_RET(num_bytes);
     if (*env_ == NULL)
     {
-        det_fprintf(stderr, "%s (%d) error: asprintf failed\n", __func__, __LINE__);
+        fprintf(stderr, "%s (%d) error: asprintf failed\n", __func__, __LINE__);
         return -1;
     }
     return 0;
@@ -78,14 +77,14 @@ static int get_env_util( char **env_, const char *env_var_nm_ )
 int get_error_envvar(void)
 {
     char * error_envvar = NULL;
-    if (getenv(__CLARMOR_EXIT_ON_OVERFLOW__) == NULL)
+    if (getenv(__EXIT_ON_OVERFLOW__) == NULL)
     {
         return 0;
     }
     else
     {
         int ret_val;
-        if (!get_env_util(&error_envvar, __CLARMOR_EXIT_ON_OVERFLOW__))
+        if (!get_env_util(&error_envvar, __EXIT_ON_OVERFLOW__))
         {
             if (error_envvar != NULL)
             {
@@ -103,87 +102,48 @@ int get_error_envvar(void)
     }
 }
 
-int get_exitcode_envvar(void)
-{
-    char * exitcode_envvar = NULL;
-    int ret_val = 0;
-    if (getenv(__ERROR_EXITCODE__) != NULL)
-    {
-        if (!get_env_util(&exitcode_envvar, __ERROR_EXITCODE__))
-        {
-            if (exitcode_envvar != NULL)
-            {
-                ret_val = strtol(exitcode_envvar, NULL, 0);
-                free(exitcode_envvar);
-            }
-        }
-    }
-    return ret_val;
-}
-
 int get_gpu_strat_envvar(void)
 {
-    char * gpu_envvar = NULL;
-    if (getenv(__CLARMOR_ALTERNATE_GPU_DETECTION__) == NULL)
+    char * error_envvar = NULL;
+    if (getenv(__USE_ALTERNATE_GPU_DETECTION__) == NULL)
     {
-        return GPU_MODE_DEFAULT;
+        return 0;
     }
     else
     {
         int ret_val;
-        if (!get_env_util(&gpu_envvar, __CLARMOR_ALTERNATE_GPU_DETECTION__))
+        if (!get_env_util(&error_envvar, __USE_ALTERNATE_GPU_DETECTION__))
         {
-            if (gpu_envvar != NULL)
+            if (error_envvar != NULL)
             {
-                ret_val = strtol(gpu_envvar, NULL, 0);
-                free(gpu_envvar);
+                ret_val = strtol(error_envvar, NULL, 0);
+                free(error_envvar);
             }
             else
-                ret_val = GPU_MODE_DEFAULT;
+                ret_val = 0;
         }
         else
-            ret_val = GPU_MODE_DEFAULT;
-        return ret_val;
-    }
-}
-
-int get_disable_api_check_envvar(void)
-{
-    char * print_disable_api_envvar = NULL;
-    if (getenv(__CLARMOR_DISABLE_API_CHECK__) == NULL)
-        return 0;
-    else
-    {
-        unsigned int ret_val = 0;
-        if (!get_env_util(&print_disable_api_envvar, __CLARMOR_DISABLE_API_CHECK__))
-        {
-            if (print_disable_api_envvar != NULL)
-            {
-                ret_val = strtoul(print_disable_api_envvar, NULL, 0);
-                free(print_disable_api_envvar);
-            }
-        }
-
+            ret_val = 0;
         return ret_val;
     }
 }
 
 int get_tool_perf_envvar(void)
 {
-    char * perf_envvar = NULL;
-    if (getenv(__CLARMOR_PERFSTAT_MODE__) == NULL)
+    char * error_envvar = NULL;
+    if (getenv(__TOOL_PERF_STATISTIC_MODE__) == NULL)
     {
         return 0;
     }
     else
     {
         int ret_val;
-        if (!get_env_util(&perf_envvar, __CLARMOR_PERFSTAT_MODE__))
+        if (!get_env_util(&error_envvar, __TOOL_PERF_STATISTIC_MODE__))
         {
-            if (perf_envvar != NULL)
+            if (error_envvar != NULL)
             {
-                ret_val = strtol(perf_envvar, NULL, 0);
-                free(perf_envvar);
+                ret_val = strtol(error_envvar, NULL, 0);
+                free(error_envvar);
             }
             else
                 ret_val = 0;
@@ -198,9 +158,9 @@ int get_tool_perf_envvar(void)
 const char *get_logging_envvar(void)
 {
     char * logging_envvar = NULL;
-    if (getenv(__CLARMOR_LOG_LOCATION__) != NULL)
+    if (getenv(__DETECTOR_LOG_LOCATION__) != NULL)
     {
-        if (!get_env_util(&logging_envvar, __CLARMOR_LOG_LOCATION__))
+        if (!get_env_util(&logging_envvar, __DETECTOR_LOG_LOCATION__))
         {
             if (logging_envvar != NULL)
                 return logging_envvar;
@@ -209,63 +169,36 @@ const char *get_logging_envvar(void)
     return NULL;
 }
 
-const char *get_log_prefix_envvar(void)
-{
-    char * log_prefix_envvar = NULL;
-    if (getenv(__CLARMOR_LOG_PREFIX__) != NULL)
-    {
-        if (!get_env_util(&log_prefix_envvar, __CLARMOR_LOG_PREFIX__))
-        {
-            if (log_prefix_envvar != NULL)
-                return log_prefix_envvar;
-        }
-    }
-    return NULL;
-}
-
 unsigned int get_check_on_device_envvar(void)
 {
     char * dev_check_envvar = NULL;
-    if (getenv(__CLARMOR_DEVICE_SELECT__) == NULL)
+    if (getenv(__DETECTOR_DEVICE_SELECT__) == NULL)
+    {
         return DEFAULT_DEVICE_CHECK;
+    }
     else
     {
-        unsigned int ret_val = DEFAULT_DEVICE_CHECK;
-        if (!get_env_util(&dev_check_envvar, __CLARMOR_DEVICE_SELECT__))
+        unsigned int ret_val;
+        if (!get_env_util(&dev_check_envvar, __DETECTOR_DEVICE_SELECT__))
         {
             if (dev_check_envvar != NULL)
             {
                 ret_val = strtoul(dev_check_envvar, NULL, 0);
                 free(dev_check_envvar);
             }
+            else
+                ret_val = 0;
         }
-        return ret_val;
+        else
+            ret_val = 0;
+        if (ret_val == 0)
+            return DEFAULT_DEVICE_CHECK;
+        else
+            return ret_val;
     }
 
 }
 
-int get_print_backtrace_envvar(void)
-{
-    char * print_backtrace_envvar = NULL;
-    if (getenv(__BACKTRACE__) == NULL)
-        return 0;
-    else
-    {
-        unsigned int ret_val = 0;
-        if (!get_env_util(&print_backtrace_envvar, __BACKTRACE__))
-        {
-            if (print_backtrace_envvar != NULL)
-            {
-                ret_val = strtoul(print_backtrace_envvar, NULL, 0);
-                free(print_backtrace_envvar);
-            }
-        }
-
-        return ret_val;
-    }
-}
-
-/*
 static char* get_backtrace_human_readable(void* bt, char* bt_symbol)
 {
     char *syscom; // command line to get the human-readable backtrace
@@ -298,62 +231,6 @@ static char* get_backtrace_human_readable(void* bt, char* bt_symbol)
 
     return output;
 }
-*/
-
-char* get_backtrace_human_readable(void* bt, char* bt_symbol)
-{
-    char *syscom; // command line to get the human-readable backtrace
-    char *output; // human-readable backtrace
-
-    int p = strcspn(bt_symbol, "( ");
-
-    int num_bytes = asprintf(&syscom,
-            "addr2line %p -i -s -p -C -e %.*s | sed 's/ .inlined by. //'",
-            bt, p, bt_symbol);
-    CHECK_ASPRINTF_RET(num_bytes);
-
-    // Before we call the command line, we need to remove any LD_PRELOAD
-    char *save_environ = NULL;
-    char *old_environ = getenv("LD_PRELOAD");
-    if (old_environ != NULL)
-    {
-        num_bytes = asprintf(&save_environ, "%s", old_environ);
-        CHECK_ASPRINTF_RET(num_bytes);
-    }
-    if (unsetenv("LD_PRELOAD"))
-    {
-        det_fprintf(stderr, "Failed to unset LD_PRELOAD when getting function name.\n");
-        if (save_environ != NULL)
-            free(save_environ);
-        if (syscom != NULL)
-            free(syscom);
-        return NULL;
-    }
-
-    // Run the addr2line program.
-    FILE *function_name = popen(syscom, "re");
-
-    // Get program output
-    // Only pull in 4096 bytes, because we likely don't need more than that
-    // to see useful information from addr2line.
-    output = (char *)calloc(4096, sizeof(char));
-    if ( (fgets(output, 4096, function_name) != NULL) )
-        output[strcspn(output, "\n")] = '\0'; // replace first newline with string end.
-
-    output[4095]='\0'; // Just in case we didn't see a NULL from the fgets.
-    pclose(function_name);
-
-    if (save_environ != NULL)
-    {
-        if (setenv("LD_PRELOAD", save_environ, 1))
-            det_fprintf(stderr, "Failed to reset LD_PRELOAD to %s when getting function name.\n", save_environ);
-        free(save_environ);
-    }
-    if (syscom != NULL)
-        free(syscom);
-
-    return output;
-}
 
 char* get_backtrace_level(int level)
 {
@@ -363,7 +240,7 @@ char* get_backtrace_level(int level)
 
     if (level < 1)
     {
-        det_fprintf(stderr, "Asking for an illegal backtrace level: %d\n", level);
+        fprintf(stderr, "Asking for an illegal backtrace level: %d\n", level);
         return NULL;
     }
     // Calling this function adds another level to the backtrace.
@@ -388,7 +265,7 @@ char* get_backtrace_level(int level)
     CHECK_ASPRINTF_RET(num_bytes);
     if (output == NULL)
     {
-        det_fprintf(stderr, "%s (%d) error: asprintf failed\n", __func__, __LINE__);
+        fprintf(stderr, "%s (%d) error: asprintf failed\n", __func__, __LINE__);
         exit(-1);
     }
     free(bt_string);
@@ -403,14 +280,14 @@ void print_backtrace( FILE* where_to )
     void *buffer[100];
     int j, nptrs = backtrace(buffer, 100);
 
-    det_fprintf(where_to, "BACKTRACE:\n");
+    fprintf(where_to, "BACKTRACE:\n");
 
     strings = backtrace_symbols(buffer, nptrs);
 
     for (j = nptrs-1; j > 0; j--)
     {
         char *bt_string = get_backtrace_human_readable(buffer[j], strings[j]);
-        det_fprintf(where_to, "%s - %s\n", strings[j], bt_string);
+        fprintf(where_to, "%s - %s\n", strings[j], bt_string);
         free(bt_string);
     }
     free(strings);
@@ -522,69 +399,4 @@ unsigned getImageDataSize(const cl_image_format *format)
     return byteChannel * numChannels;
 }
 
-int det_printf(const char * format, ...)
-{
-    int err;
-    int ret = 0;
-    va_list args;
-
-    const char * pref = get_log_prefix_envvar();
-    if(pref)
-    {
-        err = printf("%s", pref);
-        if(err < 0) return err;
-        ret += err;
-    }
-
-    va_start(args, format);
-    err = vprintf(format, args);
-    if(err < 0) return err;
-    ret += err;
-    va_end(args);
-
-    return ret;
-}
-
-int det_fprintf(FILE * stream, const char * format, ...)
-{
-    int err;
-    int ret = 0;
-    va_list args;
-
-    const char * pref = get_log_prefix_envvar();
-    if(pref)
-    {
-        err = fprintf(stream, "%s", pref);
-        if(err < 0) return err;
-        ret += err;
-    }
-
-    va_start(args, format);
-    err = vfprintf(stream, format, args);
-    if(err < 0) return err;
-    ret += err;
-    va_end(args);
-
-    return ret;
-}
-
-int det_vfprintf(FILE * stream, const char * format, va_list arg )
-{
-    int err;
-    int ret = 0;
-
-    const char * pref = get_log_prefix_envvar();
-    if(pref)
-    {
-        err = fprintf(stream, "%s", pref);
-        if(err < 0) return err;
-        ret += err;
-    }
-
-    err = vfprintf(stream, format, arg);
-    if(err < 0) return err;
-    ret += err;
-
-    return ret;
-}
 

@@ -20,14 +20,6 @@
  * THE SOFTWARE.
  ********************************************************************************/
 
-/*! \mainpage clARMOR
- *
- * \section intro_sec Introduction
- *
- * This is a tool to find buffer overflows in OpenCL applications.
- *
- */
-
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdarg.h>
@@ -50,6 +42,7 @@
 
 #include "bufferOverflowDetect.h"
 
+const unsigned poisonFillLength = POISON_FILL_LENGTH;
 const unsigned poisonWordLen = POISON_FILL_LENGTH / sizeof(unsigned);
 const uint8_t poisonFill_8b = POISON_FILL;
 const unsigned poisonFill_32b = (((((POISON_FILL << 8) + POISON_FILL) << 8) +
@@ -113,6 +106,7 @@ void verifyBufferInBounds(cl_command_queue cmdQueue, cl_kernel kern, uint32_t *d
     kernel_info *kernInfo;
     kernel_arg *kernArg;
     uint32_t numBuffs, numSVM, numImgs;
+    cl_svm_memobj *svmIter;
 
     cl_err = clGetKernelInfo(kern, CL_KERNEL_NUM_ARGS, sizeof(nargs), &nargs, 0);
     check_cl_error(__FILE__, __LINE__, cl_err);
@@ -149,15 +143,13 @@ void verifyBufferInBounds(cl_command_queue cmdQueue, cl_kernel kern, uint32_t *d
     numSVM = 0;
     if(hasSVM)
     {
-#ifdef CL_VERSION_2_0
-        cl_svm_memobj *svmIter = cl_svm_mem_next(get_cl_svm_mem_alloc(), 0);
+        svmIter = cl_svm_mem_next(get_cl_svm_mem_alloc(), 0);
         while(svmIter != NULL)
         {
             if(svmIter->detector_internal_buffer != 1)
                 numSVM++;
             svmIter = cl_svm_mem_next(get_cl_svm_mem_alloc(), svmIter->handle);
         }
-#endif
     }
 
     //allocate references for buffers being checked
@@ -200,9 +192,8 @@ void verifyBufferInBounds(cl_command_queue cmdQueue, cl_kernel kern, uint32_t *d
     //populate buffer list
     if(hasSVM)
     {
-#ifdef CL_VERSION_2_0
         numSVM = 0;
-        cl_svm_memobj *svmIter = cl_svm_mem_next(get_cl_svm_mem_alloc(), 0);
+        svmIter = cl_svm_mem_next(get_cl_svm_mem_alloc(), 0);
         while(svmIter != NULL && buffer_ptrs != NULL && numSVM < totalSVM)
         {
             if(svmIter->detector_internal_buffer != 1)
@@ -212,25 +203,15 @@ void verifyBufferInBounds(cl_command_queue cmdQueue, cl_kernel kern, uint32_t *d
             }
             svmIter = cl_svm_mem_next(get_cl_svm_mem_alloc(), svmIter->handle);
         }
-#endif
     }
 
     uint32_t checkItems = totalBuffs + totalSVM + totalImgs;
 
     unsigned int use_device = get_check_on_device_envvar();
 
-    cl_device_id device;
-    clGetCommandQueueInfo(cmdQueue, CL_QUEUE_DEVICE, sizeof(cl_device_id), &device, NULL);
-
-    cl_device_type dev_type;
-    clGetDeviceInfo(device, CL_DEVICE_TYPE, sizeof(cl_device_type), &dev_type, NULL);
-
 
     //if(checkItems >= gpuCheck)
-    if( dev_type != CL_DEVICE_TYPE_CPU &&
-            ( ((totalSVM > 0 || totalImgs > 0) && use_device != DEVICE_CPU) ||
-              (checkItems > 0 && use_device == DEVICE_GPU) )
-            )
+    if( ((totalSVM > 0 || totalImgs > 0) && use_device != DEVICE_CPU) || use_device == DEVICE_GPU)
     {
         switch(get_gpu_strat_envvar())
         {

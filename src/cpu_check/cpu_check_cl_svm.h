@@ -20,10 +20,6 @@
  * THE SOFTWARE.
  ********************************************************************************/
 
-
-/*! \file cpu_check_cl_svm.h
- */
-
 #ifndef __CPU_CHECK_CL_SVM_H
 #define __CPU_CHECK_CL_SVM_H
 
@@ -32,24 +28,17 @@
 
 #include "meta_data_lists/cl_kernel_lists.h"
 
-/*!
- * Find any overflows in SVM objects.
- *
- * \param kern_info
- *      information about the kernel that had the last opportunity
- *      to write to this buffer.
- * \param num_svm
- *      number of SVM buffers in the array svm_ptrs
- * \param svm_ptrs
- *      array of void* that each point to an SVM region
- * \param dupe
- *      array that describes which, if any, arguments to the kernel
- *      are duplicates of one another. See cpu_check_utils.h for a
- *      full description.
- * \param evt
- *      The cl_event that tells us when the real kernel has completed,
- *      so that we can start checking its canaries.
- */
+// Find any overflows in SVM objects.
+// Inputs:
+//      kern_info: information about the kernel that had the last opportunity
+//                  to write to this buffer.
+//      num_svm: number of SVM buffers in the array svm_ptrs
+//      svm_ptrs: array of void* that each point to an SVM region
+//      dupe:   array that describes which, if any, arguments to the kernel
+//              are duplicates of one another. See cpu_check_utils.h for a
+//              full description.
+//      evt:    The cl_event that tells us when the real kernel has completed,
+//              so that we can start checking its canaries.
 void verify_svm(kernel_info *kern_info, uint32_t num_svm,
         void **svm_ptrs, uint32_t *dupe, const cl_event *evt);
 

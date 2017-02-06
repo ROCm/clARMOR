@@ -67,7 +67,7 @@ static void perform_cl_image_checks(cl_context kern_ctx,
         cl_memobj *img = cl_mem_find(get_cl_mem_alloc(), image_ptrs[i]);
         if(img == NULL)
         {
-            det_fprintf(stderr, "failure to find cl_memobj.\n");
+            printf("failure to find cl_memobj.\n");
             exit(-1);
         }
 
@@ -102,6 +102,7 @@ static void perform_cl_image_checks(cl_context kern_ctx,
         clFinish(cmd_queue);
 #endif
 
+#ifdef DEBUG_CHECKER_TIME
         if(global_tool_stats_flags & STATS_CHECKER_TIME)
         {
             clFinish(cmd_queue);
@@ -110,6 +111,7 @@ static void perform_cl_image_checks(cl_context kern_ctx,
                     &times[2], &times[3]);
             add_to_kern_runtime((times[3] - times[2]) / 1000);
         }
+#endif //DEBUG_CHECKER_TIME
     }
 }
 
@@ -131,7 +133,7 @@ void verify_cl_images_single(cl_context kern_ctx, cl_command_queue cmd_queue,
         cl_memobj *img = cl_mem_find(get_cl_mem_alloc(), image_ptrs[i]);
         if(img == NULL)
         {
-            det_fprintf(stderr, "failure to find cl_memobj for image.\n");
+            printf("failure to find cl_memobj for image.\n");
             exit(-1);
         }
         uint32_t i_lim, j_lim, k_lim, i_dat, j_dat, k_dat;

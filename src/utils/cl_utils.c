@@ -25,7 +25,6 @@
 
 #include "cl_err.h"
 #include "detector_defines.h"
-#include "util_functions.h"
 
 #include "cl_utils.h"
 
@@ -63,7 +62,7 @@ uint64_t get_image_canary_size(cl_mem_object_type image_type,
         case CL_MEM_OBJECT_IMAGE1D_BUFFER:
             break;
         default:
-            det_printf("failed to find image type");
+            printf("failed to find image type");
             exit(-1);
     }
     transfer_len *= data_size;

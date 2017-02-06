@@ -22,13 +22,16 @@
 
 # This script will download the StreamMR OpenCL Map Reduce framework from
 # GitHub and build it into the  ~/benchmarks/StreamMR directory.
-# The apps can be run with clarmor.py --group=STREAMMR
+# The apps can be run with run_overflow_detect.py --group=STREAMMR
 
 # Licensing Information:
 # StreamMR is made available under the LGPL v2.1. See StreamMR/LICENSE
 
-BASE_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-source ${BASE_DIR}/setup_bench_install.sh
+if [ ! -d ~/benchmarks ]; then
+    mkdir -p ~/benchmarks
+fi
+
+cd ~/benchmarks
 
 if [ ! -f ~/benchmarks/StreamMR/KMeans ] || \
     [ ! -f ~/benchmarks/StreamMR/MatrixMul ] || \
@@ -40,7 +43,7 @@ then
         git clone https://github.com/jlgreathouse/StreamMR.git
     fi
     cd StreamMR
-    sed -i.bak 's#/opt/OCLSDK#'${OCL_DIR}'#g' ./Makefile
+    sed -i.bak s'/\/opt\/OCLSDK/\/opt\/AMDAPP/g' ./Makefile
     make -j `nproc`
     if [ $? -ne 0 ]; then
         echo -e "Failed to build StreamMR."

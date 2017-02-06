@@ -21,35 +21,19 @@
  ********************************************************************************/
 
 
-/*! \file cl_copy_utils.h
- * common functions to context agnostic copies
- */
-
 #ifndef __CL_COPY_UTILS_H
 #define __CL_COPY_UTILS_H
 
 #define CL_USE_DEPRECATED_OPENCL_2_0_APIS
 #include <CL/cl.h>
 
-/*!
- * data for copy callback cleanup
- */
 typedef struct
 {
     void* host_ptr;
 } copy_asset;
 
-/*!
- * callback for cleaning up buffers / pointers created during a buffer_copy
- * executes in a new thread
- *
- * \param event
- *      unused
- * \param status
- *      unused
- * \param data
- *      free this data
- */
+// callback for cleaning up buffers / pointers created during a buffer_copy
+// executes in a new thread
 void cleanup_copy(cl_event event, cl_int status, void* data);
 
 #endif // __CL_COPY_UTILS_H

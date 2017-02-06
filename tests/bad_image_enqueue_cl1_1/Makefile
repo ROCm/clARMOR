@@ -20,6 +20,6 @@
 
 
 EXPECTED_ERRORS:=6
-BENCH_NAME=bad_image_enqueue_cl1_1
+BENCH_NAME=good_image_enqueue_cl1_1
 
 include ../common_include/common.mk

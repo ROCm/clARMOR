@@ -26,7 +26,6 @@
 #include "cl_err.h"
 #include "cpu_check_utils.h"
 #include "wrapper_utils.h"
-#include "util_functions.h"
 
 #include "cpu_check_cl_mem.h"
 
@@ -45,7 +44,7 @@ static void read_cl_mem_canaries(cl_command_queue cmd_queue,
         m1 = cl_mem_find(get_cl_mem_alloc(), buffer_ptrs[i]);
         if(m1 == NULL)
         {
-            det_fprintf(stderr, "failure to find cl_memobj %p.\n", buffer_ptrs[i]);
+            printf("failure to find cl_memobj %p.\n", buffer_ptrs[i]);
             exit(-1);
         }
         // found a cl_mem

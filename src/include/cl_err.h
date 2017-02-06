@@ -20,11 +20,6 @@
  * THE SOFTWARE.
  ********************************************************************************/
 
-
-/*! \file cl_err.h
- * Functions descriptive cl error reporting.
- */
-
 #ifndef _CL_ERR_H_
 #define _CL_ERR_H_
 
@@ -33,44 +28,20 @@
 #define CL_USE_DEPRECATED_OPENCL_2_0_APIS
 #include <CL/cl.h>
 
-/*!
- * This function takes an OpenCL error value, from a cl_int, and translates
- * it into the string that describes the error.
- * Argument: a cl_int that is returned from an OpenCL function
- * Returns: a C string that describes the return value.
- *
- * \param err
- *      error number
- * \return String for error number
- */
-const char *cluErrorString(const cl_int err);
+// This function takes an OpenCL error value, from a cl_int, and translates
+// it into the string that describes the error.
+// Argument: a cl_int that is returned from an OpenCL function
+// Returns: a C string that describes the return value.
+const char *cluErrorString(const cl_int);
 
-/*!
- * This function checks a cl_int return value from an OpenCL API and prints
- * out an error message if it is not equal to CL_SUCCESS. It also exits
- * the program with '-1' if the API did not succeed.
- *
- * \param file_name
- *      name of file where function is called
- * \param line_num
- *      line number where function is called
- * \param cl_err
- *      cl error number
- */
+// This function checks a cl_int return value from an OpenCL API and prints
+// out an error message if it is not equal to CL_SUCCESS. It also exits
+// the program with '-1' if the API did not succeed.
 void check_cl_error(const char * const file_name, const int line_num,
         const cl_int cl_err);
 
-/*!
- * If a clBuildProgram fails with CL_BUILD_PROGRAM_FAILURE, this will print
- * out the error log from the compiler to stderr.
- *
- * \param context
- *      program build context
- * \param prog
- *      program being built
- * \param cl_err
- *      cl error returned from build command
- */
+// If a clBuildProgram fails with CL_BUILD_PROGRAM_FAILURE, this will print
+// out the error log from the compiler to stderr.
 void print_program_build_err(cl_context context, cl_program prog,
         cl_int cl_err);
 

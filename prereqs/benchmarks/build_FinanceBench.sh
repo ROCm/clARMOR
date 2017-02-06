@@ -22,13 +22,18 @@
 
 # This script will download FinanceBench from GitHub and build it into the
 # ~/benchmarks/FinanceBench directory.
-# The apps can be run with clarmor.py --group=FINANCEBENCH
+# The apps can be run with run_overflow_detect.py --group=FINANCEBENCH
 
 # Licensing Information:
 # FinanceBench uses a 3-clause BSD license. See FinanceBench/LICENSE
 
-BASE_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-source ${BASE_DIR}/setup_bench_install.sh
+MAKE_CMD="make"
+
+if [ ! -d ~/benchmarks ]; then
+    mkdir -p ~/benchmarks
+fi
+
+cd ~/benchmarks/
 
 if [ ! -f ~/benchmarks/FinanceBench/done_building ]; then
     if [ ! -d ~/benchmarks/FinanceBench/ ]; then
@@ -42,21 +47,20 @@ if [ ! -f ~/benchmarks/FinanceBench/done_building ]; then
     for bench in Black-Scholes Monte-Carlo
     do
         cd ~/benchmarks/FinanceBench/${bench}/OpenCL/
-        sed -i.bak s"#/usr/local/cuda-5.0/include#"$OCL_INCLUDE_DIR"#" ./Makefile
+        sed -i.bak s'/\/usr\/local\/cuda-5.0\/include/\/opt\/AMDAPP\/include/' ./Makefile
         sed -i.bak s'/O3/g -O3/' ./Makefile
-        sed -i.bak s"#\${LIBPATH}#-L "${OCL_LIB_DIR}"#" ./Makefile
+        sed -i.bak s'/\${LIBPATH}/-L \/opt\/AMDAPP\/lib\/x86_64\//' ./Makefile
         sed -i.bak s'/\${LIB}//' ./Makefile
         sed -i.bak s'/\-o/\${LIB} -o/' ./Makefile
-        pwd
-        if [ $bench == "Black-Scholes" ]; then
+        if [ $bench=="Black-Scholes" ]; then
             sed -i.bak s'/DBL_MIN/FLT_MIN/' ./blackScholesAnalyticEngineKernels.cl
-            sed -i.bak s'#c =#//c =#' ./blackScholesAnalyticEngine.c
-            sed -i.bak s'/numVals = 5000000/numVals = 50000000/' ./blackScholesAnalyticEngine.c
+            sed -i.bak s'/c =/\/\/c =/' ./blackScholesAnalyticEngine.c
+            sed -i.bak s'/numVals = 5000000/numVals = 50000000' ./blackScholesAnalyticEngine.c
         fi
-        if [ $bench == "Monte-Carlo" ]; then
+        if [ $bench=="Monte-Carlo" ]; then
             sed -i.bak s'/c =/\/\/c =/' ./monteCarloEngine.c
         fi
-		make
+        $MAKE_CMD
         if [ $? -ne 0 ]; then
             echo -e "Failed to build $bench"
             exit -1

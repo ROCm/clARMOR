@@ -27,8 +27,6 @@
 // we don't have problems detecting these.
 #define CL_USE_DEPRECATED_OPENCL_1_1_APIS
 
-#include "string.h"
-
 #include "common_test_functions.h"
 
 const char *kernel_source = "\n"\
@@ -108,78 +106,6 @@ const char *kernel_source6 = "\n"\
 "    }\n"\
 "}\n";
 
-
-const char *cu_source1 = "\n"\
-"__kernel void test(__write_only image2d_t image, uint width, uint height) {\n"\
-"    uint i = get_global_id(0);\n"\
-"    uint x = i % width;\n"\
-"    uint y = i / width;\n"\
-"    int2 loc = (int2)(x,y);\n"\
-"    float4 pix = (float4)(i,i,i,i);\n"\
-"    if (x < width && y < height) {\n"\
-"        write_imagef(image, loc, pix);\n"\
-"    }\n"\
-"}\n";
-const char *cu_source2 = "\n"\
-"__kernel void test(__write_only image2d_t image, uint width, uint height) {\n"\
-"    uint i = get_global_id(0);\n"\
-"    uint x = i % width;\n"\
-"    uint y = i / width;\n"\
-"    int2 loc = (int2)(x,y);\n"\
-"    int4 pix = (int4)(i,i,i,i);\n"\
-"    if (x < width && y < height) {\n"\
-"        write_imagei(image, loc, pix);\n"\
-"    }\n"\
-"}\n";
-const char *cu_source3 = "\n"\
-"__kernel void test(__write_only image2d_t image, uint width, uint height) {\n"\
-"    uint i = get_global_id(0);\n"\
-"    uint x = i % width;\n"\
-"    uint y = i / width;\n"\
-"    int2 loc = (int2)(x,y);\n"\
-"    uint4 pix = (uint4)(i,i,i,i);\n"\
-"    if (x < width && y < height) {\n"\
-"        write_imageui(image, loc, pix);\n"\
-"    }\n"\
-"}\n";
-const char *cu_source4 = "\n"\
-"__kernel void test(__write_only image3d_t image, uint width, uint height, uint depth) {\n"\
-"    uint i = get_global_id(0);\n"\
-"    uint x = i % width;\n"\
-"    uint y = (i / width) % height;\n"\
-"    uint z = i / (width * height);\n"\
-"    int4 loc = (int4)(x,y,z,0);\n"\
-"    float4 pix = (float4)(i,i,i,i);\n"\
-"    if (x < width && y < height && z < depth) {\n"\
-"        write_imagef(image, loc, pix);\n"\
-"    }\n"\
-"}\n";
-const char *cu_source5 = "\n"\
-"__kernel void test(__write_only image3d_t image, uint width, uint height, uint depth) {\n"\
-"    uint i = get_global_id(0);\n"\
-"    uint x = i % width;\n"\
-"    uint y = (i / width) % height;\n"\
-"    uint z = i / (width * height);\n"\
-"    int4 loc = (int4)(x,y,z,0);\n"\
-"    int4 pix = (int4)(i,i,i,i);\n"\
-"    if (x < width && y < height && z < depth) {\n"\
-"        write_imagei(image, loc, pix);\n"\
-"    }\n"\
-"}\n";
-const char *cu_source6 = "\n"\
-"__kernel void test(__write_only image3d_t image, uint width, uint height, uint depth) {\n"\
-"    uint i = get_global_id(0);\n"\
-"    uint x = i % width;\n"\
-"    uint y = (i / width) % height;\n"\
-"    uint z = i / (width * height);\n"\
-"    int4 loc = (int4)(x,y,z,0);\n"\
-"    uint4 pix = (uint4)(i,i,i,i);\n"\
-"    if (x < width && y < height && z < depth) {\n"\
-"        write_imageui(image, loc, pix);\n"\
-"    }\n"\
-"}\n";
-
-
 uint64_t getNumWorkItems(uint64_t buffer_size)
 {
     // Each work item will touch  sizeof(cl_uint) bytes.
@@ -233,7 +159,30 @@ uint32_t getKernNum(cl_channel_type type)
     return ret;
 }
 
-cl_image_format *formats_2d, *formats_3d;
+#ifdef CL_VERSION_2_0
+uint32_t num_channel_order = 20;
+cl_channel_order channel_orders[] = {CL_R, CL_Rx, CL_A, CL_INTENSITY, CL_LUMINANCE,
+    CL_DEPTH, CL_RG, CL_RGx, CL_RA, CL_RGB,
+    CL_RGBx, CL_RGBA,
+    CL_sRGB, CL_sRGBx, CL_sRGBA, CL_sBGRA,
+    CL_ARGB, CL_BGRA,
+    CL_ABGR,
+    CL_DEPTH_STENCIL};
+#else
+uint32_t num_channel_order = 15;
+cl_channel_order channel_orders[] = {CL_R, CL_Rx, CL_A, CL_INTENSITY, CL_LUMINANCE,
+    CL_DEPTH, CL_RG, CL_RGx, CL_RA, CL_RGB,
+    CL_RGBx, CL_RGBA, CL_ARGB, CL_BGRA, CL_DEPTH_STENCIL};
+#endif
+
+
+uint32_t num_channel_type = 16;
+cl_channel_type channel_types[] = {CL_SNORM_INT8, CL_SNORM_INT16, CL_UNORM_INT8,
+    CL_UNORM_INT16, CL_UNORM_SHORT_565, CL_UNORM_SHORT_555, CL_UNORM_INT_101010,
+    CL_SIGNED_INT8, CL_SIGNED_INT16, CL_SIGNED_INT32,
+    CL_UNSIGNED_INT8,CL_UNSIGNED_INT16, CL_UNSIGNED_INT32,
+    CL_HALF_FLOAT, CL_FLOAT, CL_UNORM_INT24};
+
 
 int main(int argc, char** argv)
 {
@@ -266,40 +215,22 @@ int main(int argc, char** argv)
     // Build the program and kernel
     cl_program program;
     cl_kernel test_kernel;
-    if(dev_type == CL_DEVICE_TYPE_CPU)
-        program = setup_program(context, 1, &cu_source1, device);
-    else
-        program = setup_program(context, 1, &kernel_source1, device);
+    program = setup_program(context, 1, &kernel_source1, device);
     cl_kernel test_kernel1 = setup_kernel(program, "test");
 
-    if(dev_type == CL_DEVICE_TYPE_CPU)
-        program = setup_program(context, 1, &cu_source2, device);
-    else
-        program = setup_program(context, 1, &kernel_source2, device);
+    program = setup_program(context, 1, &kernel_source2, device);
     cl_kernel test_kernel2 = setup_kernel(program, "test");
 
-    if(dev_type == CL_DEVICE_TYPE_CPU)
-        program = setup_program(context, 1, &cu_source3, device);
-    else
-        program = setup_program(context, 1, &kernel_source3, device);
+    program = setup_program(context, 1, &kernel_source3, device);
     cl_kernel test_kernel3 = setup_kernel(program, "test");
 
-    if(dev_type == CL_DEVICE_TYPE_CPU)
-        program = setup_program(context, 1, &cu_source4, device);
-    else
-        program = setup_program(context, 1, &kernel_source4, device);
+    program = setup_program(context, 1, &kernel_source4, device);
     cl_kernel test_kernel4 = setup_kernel(program, "test");
 
-    if(dev_type == CL_DEVICE_TYPE_CPU)
-        program = setup_program(context, 1, &cu_source5, device);
-    else
-        program = setup_program(context, 1, &kernel_source5, device);
+    program = setup_program(context, 1, &kernel_source5, device);
     cl_kernel test_kernel5 = setup_kernel(program, "test");
 
-    if(dev_type == CL_DEVICE_TYPE_CPU)
-        program = setup_program(context, 1, &cu_source6, device);
-    else
-        program = setup_program(context, 1, &kernel_source6, device);
+    program = setup_program(context, 1, &kernel_source6, device);
     cl_kernel test_kernel6 = setup_kernel(program, "test");
 
     // In this case, we are going to create a cl_mem buffer of the appropriate
@@ -308,7 +239,6 @@ int main(int argc, char** argv)
     // This will not create a buffer overflow.
     // Run the actual test.
 
-    unsigned errors = 0;
     printf("\n\nRunning Bad complex_image_cl1_1 Test...\n");
     printf("    Using buffer size: %llu\n", (long long unsigned)buffer_size);
 
@@ -329,14 +259,6 @@ int main(int argc, char** argv)
     uint32_t dimIter;
 
     printf("\n\nImage2D Test...\n");
-
-    cl_uint num_entries = 0;
-    cl_err = clGetSupportedImageFormats(context, flags, CL_MEM_OBJECT_IMAGE2D, 0, NULL, &num_entries);
-    check_cl_error(__FILE__, __LINE__, cl_err);
-    formats_2d = calloc(num_entries, sizeof(cl_image_format));
-    cl_err = clGetSupportedImageFormats(context, flags, CL_MEM_OBJECT_IMAGE2D, num_entries, formats_2d, NULL);
-    check_cl_error(__FILE__, __LINE__, cl_err);
-
     for(dimIter=0; dimIter < 2; dimIter++)
     {
         switch(dimIter)
@@ -361,75 +283,70 @@ int main(int argc, char** argv)
                 break;
         }
 
-        for(i = 0; i < num_entries; i++)
+        for(i = 0; i < num_channel_order; i++)
         {
-            format.image_channel_order = formats_2d[i].image_channel_order;
-            format.image_channel_data_type = formats_2d[i].image_channel_data_type;
-
-            unsigned dataSize;
-            dataSize = get_image_data_size(&format);
-
-
-            width = (buffer_size / dataSize) / reduce2d;
-            height = reduce2d;
-
-            bad_buffer = clCreateImage2D(context, flags, &format, width - shortWidth, height - shortHeight, 0, NULL, &cl_err);
-            if(cl_err == CL_IMAGE_FORMAT_NOT_SUPPORTED || cl_err == CL_INVALID_IMAGE_FORMAT_DESCRIPTOR)
+            format.image_channel_order = channel_orders[i];
+            for(j = 0; j < num_channel_type; j++)
             {
-                //printf("doesn't support format %u:%u", j, i);
-                continue;
-            }
-            check_cl_error(__FILE__, __LINE__, cl_err);
+                format.image_channel_data_type = channel_types[j];
+                unsigned dataSize;
+                dataSize = get_image_data_size(&format);
 
-            switch(getKernNum(format.image_channel_data_type))
-            {
-                case 1:
-                    test_kernel = test_kernel1;
-                    break;
-                case 2:
-                    test_kernel = test_kernel2;
-                    break;
-                case 3:
-                    test_kernel = test_kernel3;
-                    break;
-                default:
+
+                width = (buffer_size / dataSize) / reduce2d;
+                height = reduce2d;
+
+                bad_buffer = clCreateImage2D(context, flags, &format, width - shortWidth, height - shortHeight, 0, NULL, &cl_err);
+                if(cl_err == CL_IMAGE_FORMAT_NOT_SUPPORTED || cl_err == CL_INVALID_IMAGE_FORMAT_DESCRIPTOR)
+                {
+                    //printf("doesn't support format %u:%u", j, i);
                     continue;
-            }
+                }
+                check_cl_error(__FILE__, __LINE__, cl_err);
 
-            //size_t origin[] = {0,0,0}, region[] = {20,1,1};
-            //char *thing = "aaaaaaaa";
-            //clEnqueueWriteImage(cmd_queue, bad_buffer, CL_TRUE, origin, region, 0, 0, thing, 0, 0, 0);
+                switch(getKernNum(format.image_channel_data_type))
+                {
+                    case 1:
+                        test_kernel = test_kernel1;
+                        break;
+                    case 2:
+                        test_kernel = test_kernel2;
+                        break;
+                    case 3:
+                        test_kernel = test_kernel3;
+                        break;
+                    default:
+                        continue;
+                }
 
-            printf("%u:%u dataSize %u\n", i, j, dataSize);
+                //size_t origin[] = {0,0,0}, region[] = {20,1,1};
+                //char *thing = "aaaaaaaa";
+                //clEnqueueWriteImage(cmd_queue, bad_buffer, CL_TRUE, origin, region, 0, 0, thing, 0, 0, 0);
 
-            cl_err = clSetKernelArg(test_kernel, 0, sizeof(cl_mem), &bad_buffer);
-            check_cl_error(__FILE__, __LINE__, cl_err);
-            cl_err = clSetKernelArg(test_kernel, 1, sizeof(cl_uint), &width);
-            check_cl_error(__FILE__, __LINE__, cl_err);
-            cl_err = clSetKernelArg(test_kernel, 2, sizeof(cl_uint), &height);
-            check_cl_error(__FILE__, __LINE__, cl_err);
+                printf("%u:%u dataSize %u\n", i, j, dataSize);
+
+                cl_err = clSetKernelArg(test_kernel, 0, sizeof(cl_mem), &bad_buffer);
+                check_cl_error(__FILE__, __LINE__, cl_err);
+                cl_err = clSetKernelArg(test_kernel, 1, sizeof(cl_uint), &width);
+                check_cl_error(__FILE__, __LINE__, cl_err);
+                cl_err = clSetKernelArg(test_kernel, 2, sizeof(cl_uint), &height);
+                check_cl_error(__FILE__, __LINE__, cl_err);
 
 
-            work_items_to_use = buffer_size / dataSize;//getNumWorkItems(buffer_size);
+                work_items_to_use = buffer_size / dataSize;//getNumWorkItems(buffer_size);
 
-            errors++;
-            cl_err = clEnqueueNDRangeKernel(cmd_queue, test_kernel, 1, NULL,
+                cl_err = clEnqueueNDRangeKernel(cmd_queue, test_kernel, 1, NULL,
                     &work_items_to_use, NULL, 0, NULL, NULL);
-            check_cl_error(__FILE__, __LINE__, cl_err);
+                check_cl_error(__FILE__, __LINE__, cl_err);
 
-            clFinish(cmd_queue);
-            clReleaseMemObject(bad_buffer);
+                clFinish(cmd_queue);
+                clReleaseMemObject(bad_buffer);
+            }
         }
     }
 
 
     printf("\nImage3D Test...\n");
-    cl_err = clGetSupportedImageFormats(context, flags, CL_MEM_OBJECT_IMAGE3D, 0, NULL, &num_entries);
-    check_cl_error(__FILE__, __LINE__, cl_err);
-    formats_3d = calloc(num_entries, sizeof(cl_image_format));
-    cl_err = clGetSupportedImageFormats(context, flags, CL_MEM_OBJECT_IMAGE3D, num_entries, formats_3d, NULL);
-    check_cl_error(__FILE__, __LINE__, cl_err);
-
     for(dimIter=0; dimIter < 3; dimIter++)
     {
         switch(dimIter)
@@ -454,73 +371,65 @@ int main(int argc, char** argv)
                 break;
         }
 
-        for(i = 0; i < num_entries; i++)
+        for(i = 0; i < num_channel_order; i++)
         {
-            format.image_channel_order = formats_3d[i].image_channel_order;
-            format.image_channel_data_type = formats_3d[i].image_channel_data_type;
-            unsigned dataSize;
-            dataSize = get_image_data_size(&format);
-
-            width = (buffer_size / dataSize) / reduce3dhw;
-            height = reduce3dhw / 64;
-            //depth = 64;
-
-            bad_buffer = clCreateImage3D(context, flags, &format, width - shortWidth, height - shortHeight, depth - shortDepth, 0, 0, NULL, &cl_err);
-            if(cl_err == CL_IMAGE_FORMAT_NOT_SUPPORTED || cl_err == CL_INVALID_IMAGE_FORMAT_DESCRIPTOR)
+            format.image_channel_order = channel_orders[i];
+            for(j = 0; j < num_channel_type; j++)
             {
-                //printf("doesn't support format %u:%u", j, i);
-                continue;
-            }
-            check_cl_error(__FILE__, __LINE__, cl_err);
+                format.image_channel_data_type = channel_types[j];
+                unsigned dataSize;
+                dataSize = get_image_data_size(&format);
 
-            switch(getKernNum(format.image_channel_data_type))
-            {
-                case 1:
-                    test_kernel = test_kernel4;
-                    break;
-                case 2:
-                    test_kernel = test_kernel5;
-                    break;
-                case 3:
-                    test_kernel = test_kernel6;
-                    break;
-                default:
+                width = (buffer_size / dataSize) / reduce3dhw;
+                height = reduce3dhw / 64;
+                //depth = 64;
+
+                bad_buffer = clCreateImage3D(context, flags, &format, width - shortWidth, height - shortHeight, depth - shortDepth, 0, 0, NULL, &cl_err);
+                if(cl_err == CL_IMAGE_FORMAT_NOT_SUPPORTED || cl_err == CL_INVALID_IMAGE_FORMAT_DESCRIPTOR)
+                {
+                    //printf("doesn't support format %u:%u", j, i);
                     continue;
-            }
+                }
+                check_cl_error(__FILE__, __LINE__, cl_err);
 
-            printf("%u:%u dataSize %u\n", i, j, dataSize);
+                switch(getKernNum(format.image_channel_data_type))
+                {
+                    case 1:
+                        test_kernel = test_kernel4;
+                        break;
+                    case 2:
+                        test_kernel = test_kernel5;
+                        break;
+                    case 3:
+                        test_kernel = test_kernel6;
+                        break;
+                    default:
+                        continue;
+                }
 
-            cl_err = clSetKernelArg(test_kernel, 0, sizeof(cl_mem), &bad_buffer);
-            check_cl_error(__FILE__, __LINE__, cl_err);
-            cl_err = clSetKernelArg(test_kernel, 1, sizeof(cl_uint), &width);
-            check_cl_error(__FILE__, __LINE__, cl_err);
-            cl_err = clSetKernelArg(test_kernel, 2, sizeof(cl_uint), &height);
-            check_cl_error(__FILE__, __LINE__, cl_err);
-            cl_err = clSetKernelArg(test_kernel, 3, sizeof(cl_uint), &depth);
-            check_cl_error(__FILE__, __LINE__, cl_err);
+                printf("%u:%u dataSize %u\n", i, j, dataSize);
 
-            work_items_to_use = buffer_size / dataSize;//getNumWorkItems(buffer_size);
+                cl_err = clSetKernelArg(test_kernel, 0, sizeof(cl_mem), &bad_buffer);
+                check_cl_error(__FILE__, __LINE__, cl_err);
+                cl_err = clSetKernelArg(test_kernel, 1, sizeof(cl_uint), &width);
+                check_cl_error(__FILE__, __LINE__, cl_err);
+                cl_err = clSetKernelArg(test_kernel, 2, sizeof(cl_uint), &height);
+                check_cl_error(__FILE__, __LINE__, cl_err);
+                cl_err = clSetKernelArg(test_kernel, 3, sizeof(cl_uint), &depth);
+                check_cl_error(__FILE__, __LINE__, cl_err);
 
-            errors++;
-            cl_err = clEnqueueNDRangeKernel(cmd_queue, test_kernel, 1, NULL,
+                work_items_to_use = buffer_size / dataSize;//getNumWorkItems(buffer_size);
+
+                cl_err = clEnqueueNDRangeKernel(cmd_queue, test_kernel, 1, NULL,
                     &work_items_to_use, NULL, 0, NULL, NULL);
-            check_cl_error(__FILE__, __LINE__, cl_err);
+                check_cl_error(__FILE__, __LINE__, cl_err);
 
-            clFinish(cmd_queue);
-            clReleaseMemObject(bad_buffer);
+                clFinish(cmd_queue);
+                clReleaseMemObject(bad_buffer);
+            }
         }
     }
 
-
-    char err_str[256];
-    sprintf(err_str, "EXPECTED_ERRORS=%u", errors);
-    int ret = system(err_str);
-    if(ret){}
-
-    FILE *err_f = NULL;
-    err_f = fopen("Errfile", "w");
-    fprintf(err_f, "%s\n", err_str);
-    fclose(err_f);
 
     printf("Done Running Bad complex_image_cl1_1 Test.\n");
     return 0;

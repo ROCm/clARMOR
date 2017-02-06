@@ -13,7 +13,7 @@
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
  * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
@@ -39,11 +39,9 @@
 #include "meta_data_lists/cl_kernel_lists.h"
 #include "meta_data_lists/cl_memory_lists.h"
 #include "meta_data_lists/cl_workaround_lists.h"
-#include "meta_data_lists/dl_intercept_lists.h"
 #include "wrapper_utils.h"
 #include "overflow_error.h"
 
-#include "dl_interceptor_internal.h"
 #include "cl_interceptor_internal.h"
 #include "cl_interceptor.h"
 
@@ -51,23 +49,10 @@ const char * OPENCL_NAME_SO = "libOpenCL.so.1";
 
 pthread_mutex_t command_queue_cache_lock = PTHREAD_MUTEX_INITIALIZER;
 
-static FILE *kern_enq_time_out_f = NULL;
-
-FILE *mem_overhead_out_f = NULL;
-__thread uint8_t internal_create = 0;
-pthread_mutex_t memory_overhead_lock = PTHREAD_MUTEX_INITIALIZER;
-uint64_t total_user_mem = 0;
-uint64_t total_overhead_mem = 0;
-uint64_t high_user_mem = 0;
-uint64_t high_overhead_mem = 0;
-uint64_t current_user_mem = 0;
-uint64_t current_overhead_mem = 0;
-
-
 #define CL_MSG(msg)                                                            \
 {                                                                              \
     if (msg != NULL) {                                                         \
-        det_fprintf(stderr, "CL_WRAPPER : %s (%d): %s\n", __func__, __LINE__, msg);\
+        fprintf(stderr, "CL_WRAPPER : %s (%d): %s\n", __func__, __LINE__, msg);\
     }                                                                          \
 }
 
@@ -79,7 +64,7 @@ uint64_t current_overhead_mem = 0;
     char *error; \
     char func_name[128];\
     sprintf(func_name,"cl%s",#_FUNCNAME_); \
-    _FUNCNAME_ = (interceptor_cl##_FUNCNAME_)__libc_dlsym(oclDllHandle, func_name); \
+    _FUNCNAME_ = (interceptor_cl##_FUNCNAME_)dlsym(oclDllHandle, func_name); \
     error = dlerror(); \
     if (error != NULL) { \
         CL_MSG(error); \
@@ -89,7 +74,7 @@ uint64_t current_overhead_mem = 0;
 #define GET_INTERCEPTOR_FUNCTION( _FUNCNAME_ ) \
     interceptor_cl##_FUNCNAME_ get##_FUNCNAME_( void) \
 { \
-    return (_FUNCNAME_); \
+    return	(_FUNCNAME_); \
 }
 
 /*************** intercepted functions ********************************************************/
@@ -253,14 +238,14 @@ static int cl_wrapper_init( void )
         // If the handle is valid, try to get the function address.
         if (NULL != oclDllHandle)
         {
-            det_printf( "Loaded CL_WRAPPER\n" );
+            printf( "Loaded CL_WRAPPER\n" );
             // Get pointers to OCL functions with
             // CL_INTERCEPTOR_FUNCTION_ADDRESS macro
             ret = cl_function_addresses(oclDllHandle);
         }
         else
         {
-            det_fprintf(stderr, "Unable to load CL_WRAPPER lib\n");
+            fprintf(stderr, "Unable to load CL_WRAPPER lib\n");
         }
 
         global_tool_stats_flags = get_tool_perf_envvar();
@@ -331,7 +316,6 @@ clGetDeviceInfo(cl_device_id device,
 
 __attribute__((constructor)) static void wrapper_constructor ( void )
 {
-    dll_init();
     cl_wrapper_init();
 }
 
@@ -352,10 +336,12 @@ clCreateCommandQueue(cl_context                     context ,
     if ( CreateCommandQueue )
     {
         cl_command_queue_properties local_prop = properties;
+#ifdef DEBUG_CHECKER_TIME
         if(global_tool_stats_flags & STATS_CHECKER_TIME)
         {
             local_prop |= CL_QUEUE_PROFILING_ENABLE;
         }
+#endif
         pthread_mutex_lock(&command_queue_cache_lock);
 
         ret =
@@ -376,7 +362,7 @@ clCreateCommandQueue(cl_context                     context ,
         insertme->ref_count = 1;
         int err = commandQueueCache_insert(get_cmd_queue_cache(), insertme);
         if (err != 0)
-            det_fprintf(stderr, "WARNING: Failed to insert command queue into cache at %s:%d\n", __FILE__, __LINE__);
+            fprintf(stderr, "WARNING: Failed to insert command queue into cache at %s:%d\n", __FILE__, __LINE__);
 
         pthread_mutex_unlock(&command_queue_cache_lock);
     }
@@ -399,6 +385,7 @@ clCreateCommandQueueWithProperties(
     if ( CreateCommandQueueWithProperties )
     {
         const cl_queue_properties* updated_prop = properties;
+#ifdef DEBUG_CHECKER_TIME
         cl_queue_properties* temp_prop = 0;
         if(global_tool_stats_flags & STATS_CHECKER_TIME)
         {
@@ -406,48 +393,25 @@ clCreateCommandQueueWithProperties(
             if (temp_prop != NULL)
                 updated_prop = temp_prop;
         }
+#endif
+        pthread_mutex_lock(&command_queue_cache_lock);
 
         ret = CreateCommandQueueWithProperties(context, device, updated_prop, errcode_ret);
 
-        /*
-         * Work around for bug
-         * clCreateCommandQueueWithProperties using the CL_QUEUE_ON_DEVICE property
-         *  does not set the error code return value
-         */
-        uint32_t flags = 0;
-        if(updated_prop)
-        {
-            if(updated_prop[0] == CL_QUEUE_PROPERTIES)
-                flags = updated_prop[1];
-            else if(updated_prop[2] == CL_QUEUE_PROPERTIES)
-                flags = updated_prop[3];
-        }
-
-        if(errcode_ret != NULL && flags & CL_QUEUE_ON_DEVICE)
-        {
-            cl_int cl_err, size;
-            cl_err = clGetCommandQueueInfo(ret, CL_QUEUE_SIZE, sizeof(cl_int), &size, NULL);
-            if(cl_err != CL_INVALID_COMMAND_QUEUE)
-                *errcode_ret = CL_SUCCESS;
-            else
-                *errcode_ret = CL_INVALID_COMMAND_QUEUE;
-        }
-
+#ifdef DEBUG_CHECKER_TIME
         if(global_tool_stats_flags & STATS_CHECKER_TIME)
         {
             free(temp_prop);
         }
+#endif
 
         commandQueueCache *insertme = calloc(1, sizeof(commandQueueCache));
         insertme->handle = context;
         insertme->cached_queue = ret;
         insertme->ref_count = 1;
-
-        pthread_mutex_lock(&command_queue_cache_lock);
-
         int err = commandQueueCache_insert(get_cmd_queue_cache(), insertme);
         if (err != 0)
-            det_fprintf(stderr, "WARNING: Failed to insert command queue into cache at %s:%d\n", __FILE__, __LINE__);
+            fprintf(stderr, "WARNING: Failed to insert command queue into cache at %s:%d\n", __FILE__, __LINE__);
 
         pthread_mutex_unlock(&command_queue_cache_lock);
     }
@@ -502,7 +466,6 @@ clReleaseCommandQueue(cl_command_queue command_queue )
             // error that happens somewhere inside clReleaseCommandQueue(). We
             // trigger this somewhat frequently.
             // Skipping the real ReleaseCommandQueue avoids this issue.
-#if 0
             if(0)
             {
                 cl_int cl_err;
@@ -527,7 +490,6 @@ clReleaseCommandQueue(cl_command_queue command_queue )
 
                 pthread_mutex_unlock(&command_queue_cache_lock);
             }
-#endif
             err = CL_SUCCESS;
         }
         else
@@ -605,6 +567,17 @@ clGetMemObjectInfo(cl_mem memobj,
     return(ret);
 }
 
+#ifdef DEBUG_MEM_OVERHEAD
+FILE *debug_mem_out = NULL;
+uint8_t internal_create = 0;
+uint64_t total_user_mem = 0;
+uint64_t total_overhead_mem = 0;
+uint64_t high_user_mem = 0;
+uint64_t high_overhead_mem = 0;
+uint64_t current_user_mem = 0;
+uint64_t current_overhead_mem = 0;
+
+#endif
 CL_API_ENTRY cl_mem CL_API_CALL
 clCreateBuffer(cl_context   context,
         cl_mem_flags        flags,
@@ -618,9 +591,9 @@ clCreateBuffer(cl_context   context,
         char *fill_ptr = 0;
         initialize_logging();
 
+#ifdef DEBUG_MEM_OVERHEAD
         if(global_tool_stats_flags & STATS_MEM_OVERHEAD)
         {
-            pthread_mutex_lock(&memory_overhead_lock);
             if(internal_create)
             {
                 total_overhead_mem += size;
@@ -631,8 +604,8 @@ clCreateBuffer(cl_context   context,
                 total_user_mem += size;
                 current_user_mem += size;
             }
-            pthread_mutex_unlock(&memory_overhead_lock);
         }
+#endif
 
         if(flags & CL_MEM_USE_HOST_PTR)
         {
@@ -650,24 +623,24 @@ clCreateBuffer(cl_context   context,
                 memset(fill_ptr + size, POISON_FILL, POISON_FILL_LENGTH);
                 flags = flags | CL_MEM_COPY_HOST_PTR;
 
+#ifdef DEBUG_MEM_OVERHEAD
                 if(global_tool_stats_flags & STATS_MEM_OVERHEAD)
                 {
-                    pthread_mutex_lock(&memory_overhead_lock);
                     total_overhead_mem += POISON_FILL_LENGTH;
                     current_overhead_mem += POISON_FILL_LENGTH;
-                    pthread_mutex_unlock(&memory_overhead_lock);
                 }
+#endif
                 size += POISON_FILL_LENGTH;
             }
         }
 
+#ifdef DEBUG_MEM_OVERHEAD
         if(global_tool_stats_flags & STATS_MEM_OVERHEAD)
         {
-            pthread_mutex_lock(&memory_overhead_lock);
             high_user_mem = (high_user_mem > current_user_mem) ? high_user_mem : current_user_mem;
             high_overhead_mem = (high_overhead_mem > current_overhead_mem) ? high_overhead_mem : current_overhead_mem;
-            pthread_mutex_unlock(&memory_overhead_lock);
         }
+#endif
 
         ret =
             CreateBuffer( context ,
@@ -903,16 +876,16 @@ clCreateImage(cl_context              context ,
         }
         else
         {
-            det_fprintf(stderr, "failed to find image type");
+            printf("failed to find image type");
             exit(-1);
         }
 
         size_t dataSize = getImageDataSize(image_format);
         temp->size = temp->image_desc.image_width * temp->image_desc.image_height * temp->image_desc.image_depth * temp->image_desc.image_array_size * dataSize;
+#ifdef DEBUG_MEM_OVERHEAD
         uint64_t img_size = temp->size;
         if(global_tool_stats_flags & STATS_MEM_OVERHEAD)
         {
-            pthread_mutex_lock(&memory_overhead_lock);
             if(internal_create)
             {
                 total_overhead_mem += img_size;
@@ -923,8 +896,8 @@ clCreateImage(cl_context              context ,
                 total_user_mem += img_size;
                 current_user_mem += img_size;
             }
-            pthread_mutex_unlock(&memory_overhead_lock);
         }
+#endif
 
         char *fill_ptr = NULL;
 
@@ -936,13 +909,13 @@ clCreateImage(cl_context              context ,
         {
             expandLastDimForFill(&temp->image_desc);
             temp->size = temp->image_desc.image_width * temp->image_desc.image_height * temp->image_desc.image_depth * temp->image_desc.image_array_size * dataSize;
+#ifdef DEBUG_MEM_OVERHEAD
             if(global_tool_stats_flags & STATS_MEM_OVERHEAD)
             {
-                pthread_mutex_lock(&memory_overhead_lock);
                 total_overhead_mem += temp->size - img_size;
                 current_overhead_mem += temp->size - img_size;
-                pthread_mutex_unlock(&memory_overhead_lock);
             }
+#endif
 
             allocFlatImageCopy(&fill_ptr, host_ptr, temp);
 
@@ -954,49 +927,23 @@ clCreateImage(cl_context              context ,
             temp->has_canary = 1;
         }
 
+#ifdef DEBUG_MEM_OVERHEAD
         if(global_tool_stats_flags & STATS_MEM_OVERHEAD)
         {
-            pthread_mutex_lock(&memory_overhead_lock);
             high_user_mem = (high_user_mem > current_user_mem) ? high_user_mem : current_user_mem;
             high_overhead_mem = (high_overhead_mem > current_overhead_mem) ? high_overhead_mem : current_overhead_mem;
-            pthread_mutex_unlock(&memory_overhead_lock);
         }
+#endif
 
-        if (temp->flags & CL_MEM_COPY_HOST_PTR)
-        {
-            // Bug workaround.
-            // On the AMD ROCm software stack, CL_MEM_COPY_HOST_PTR causes
-            // memory corruption on the CPU side. As such, we replace the
-            // implicit copy with an explicit copy to make things work.
-            cl_int internal_err = CL_SUCCESS;
-            temp->flags &= ~CL_MEM_COPY_HOST_PTR;
-            ret = CreateImage(context, temp->flags, image_format,
-                    &temp->image_desc, NULL, errcode_ret);
+        ret =
+            CreateImage(context ,
+                    temp->flags ,
+                    image_format ,
+                    &temp->image_desc ,
+                    fill_ptr ,
+                    errcode_ret );
 
-            if (errcode_ret != NULL)
-                *errcode_ret = internal_err;
-            temp->handle = ret;
-
-            if(internal_err != CL_IMAGE_FORMAT_NOT_SUPPORTED &&
-                    internal_err != CL_INVALID_IMAGE_FORMAT_DESCRIPTOR)
-            {
-                const size_t zero_origin[3] = {0,0,0};
-                const size_t region[3] = {temp->image_desc.image_width,
-                    temp->image_desc.image_height,
-                    temp->image_desc.image_depth};
-
-                cl_command_queue command_queue;
-                getCommandQueueForContext(context, &command_queue);
-                internal_err = EnqueueWriteImage(command_queue, ret, CL_BLOCKING,
-                        zero_origin, region, 0, 0, fill_ptr, 0, NULL, NULL);
-                check_cl_error(__FILE__, __LINE__, internal_err);
-            }
-        }
-        else
-        {
-            ret = CreateImage(context, temp->flags, image_format,
-                    &temp->image_desc, fill_ptr, errcode_ret);
-        }
+        temp->handle = ret;
 
         if(fill_ptr && fill_ptr != host_ptr)
             free(fill_ptr);
@@ -1051,10 +998,10 @@ clCreateImage2D(cl_context              context ,
 
         size_t dataSize = getImageDataSize(image_format);
         temp->size = image_width * image_height * dataSize;
+#ifdef DEBUG_MEM_OVERHEAD
         uint64_t img_size = temp->size;
         if(global_tool_stats_flags & STATS_MEM_OVERHEAD)
         {
-            pthread_mutex_lock(&memory_overhead_lock);
             if(internal_create)
             {
                 total_overhead_mem += img_size;
@@ -1065,8 +1012,8 @@ clCreateImage2D(cl_context              context ,
                 total_user_mem += img_size;
                 current_user_mem += img_size;
             }
-            pthread_mutex_unlock(&memory_overhead_lock);
         }
+#endif
 
         char *fill_ptr = NULL;
 
@@ -1078,13 +1025,13 @@ clCreateImage2D(cl_context              context ,
         {
             expandLastDimForFill(&temp->image_desc);
             temp->size = temp->image_desc.image_width * temp->image_desc.image_height * temp->image_desc.image_depth * temp->image_desc.image_array_size * dataSize;
+#ifdef DEBUG_MEM_OVERHEAD
             if(global_tool_stats_flags & STATS_MEM_OVERHEAD)
             {
-                pthread_mutex_lock(&memory_overhead_lock);
                 total_overhead_mem += temp->size - img_size;
                 current_overhead_mem += temp->size - img_size;
-                pthread_mutex_unlock(&memory_overhead_lock);
             }
+#endif
 
             allocFlatImageCopy(&fill_ptr, host_ptr, temp);
 
@@ -1092,53 +1039,25 @@ clCreateImage2D(cl_context              context ,
             temp->has_canary = 1;
         }
 
+#ifdef DEBUG_MEM_OVERHEAD
         if(global_tool_stats_flags & STATS_MEM_OVERHEAD)
         {
-            pthread_mutex_lock(&memory_overhead_lock);
             high_user_mem = (high_user_mem > current_user_mem) ? high_user_mem : current_user_mem;
             high_overhead_mem = (high_overhead_mem > current_overhead_mem) ? high_overhead_mem : current_overhead_mem;
-            pthread_mutex_unlock(&memory_overhead_lock);
         }
+#endif
 
-        if (temp->flags & CL_MEM_COPY_HOST_PTR)
-        {
-            // Bug workaround.
-            // On the AMD ROCm software stack, CL_MEM_COPY_HOST_PTR causes
-            // memory corruption on the CPU side. As such, we replace the
-            // implicit copy with an explicit copy to make things work.
-            cl_int internal_err = CL_SUCCESS;
-            temp->flags &= ~CL_MEM_COPY_HOST_PTR;
-            ret = CreateImage2D(context, temp->flags, image_format,
-                    temp->image_desc.image_width,
-                    temp->image_desc.image_height,
-                    0, NULL, &internal_err);
+        ret =
+            CreateImage2D(context ,
+                    temp->flags ,
+                    image_format ,
+                    temp->image_desc.image_width ,
+                    temp->image_desc.image_height ,
+                    0 ,
+                    fill_ptr ,
+                    errcode_ret );
 
-            if (errcode_ret != NULL)
-                *errcode_ret = internal_err;
-            temp->handle = ret;
-
-            if(internal_err != CL_IMAGE_FORMAT_NOT_SUPPORTED &&
-                internal_err != CL_INVALID_IMAGE_FORMAT_DESCRIPTOR)
-            {
-                const size_t zero_origin[3] = {0,0,0};
-                const size_t region[3] = {temp->image_desc.image_width,
-                    temp->image_desc.image_height, 1};
-
-                cl_command_queue command_queue;
-                getCommandQueueForContext(context, &command_queue);
-                internal_err = EnqueueWriteImage(command_queue, ret,
-                        CL_BLOCKING, zero_origin, region, 0, 0, fill_ptr, 0,
-                        NULL, NULL);
-                check_cl_error(__FILE__, __LINE__, internal_err);
-            }
-        }
-        else
-        {
-            ret = CreateImage2D(context, temp->flags, image_format,
-                    temp->image_desc.image_width,
-                    temp->image_desc.image_height,
-                    0, fill_ptr, errcode_ret);
-        }
+        temp->handle = ret;
 
         if(fill_ptr && fill_ptr != host_ptr)
             free(fill_ptr);
@@ -1194,10 +1113,10 @@ clCreateImage3D(cl_context              context ,
 
         size_t dataSize = getImageDataSize(image_format);
         temp->size = image_width * image_height * image_depth * dataSize;
+#ifdef DEBUG_MEM_OVERHEAD
         uint64_t img_size = temp->size;
         if(global_tool_stats_flags & STATS_MEM_OVERHEAD)
         {
-            pthread_mutex_lock(&memory_overhead_lock);
             if(internal_create)
             {
                 total_overhead_mem += img_size;
@@ -1208,8 +1127,8 @@ clCreateImage3D(cl_context              context ,
                 total_user_mem += img_size;
                 current_user_mem += img_size;
             }
-            pthread_mutex_unlock(&memory_overhead_lock);
         }
+#endif
 
         char *fill_ptr = NULL;
 
@@ -1221,13 +1140,13 @@ clCreateImage3D(cl_context              context ,
         {
             expandLastDimForFill(&temp->image_desc);
             temp->size = temp->image_desc.image_width * temp->image_desc.image_height * temp->image_desc.image_depth * temp->image_desc.image_array_size * dataSize;
+#ifdef DEBUG_MEM_OVERHEAD
             if(global_tool_stats_flags & STATS_MEM_OVERHEAD)
             {
-                pthread_mutex_lock(&memory_overhead_lock);
                 total_overhead_mem += temp->size - img_size;
                 current_overhead_mem += temp->size - img_size;
-                pthread_mutex_unlock(&memory_overhead_lock);
             }
+#endif
 
             allocFlatImageCopy(&fill_ptr, host_ptr, temp);
 
@@ -1235,54 +1154,27 @@ clCreateImage3D(cl_context              context ,
             temp->has_canary = 1;
         }
 
+#ifdef DEBUG_MEM_OVERHEAD
         if(global_tool_stats_flags & STATS_MEM_OVERHEAD)
         {
-            pthread_mutex_lock(&memory_overhead_lock);
             high_user_mem = (high_user_mem > current_user_mem) ? high_user_mem : current_user_mem;
             high_overhead_mem = (high_overhead_mem > current_overhead_mem) ? high_overhead_mem : current_overhead_mem;
-            pthread_mutex_unlock(&memory_overhead_lock);
         }
+#endif
 
-        if (temp->flags & CL_MEM_COPY_HOST_PTR)
-        {
-            // Bug workaround.
-            // On the AMD ROCm software stack, CL_MEM_COPY_HOST_PTR causes
-            // memory corruption on the CPU side. As such, we replace the
-            // implicit copy with an explicit copy to make things work.
-            cl_int internal_err = CL_SUCCESS;
-            temp->flags &= ~CL_MEM_COPY_HOST_PTR;
-            ret = CreateImage3D(context, temp->flags, image_format,
-                    temp->image_desc.image_width,
-                    temp->image_desc.image_height,
-                    temp->image_desc.image_depth,
-                    0, 0, NULL, &internal_err);
+        ret =
+            CreateImage3D(context ,
+                    temp->flags ,
+                    image_format ,
+                    temp->image_desc.image_width ,
+                    temp->image_desc.image_height ,
+                    temp->image_desc.image_depth ,
+                    0 ,
+                    0 ,
+                    fill_ptr ,
+                    errcode_ret );
 
-            if (errcode_ret != NULL)
-                *errcode_ret = internal_err;
-            temp->handle = ret;
-
-            if(internal_err != CL_IMAGE_FORMAT_NOT_SUPPORTED &&
-                    internal_err != CL_INVALID_IMAGE_FORMAT_DESCRIPTOR)
-            {
-                const size_t zero_origin[3] = {0,0,0};
-                const size_t region[3] = {temp->image_desc.image_width,
-                    temp->image_desc.image_height, temp->image_desc.image_depth};
-
-                cl_command_queue command_queue;
-                getCommandQueueForContext(context, &command_queue);
-                internal_err = EnqueueWriteImage(command_queue, ret, CL_BLOCKING,
-                        zero_origin, region, 0, 0, fill_ptr, 0, NULL, NULL);
-                check_cl_error(__FILE__, __LINE__, internal_err);
-            }
-        }
-        else
-        {
-            ret = CreateImage3D(context, temp->flags, image_format,
-                    temp->image_desc.image_width,
-                    temp->image_desc.image_height,
-                    temp->image_desc.image_depth,
-                    0, 0, fill_ptr, errcode_ret);
-        }
+        temp->handle = ret;
 
         if(fill_ptr && fill_ptr != host_ptr)
             free(fill_ptr);
@@ -1343,9 +1235,9 @@ clReleaseMemObject(cl_mem memobj )
             findme->ref_count--;
             if (findme->ref_count == 0)
             {
+#ifdef DEBUG_MEM_OVERHEAD
                 if(global_tool_stats_flags & STATS_MEM_OVERHEAD)
                 {
-                    pthread_mutex_lock(&memory_overhead_lock);
                     if(internal_create)
                         current_overhead_mem -= findme->size;
                     else if( !findme->has_canary )
@@ -1382,8 +1274,8 @@ clReleaseMemObject(cl_mem memobj )
                         current_user_mem -= (findme->size - POISON_FILL_LENGTH);
                         current_overhead_mem -= POISON_FILL_LENGTH;
                     }
-                    pthread_mutex_unlock(&memory_overhead_lock);
                 }
+#endif
 
                 cl_memobj *temp;
                 temp = cl_mem_remove(get_cl_mem_alloc(), memobj);
@@ -1578,9 +1470,9 @@ clSetKernelArgSVMPointer(
                 else
                 {
                     char * err_text = strerror(errno);
-                    det_fprintf(stderr, "Failed to allocate kern_temp near %s:%d\n",
+                    fprintf(stderr, "Failed to allocate kern_temp near %s:%d\n",
                         __FILE__, __LINE__);
-                    det_fprintf(stderr, "Error reason: %s\n", err_text);
+                    fprintf(stderr, "Error reason: %s\n", err_text);
                     exit(-1);
                 }
             }
@@ -1602,9 +1494,9 @@ clSetKernelArgSVMPointer(
             if (arg_temp == NULL)
             {
                 char * err_text = strerror(errno);
-                det_fprintf(stderr, "Failed to allocate arg_temp near %s:%d\n",
+                fprintf(stderr, "Failed to allocate arg_temp near %s:%d\n",
                         __FILE__, __LINE__);
-                det_fprintf(stderr, "Error reason: %s\n", err_text);
+                fprintf(stderr, "Error reason: %s\n", err_text);
                 exit(-1);
             }
             arg_temp->handle = arg_index;
@@ -1620,7 +1512,7 @@ clSetKernelArgSVMPointer(
             cl_svm_memobj *m1 = cl_svm_mem_find(get_cl_svm_mem_alloc(), arg_value);
             if (m1 == NULL)
             {
-                det_fprintf(stderr, "DETECTOR WARNING: Passing in a pointer to "
+                fprintf(stderr, "DETECTOR WARNING: Passing in a pointer to "
                         "clSetKernelArgSVMPointer() that was not allocated "
                         "with clSVMAlloc().\n");
             }
@@ -1704,9 +1596,9 @@ clSVMAlloc(cl_context           context,
         if (size < 128)
             size = 10000000;
 
+#ifdef DEBUG_MEM_OVERHEAD
         if(global_tool_stats_flags & STATS_MEM_OVERHEAD)
         {
-            pthread_mutex_lock(&memory_overhead_lock);
             if(internal_create)
             {
                 total_overhead_mem += size + POISON_FILL_LENGTH;
@@ -1722,8 +1614,8 @@ clSVMAlloc(cl_context           context,
 
             high_user_mem = (high_user_mem > current_user_mem) ? high_user_mem : current_user_mem;
             high_overhead_mem = (high_overhead_mem > current_overhead_mem) ? high_overhead_mem : current_overhead_mem;
-            pthread_mutex_unlock(&memory_overhead_lock);
         }
+#endif
         size += POISON_FILL_LENGTH;
 
         ret = internalSVMAlloc(context, flags, size, alignment);
@@ -1769,9 +1661,9 @@ clSVMFree(cl_context    context,
         cl_svm_memobj *temp;
         temp = cl_svm_mem_remove(get_cl_svm_mem_alloc(), svm_pointer);
 
+#ifdef DEBUG_MEM_OVERHEAD
         if(global_tool_stats_flags & STATS_MEM_OVERHEAD)
         {
-            pthread_mutex_lock(&memory_overhead_lock);
             if(temp != NULL)
             {
                 if(internal_create)
@@ -1782,8 +1674,8 @@ clSVMFree(cl_context    context,
                     current_overhead_mem -= POISON_FILL_LENGTH;
                 }
             }
-            pthread_mutex_unlock(&memory_overhead_lock);
         }
+#endif
 
         if(temp != NULL)
             cl_svm_mem_delete(temp);
@@ -1871,14 +1763,19 @@ cl_int runNDRangeKernel(launchOclKernelStruct *ocl_args)
     return 0;
 }
 
+#ifdef DEBUG_KERN_ENQ_TIME
+static FILE *debug_out = NULL;
+#endif
 /********** call from interseptor  *****************************/
 static cl_int kernelLaunchFunc(void * thread_args_)
 {
+#ifdef DEBUG_KERN_ENQ_TIME
     struct timeval total_stop, total_start, enq_stop, enq_start;
     if(global_tool_stats_flags & STATS_KERN_ENQ_TIME)
     {
         gettimeofday(&total_start, NULL);
     }
+#endif
 
     cl_int cl_err;
 
@@ -1918,15 +1815,19 @@ static cl_int kernelLaunchFunc(void * thread_args_)
     //------------------------------------RUN-----------------------------------
     ocl_args->kernel = temp_kernel;
 
+#ifdef DEBUG_KERN_ENQ_TIME
     if(global_tool_stats_flags & STATS_KERN_ENQ_TIME)
     {
         gettimeofday(&enq_start, NULL);
     }
+#endif
     cl_err = runNDRangeKernel( ocl_args );
+#ifdef DEBUG_KERN_ENQ_TIME
     if(global_tool_stats_flags & STATS_KERN_ENQ_TIME)
     {
         gettimeofday(&enq_stop, NULL);
     }
+#endif
     check_cl_error(__FILE__, __LINE__, cl_err);
 
     // internal_event is used as the output event for runNDRangeKernel. Because
@@ -1938,22 +1839,24 @@ static cl_int kernelLaunchFunc(void * thread_args_)
     // may fail (since it would try to profile our internal detector kernels).
     // As such, we have a list that maps our "internal" events to the real
     // user events.
+#ifdef DEBUG_MEM_OVERHEAD
     internal_create = 1;
+#endif
     allowCanaryAccess();
 
     verifyBufferInBounds(ocl_args->command_queue, ocl_args->kernel, dupe,
             &internal_event, external_event);
 
     disallowCanaryAccess();
+#ifdef DEBUG_MEM_OVERHEAD
     internal_create = 0;
     if(global_tool_stats_flags & STATS_MEM_OVERHEAD)
     {
-        pthread_mutex_lock(&memory_overhead_lock);
-        mem_overhead_out_f = fopen("debug_mem_overhead.csv", "w");
-        fprintf(mem_overhead_out_f, "%lu, %lu, %lu, %lu\n", total_user_mem, total_overhead_mem, high_user_mem, high_overhead_mem);
-        fclose(mem_overhead_out_f);
-        pthread_mutex_unlock(&memory_overhead_lock);
+        debug_mem_out = fopen("debug_mem_overhead.csv", "w");
+        fprintf(debug_mem_out, "%lu, %lu, %lu, %lu\n", total_user_mem, total_overhead_mem, high_user_mem, high_overhead_mem);
+        fclose(debug_mem_out);
     }
+#endif
 
     // Later, if the user wants to profile the output event of this enqueue,
     // we will check the list to see what real NDRangeKernelEnqueue event
@@ -1998,6 +1901,7 @@ static cl_int kernelLaunchFunc(void * thread_args_)
     ocl_args->event = external_event;
     //----------------------------------END-TEARDOWN----------------------------
 
+#ifdef DEBUG_KERN_ENQ_TIME
     if(global_tool_stats_flags & STATS_KERN_ENQ_TIME)
     {
         gettimeofday(&total_stop, NULL);
@@ -2006,14 +1910,15 @@ static cl_int kernelLaunchFunc(void * thread_args_)
         total_durr_us = timeval_diff_us(&total_stop, &total_start);
         enq_durr_us = timeval_diff_us(&enq_stop, &enq_start);
 
-        if(kern_enq_time_out_f)
-            kern_enq_time_out_f = fopen("debug_enqueue_time.csv", "a");
+        if(debug_out)
+            debug_out = fopen("debug_enqueue_time.csv", "a");
         else
-            kern_enq_time_out_f = fopen("debug_enqueue_time.csv", "w");
+            debug_out = fopen("debug_enqueue_time.csv", "w");
 
-        fprintf(kern_enq_time_out_f, "%lu, %lu, %lu\n", total_durr_us, enq_durr_us, total_durr_us - enq_durr_us);
-        fclose(kern_enq_time_out_f);
+        fprintf(debug_out, "%lu, %lu, %lu\n", total_durr_us, enq_durr_us, total_durr_us - enq_durr_us);
+        fclose(debug_out);
     }
+#endif
 
     return(cl_err);
 }

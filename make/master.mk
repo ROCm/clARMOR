@@ -19,7 +19,7 @@
 # THE SOFTWARE.
 
 ##############################################
-# clARMOR Make Defines
+# OpenCL Buffer Overflow Detector Make Defines
 ##############################################
 
 HERE := $(dir $(lastword $(MAKEFILE_LIST)))
@@ -56,13 +56,12 @@ CL_WRAPPER_DIR=${HERE}../src/cl_wrapper
 
 SOURCE_DIR=${HERE}../src
 UTILS_DIR=${SOURCE_DIR}/utils
-INFO_CHECK_DIR=${SOURCE_DIR}/info_check
 TEST_DIR=${HERE}../tests
 BIN_DIR=${HERE}../bin
 LIB_DIR=${HERE}../lib
 REPO_DIR=$(HERE)../
 
-DETECT_SCRIPT=$(BIN_DIR)/clarmor
+DETECT_SCRIPT=$(BIN_DIR)/run_overflow_detect.py
 
 # Name of all the source files we need for the detector
 CSOURCES=$(shell find ${SOURCE_DIR} -name "*.c" -type f)
@@ -79,13 +78,6 @@ UTILS_DIR_CDEPS=$(UTILS_DIR_COBJECTS:.o=.d)
 UTILS_DIR_CPPSOURCES=$(shell find ${UTILS_DIR} -name "*.cpp" -type f)
 UTILS_DIR_CPPOBJECTS=$(UTILS_DIR_CPPSOURCES:.cpp=.o)
 UTILS_DIR_CPPDEPS=$(UTILS_DIR_CPPOOBJECTS:.o=.d)
-
-INFO_CHECK_CSOURCES=$(shell find ${INFO_CHECK_DIR} -name "*.c" -type f)
-INFO_CHECK_COBJECTS=$(INFO_CHECK_CSOURCES:.c=.o)
-INFO_CHECK_CDEPS=$(INFO_CHECK_COBJECTS:.o=.d)
-INFO_CHECK_CPPSOURCES=$(shell find ${INFO_CHECK_DIR} -name "*.cpp" -type f)
-INFO_CHECK_CPPOBJECTS=$(INFO_CHECK_CPPSOURCES:.cpp=.o)
-INFO_CHECK_CPPDEPS=$(INFO_CHECK_CPPOOBJECTS:.o=.d)
 
 # Name of the final library we want and its version number
 CL_WRAPPER=clbufferwrapper

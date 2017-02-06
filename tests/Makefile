@@ -18,6 +18,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
+
 include ../make/master.mk
 
 # Can't use CURDIR, that is based on the root directory.
@@ -28,9 +29,6 @@ all: test
 
 test:
 	$(THIS_DIR)/run_tests.sh test
-
-cpu_test:
-	$(THIS_DIR)/run_tests.sh cpu_test
 
 build_test:
 	$(THIS_DIR)/run_tests.sh build_test

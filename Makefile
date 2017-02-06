@@ -24,20 +24,13 @@ include make/master.mk
 prefix=/usr/local
 
 .PHONY: all
-all: info_check
+all:
 	$(MAKE) --directory=$(CL_WRAPPER_DIR)
-
-.PHONY: info_check
-info_check:
-	$(MAKE) --directory=$(INFO_CHECK_DIR)
+	$(CC) -o $(BIN_DIR)/get_num_cus.exe $(BIN_DIR)/get_num_cus.c $(LDFLAGS) -I$(OCL_INCLUDE_DIR) -L$(OCL_LIB_DIR) -lOpenCL
 
 .PHONY: test
 test: all
 	$(MAKE) --directory=$(TEST_DIR)
-
-.PHONY: cpu_test
-cpu_test: all
-	$(MAKE) --directory=$(TEST_DIR) cpu_test
 
 .PHONY: build_test
 build_test:
@@ -55,9 +48,9 @@ clean:
 	$(RM) -f $(LIB_DIR)/*
 	$(RM) -f $(BIN_DIR)/*.out
 	$(RM) -f $(SOURCE_DIR)/*.pyc
+	$(RM) -f $(BIN_DIR)/get_num_cus.exe
 	$(MAKE) --directory=$(CL_WRAPPER_DIR) clean
 	$(MAKE) --directory=$(TEST_DIR) clean
-	$(MAKE) --directory=$(INFO_CHECK_DIR) clean
 
 check:
 	cppcheck --force --enable=warning,style,performance,portability,information,missingInclude --error-exitcode=-1 --std=c11 --std=c++11 $(SOURCE_DIR) $(TEST_DIR) $(INCLUDE_FLAGS) -q -j `nproc`

@@ -13,7 +13,7 @@
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
  * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
@@ -34,7 +34,7 @@
 
 extern pthread_mutex_t command_queue_cache_lock;
 
-static __thread uint8_t canaryAccess = 0;
+static uint8_t canaryAccess = 0;
 
 void allowCanaryAccess(void)
 {
@@ -152,6 +152,7 @@ void allocFlatImageCopy(char **copy_ptr_p, char *host_ptr, cl_memobj *img)
 }
 
 #ifdef CL_VERSION_2_0
+#ifdef DEBUG_CHECKER_TIME
 cl_queue_properties *add_profiling(const cl_queue_properties *properties)
 {
     // We want to add profiling to the properties of the command queue.
@@ -216,14 +217,12 @@ cl_queue_properties *add_profiling(const cl_queue_properties *properties)
     }
     return fake_prop;
 }
+#endif // DEBUG_CHECKER_TIME
 
 #endif //CL_VERSION_2_0
 
 uint8_t apiBufferOverflowCheck(char * const func, cl_mem buffer, size_t offset, size_t size)
 {
-    if(get_disable_api_check_envvar())
-        return 0;
-
     uint8_t ret = 0;
     cl_memobj *m1 = cl_mem_find(get_cl_mem_alloc(), buffer);
     if(m1)
@@ -245,7 +244,6 @@ uint8_t apiBufferOverflowCheck(char * const func, cl_mem buffer, size_t offset, 
                 bad_byte = 0;
 
             apiOverflowError(func, buffer, bad_byte);
-            optionalKillOnOverflow(get_exitcode_envvar(), 0);
             ret = 1;
         }
     }
@@ -254,9 +252,6 @@ uint8_t apiBufferOverflowCheck(char * const func, cl_mem buffer, size_t offset, 
 
 uint8_t apiBufferRectOverflowCheck(char * const func, cl_mem buffer, const size_t * buffer_offset, const size_t * region, size_t row_pitch, size_t slice_pitch)
 {
-    if(get_disable_api_check_envvar())
-        return 0;
-
     uint8_t ret = 0;
     cl_memobj *m1 = cl_mem_find(get_cl_mem_alloc(), buffer);
     if(m1)
@@ -291,7 +286,6 @@ uint8_t apiBufferRectOverflowCheck(char * const func, cl_mem buffer, const size_
                 bad_byte = 0;
 
             apiOverflowError(func, buffer, bad_byte);
-            optionalKillOnOverflow(get_exitcode_envvar(), 0);
             ret = 1;
         }
     }
@@ -300,9 +294,6 @@ uint8_t apiBufferRectOverflowCheck(char * const func, cl_mem buffer, const size_
 
 uint8_t apiImageOverflowCheck(char * const func, cl_mem image, const size_t * origin, const size_t * region)
 {
-    if(get_disable_api_check_envvar())
-        return 0;
-
     uint8_t ret = 0;
     cl_memobj *m1 = cl_mem_find(get_cl_mem_alloc(), image);
     if(m1 && m1->is_image)
@@ -341,7 +332,6 @@ uint8_t apiImageOverflowCheck(char * const func, cl_mem image, const size_t * or
                 bad_index = 0;
 
             apiImageOverflowError(func, image, -1, -1, bad_index);
-            optionalKillOnOverflow(get_exitcode_envvar(), 0);
             ret = 1;
         }
         else if(origin[1] + region[1] > h - tLen[1])
@@ -353,7 +343,6 @@ uint8_t apiImageOverflowCheck(char * const func, cl_mem image, const size_t * or
                 bad_index = 0;
 
             apiImageOverflowError(func, image, -1, bad_index, origin[2]);
-            optionalKillOnOverflow(get_exitcode_envvar(), 0);
             ret = 1;
         }
         else if(origin[0] + region[0] > w - tLen[0])
@@ -365,7 +354,6 @@ uint8_t apiImageOverflowCheck(char * const func, cl_mem image, const size_t * or
                 bad_index = 0;
 
             apiImageOverflowError(func, image, bad_index, origin[1], origin[2]);
-            optionalKillOnOverflow(get_exitcode_envvar(), 0);
             ret = 1;
         }
     }
@@ -402,7 +390,7 @@ void expandLastDimForFill(cl_image_desc *desc)
             desc->image_depth += IMAGE_POISON_DEPTH;
             break;
         default:
-            det_fprintf(stderr, "failed to find image type");
+            printf("failed to find image type");
             exit(-1);
     }
 }

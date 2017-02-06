@@ -37,34 +37,36 @@
 #include "gpu_check_utils.h"
 
 
+#ifdef DEBUG_CHECKER_TIME
 void populateKernelTimes( cl_event *event, cl_ulong *queuedTime, cl_ulong *submitTime, cl_ulong *startTime, cl_ulong *endTime )
 {
     cl_int retval = 0;
     retval = clGetEventProfilingInfo( *event, CL_PROFILING_COMMAND_QUEUED, sizeof(*queuedTime), queuedTime, NULL );
     if (retval != CL_SUCCESS)
     {
-        det_fprintf(stderr, "Error attempting to get profiling info for kernel queued time: %s\n", cluErrorString(retval));
+        fprintf(stderr, "Error attempting to get profiling info for kernel queued time: %s\n", cluErrorString(retval));
         exit(-1);
     }
     retval = clGetEventProfilingInfo( *event, CL_PROFILING_COMMAND_SUBMIT, sizeof(*submitTime), submitTime, NULL );
     if (retval != CL_SUCCESS)
     {
-        det_fprintf(stderr, "Error attempting to get profiling info for kernel submit time: %s\n", cluErrorString(retval));
+        fprintf(stderr, "Error attempting to get profiling info for kernel submit time: %s\n", cluErrorString(retval));
         exit(-1);
     }
     retval = clGetEventProfilingInfo( *event, CL_PROFILING_COMMAND_START, sizeof(*startTime), startTime, NULL );
     if (retval != CL_SUCCESS)
     {
-        det_fprintf(stderr, "Error attempting to get profiling info for kernel start time: %s\n", cluErrorString(retval));
+        fprintf(stderr, "Error attempting to get profiling info for kernel start time: %s\n", cluErrorString(retval));
         exit(-1);
     }
     retval = clGetEventProfilingInfo( *event, CL_PROFILING_COMMAND_END, sizeof(*endTime), endTime, NULL );
     if (retval != CL_SUCCESS)
     {
-        det_fprintf(stderr, "Error attempting to get profiling info for kernel end time: %s\n", cluErrorString(retval));
+        fprintf(stderr, "Error attempting to get profiling info for kernel end time: %s\n", cluErrorString(retval));
         exit(-1);
     }
 }
+#endif
 
 /*
  * copy the image canary regions to a flattened format in the destination buffer
@@ -170,7 +172,7 @@ static void report_kernel_overflows(uint32_t num_buffs, int *first_change,
     {
         if(first_change[i] < INT_MAX)
         {
-            overflowError(kern_info, argMap[i], first_change[i], data->backtrace_str);
+            overflowError(kern_info, argMap[i], first_change[i]);
             found_an_overflow = 1;
         }
     }
@@ -178,7 +180,7 @@ static void report_kernel_overflows(uint32_t num_buffs, int *first_change,
     if(found_an_overflow)
     {
         printDupeWarning(kern_info->handle, dupe);
-        optionalKillOnOverflow(get_exitcode_envvar(), parentThread);
+        optionalKillOnOverflow(-1, parentThread);
     }
 }
 
@@ -222,8 +224,6 @@ static void verify_callback(cl_event event, cl_int status, void* verif_data)
     free(data->dupe);
     free(first_change);
     free(argMap);
-    if (data->backtrace_str)
-        free(data->backtrace_str);
     free(data);
 }
 #endif //KERN_CALLBACK
@@ -278,7 +278,7 @@ void analyze_check_results(cl_command_queue cmd_queue, cl_event readback_evt,
 
     // This info will eventually be passed to the callback (after the data
     // read completes) to check the canary values.
-    verif_info *data = calloc(sizeof(verif_info), 1);
+    verif_info *data = malloc(sizeof(verif_info));
     data->kern_info = kern_info;
     data->first_change = first_change;
     data->argMap = arg_map;
@@ -288,12 +288,6 @@ void analyze_check_results(cl_command_queue cmd_queue, cl_event readback_evt,
     data->used_svm_is_clmem = used_svm_is_clmem;
     data->poison_pointers = poison_ptrs;
     data->parent = pthread_self();
-
-    if(get_print_backtrace_envvar())
-    {
-        //clEnqueueNDRangeKernel->kernelLaunchFunc->verifyBufferInBounds->verify_on_gpu_copy_canary->verify_cl_buffer_copy->analyze_check_results
-        data->backtrace_str = get_backtrace_level(5);
-    }
 
     // Deep copy dupe, because it can be freed before the callback happens.
     uint32_t nargs;
@@ -315,32 +309,9 @@ void analyze_check_results(cl_command_queue cmd_queue, cl_event readback_evt,
     verif_info data;
     data.parent = pthread_self();
     data.dupe = dupe;
-    data.backtrace_str = NULL;
-
-    if(get_print_backtrace_envvar())
-    {
-        data.backtrace_str = get_backtrace_level(5);
-    }
-
     report_kernel_overflows(num_buffers, first_change, buffer_ptrs, kern_info,
             &data);
 
-#ifdef CL_VERSION_2_0
-    if(used_svm)
-    {
-        cl_context ctx;
-        cl_int cl_err = clGetCommandQueueInfo(cmd_queue, CL_QUEUE_CONTEXT,
-                sizeof(cl_context), &ctx, 0);
-        check_cl_error(__FILE__, __LINE__, cl_err);
-        if (used_svm_is_clmem)
-            releaseInternalMemObject(used_svm);
-        else
-            clSVMFree(ctx, used_svm);
-    }
-#endif
-
-    if (data.backtrace_str)
-        free(data.backtrace_str);
     if (poison_ptrs)
         free(poison_ptrs);
     free(first_change);
@@ -366,6 +337,7 @@ uint64_t get_kern_runtime(void)
 
 void output_kern_runtime(void)
 {
+#ifdef DEBUG_CHECKER_TIME
     if(get_tool_perf_envvar() & STATS_CHECKER_TIME)
     {
         static FILE *debug_out = NULL;
@@ -378,6 +350,7 @@ void output_kern_runtime(void)
         fprintf(debug_out, "%lu\n", check_kern_runtime_us);
         fclose(debug_out);
     }
+#endif
 }
 
 void mend_this_canary(cl_context kern_ctx, cl_command_queue cmd_queue,
@@ -420,14 +393,14 @@ static void check_if_same_kernel(cl_kernel *kernel_ptr, cl_context context,
             check_cl_error(__FILE__, __LINE__, cl_err);
             if (size_ret == 0)
             {
-                det_fprintf(stderr, "Bad calloc size (%lu) at %s:%d\n",
+                fprintf(stderr, "Bad calloc size (%lu) at %s:%d\n",
                         size_ret, __FILE__, __LINE__);
                 exit(-1);
             }
             kernelName = calloc(size_ret, sizeof(char));
             if (kernelName == NULL)
             {
-                det_fprintf(stderr, "Calloc failed at %s:%d (size: %lu)\n",
+                fprintf(stderr, "Calloc failed at %s:%d (size: %lu)\n",
                         __FILE__, __LINE__, size_ret);
                 exit(-1);
             }
@@ -462,7 +435,7 @@ static cl_kernel get_kernel_for_context(cl_kernel *kernel_ptr,
     if(kernel == NULL)
     {
 #ifdef DEBUG
-        det_printf("building kernel %u\n", numBuilds++);
+        printf("building kernel %u\n", numBuilds++);
 #endif
         const char *slist[2] = {src, 0};
 

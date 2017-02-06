@@ -59,15 +59,6 @@ int main(int argc, char** argv)
     cl_platform_id platform = setup_platform(platform_to_use);
     cl_device_id device = setup_device(device_to_use, platform_to_use,
             platform, dev_type);
-
-    if(!device_supports_svm(device, 0))
-    {
-        output_fake_errors(OUTPUT_FILE_NAME, EXPECTED_ERRORS);
-        printf("Coarse-grained SVM not supported. ");
-        printf("Skipping Good Indirect SVM Test.\n");
-        return 0;
-    }
-
     cl_context context = setup_context(platform, device);
     cl_command_queue cmd_queue = setup_cmd_queue(context, device);
 
@@ -152,7 +143,7 @@ int main(int argc, char** argv)
     (void)argc;
     (void)argv;
     output_fake_errors(OUTPUT_FILE_NAME, EXPECTED_ERRORS);
-    printf("OpenCL 2.0 not supported. Skipping Good Indirect SVM Test.\n");
+    printf("OpenCL 2.0 not supported. Skipping Bad SVM Test.\n");
 #endif // CL_VERSION_2_0
     return 0;
 }

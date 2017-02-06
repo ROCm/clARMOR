@@ -19,7 +19,7 @@
 # THE SOFTWARE.
 
 
-#EXPECTED_ERRORS:=355 #71*(2+3)
+EXPECTED_ERRORS:=355 #71*(2+3)
 BENCH_NAME=bad_complex_image_cl1_1
 
-include ../common_include/common_exterr.mk
+include ../common_include/common.mk

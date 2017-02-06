@@ -19,6 +19,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
+
 # This script will run a series of automated stress tests across a user-defined
 # group of benchmarks.
 #
@@ -87,19 +88,6 @@ print_failure()
         else
             echo -e "       ${FG}${BG}FAILED${NC} ${2} with error code $1"
         fi
-    fi
-}
-
-build_info_check()
-{
-    make info_check &> /dev/null
-    ret_val=$?
-    if [ $ret_val -ne 0 ]; then
-        print_failure $ret_val
-        has_ever_failed=$ret_val
-        echo -e "Failed 'make info_check'"
-        echo -e "Stopping test since things won't successfully build."
-        exit -1
     fi
 }
 
@@ -281,167 +269,115 @@ then
     fi
     echo ""
 
-    build_info_check
-    CAN_TEST=$(${BASE_DIR}/../bin/clarmor-info -g)
-    if [ $((CAN_TEST)) -eq 1 ]
+    print_date=`date`
+    echo ""
+    echo -e "Starting 'make test' at $print_date ..."
+    cd ${BASE_DIR}/../
+    mv -f ${BASE_DIR}/*.out ${BASE_DIR}/../ &> /dev/null
+    make clean &> /dev/null
+    mv -f ${BASE_DIR}/../*.out ${BASE_DIR} &> /dev/null
+    make -j `nproc` &> ${BASE_DIR}/auto_test_make_test.out
+    make test >> ${BASE_DIR}/auto_test_make_test.out 2>&1
+    ret_val=$?
+    print_date=`date`
+    echo -e "Finished at $print_date:"
+    if [ $ret_val -ne 0 ]
     then
-        print_date=`date`
-        echo ""
-        echo -e "Starting 'make test' at $print_date ..."
-        cd ${BASE_DIR}/../
-        mv -f ${BASE_DIR}/*.out ${BASE_DIR}/../ &> /dev/null
-        make clean &> /dev/null
-        mv -f ${BASE_DIR}/../*.out ${BASE_DIR} &> /dev/null
-        make -j `nproc` &> ${BASE_DIR}/auto_test_make_test.out
-        make test >> ${BASE_DIR}/auto_test_make_test.out 2>&1
-        ret_val=$?
-        print_date=`date`
-        echo -e "Finished at $print_date:"
-        if [ $ret_val -ne 0 ]
-        then
-            print_failure $ret_val
-            has_ever_failed=$ret_val
-            echo -e "   Check out ${BASE_DIR}/auto_test_make_test.out to find out what happened."
-        else
-            print_success
-        fi
-        echo ""
+        print_failure $ret_val
+        has_ever_failed=$ret_val
+        echo -e "   Check out ${BASE_DIR}/auto_test_make_test.out to find out what happened."
+    else
+        print_success
     fi
+    echo ""
 
-    build_info_check
-    CAN_TEST=$(${BASE_DIR}/../bin/clarmor-info -c)
-    if [ $((CAN_TEST)) -eq 1 ]
+    print_date=`date`
+    echo ""
+    echo -e "Starting 'make test' with DEVICE_CHECK_CUTOFF=1 at $print_date ..."
+    cd ${BASE_DIR}/../
+    mv -f ${BASE_DIR}/*.out ${BASE_DIR}/../ &> /dev/null
+    make clean &> /dev/null
+    mv -f ${BASE_DIR}/../*.out ${BASE_DIR} &> /dev/null
+    make -j `nproc` &> ${BASE_DIR}/auto_test_make_test_cutoff-1.out
+    DEVICE_CHECK_CUTOFF=1 make test >> ${BASE_DIR}/auto_test_make_test_cutoff-1.out 2>&1
+    ret_val=$?
+    print_date=`date`
+    echo -e "Finished at $print_date:"
+    if [ $ret_val -ne 0 ]
     then
-        print_date=`date`
-        echo ""
-        echo -e "Starting 'make cpu_test' at $print_date ..."
-        cd ${BASE_DIR}/../
-        mv -f ${BASE_DIR}/*.out ${BASE_DIR}/../ &> /dev/null
-        make clean &> /dev/null
-        mv -f ${BASE_DIR}/../*.out ${BASE_DIR} &> /dev/null
-        make -j `nproc` &> ${BASE_DIR}/auto_test_make_cpu_test.out
-        make cpu_test >> ${BASE_DIR}/auto_test_make_cpu_test.out 2>&1
-        ret_val=$?
-        print_date=`date`
-        echo -e "Finished at $print_date:"
-        if [ $ret_val -ne 0 ]
-        then
-            print_failure $ret_val
-            has_ever_failed=$ret_val
-            echo -e "   Check out ${BASE_DIR}/auto_test_make_cpu_test.out to find out what happened."
-        else
-            print_success
-        fi
-        echo ""
+        print_failure $ret_val
+        has_ever_failed=$ret_val
+        echo -e "   Check out ${BASE_DIR}/auto_test_make_test_cutoff-1.out to find out what happened."
+    else
+        print_success
     fi
+    echo ""
 
-    build_info_check
-    CAN_TEST=$(${BASE_DIR}/../bin/clarmor-info -g)
-    if [ $((CAN_TEST)) -eq 1 ]
+    print_date=`date`
+    echo ""
+    echo -e "Starting 'make test' with DEVICE_CHECK_CUTOFF=1 USE_ALTERNATE_GPU_DETECTION=1 at $print_date ..."
+    cd ${BASE_DIR}/../
+    mv -f ${BASE_DIR}/*.out ${BASE_DIR}/../ &> /dev/null
+    make clean &> /dev/null
+    mv -f ${BASE_DIR}/../*.out ${BASE_DIR} &> /dev/null
+    make -j `nproc` &> ${BASE_DIR}/auto_test_make_test_cutoff-1_gpudetect-1.out
+    DEVICE_CHECK_CUTOFF=1 USE_ALTERNATE_GPU_DETECTION=1 make test >> ${BASE_DIR}/auto_test_make_test_cutoff-1_gpudetect-1.out 2>&1
+    ret_val=$?
+    print_date=`date`
+    echo -e "Finished at $print_date:"
+    if [ $ret_val -ne 0 ]
     then
-        print_date=`date`
-        echo ""
-        echo -e "Starting 'make test' with CLARMOR_DEVICE_SELECT=1 at $print_date ..."
-        cd ${BASE_DIR}/../
-        mv -f ${BASE_DIR}/*.out ${BASE_DIR}/../ &> /dev/null
-        make clean &> /dev/null
-        mv -f ${BASE_DIR}/../*.out ${BASE_DIR} &> /dev/null
-        make -j `nproc` &> ${BASE_DIR}/auto_test_make_test_device-1.out
-        CLARMOR_DEVICE_SELECT=1 make test >> ${BASE_DIR}/auto_test_make_test_device-1.out 2>&1
-        ret_val=$?
-        print_date=`date`
-        echo -e "Finished at $print_date:"
-        if [ $ret_val -ne 0 ]
-        then
-            print_failure $ret_val
-            has_ever_failed=$ret_val
-            echo -e "   Check out ${BASE_DIR}/auto_test_make_test_device-1.out to find out what happened."
-        else
-            print_success
-        fi
-        echo ""
+        print_failure $ret_val
+        has_ever_failed=$ret_val
+        echo -e "   Check out ${BASE_DIR}/auto_test_make_test_cutoff-1_gpudetect-1.out to find out what happened."
+    else
+        print_success
     fi
+    echo ""
 
-    build_info_check
-    CAN_TEST=$(${BASE_DIR}/../bin/clarmor-info -g)
-    if [ $((CAN_TEST)) -eq 1 ]
+    print_date=`date`
+    echo ""
+    echo -e "Starting 'make test' with DEVICE_CHECK_CUTOFF=1 USE_ALTERNATE_GPU_DETECTION=2 at $print_date ..."
+    cd ${BASE_DIR}/../
+    mv -f ${BASE_DIR}/*.out ${BASE_DIR}/../ &> /dev/null
+    make clean &> /dev/null
+    mv -f ${BASE_DIR}/../*.out ${BASE_DIR} &> /dev/null
+    make -j `nproc` &> ${BASE_DIR}/auto_test_make_test_cutoff-1_gpudetect-2.out
+    DEVICE_CHECK_CUTOFF=1 USE_ALTERNATE_GPU_DETECTION=2 make test >> ${BASE_DIR}/auto_test_make_test_cutoff-1_gpudetect-2.out 2>&1
+    ret_val=$?
+    print_date=`date`
+    echo -e "Finished at $print_date:"
+    if [ $ret_val -ne 0 ]
     then
-        print_date=`date`
-        echo ""
-        echo -e "Starting 'make test' with CLARMOR_DEVICE_SELECT=1 CLARMOR_ALTERNATE_GPU_DETECTION=1 at $print_date ..."
-        cd ${BASE_DIR}/../
-        mv -f ${BASE_DIR}/*.out ${BASE_DIR}/../ &> /dev/null
-        make clean &> /dev/null
-        mv -f ${BASE_DIR}/../*.out ${BASE_DIR} &> /dev/null
-        make -j `nproc` &> ${BASE_DIR}/auto_test_make_test_device-1_gpudetect-1.out
-        CLARMOR_DEVICE_SELECT=1 CLARMOR_ALTERNATE_GPU_DETECTION=1 make test >> ${BASE_DIR}/auto_test_make_test_device-1_gpudetect-1.out 2>&1
-        ret_val=$?
-        print_date=`date`
-        echo -e "Finished at $print_date:"
-        if [ $ret_val -ne 0 ]
-        then
-            print_failure $ret_val
-            has_ever_failed=$ret_val
-            echo -e "   Check out ${BASE_DIR}/auto_test_make_test_device-1_gpudetect-1.out to find out what happened."
-        else
-            print_success
-        fi
-        echo ""
+        print_failure $ret_val
+        has_ever_failed=$ret_val
+        echo -e "   Check out ${BASE_DIR}/auto_test_make_test_cutoff-1_gpudetect-2.out to find out what happened."
+    else
+        print_success
     fi
+    echo ""
 
-    build_info_check
-    CAN_TEST=$(${BASE_DIR}/../bin/clarmor-info -g)
-    if [ $((CAN_TEST)) -eq 1 ]
+    print_date=`date`
+    echo ""
+    echo -e "Starting 'make test' with DEVICE_CHECK_CUTOFF=2 at $print_date ..."
+    cd ${BASE_DIR}/../
+    mv -f ${BASE_DIR}/*.out ${BASE_DIR}/../ &> /dev/null
+    make clean &> /dev/null
+    mv -f ${BASE_DIR}/../*.out ${BASE_DIR} &> /dev/null
+    make -j `nproc` &> ${BASE_DIR}/auto_test_make_test_cutoff-2.out
+    DEVICE_CHECK_CUTOFF=2 make test >> ${BASE_DIR}/auto_test_make_test_cutoff-2.out 2>&1
+    ret_val=$?
+    print_date=`date`
+    echo -e "Finished at $print_date:"
+    if [ $ret_val -ne 0 ]
     then
-        print_date=`date`
-        echo ""
-        echo -e "Starting 'make test' with CLARMOR_DEVICE_SELECT=1 CLARMOR_ALTERNATE_GPU_DETECTION=2 at $print_date ..."
-        cd ${BASE_DIR}/../
-        mv -f ${BASE_DIR}/*.out ${BASE_DIR}/../ &> /dev/null
-        make clean &> /dev/null
-        mv -f ${BASE_DIR}/../*.out ${BASE_DIR} &> /dev/null
-        make -j `nproc` &> ${BASE_DIR}/auto_test_make_test_device-1_gpudetect-2.out
-        CLARMOR_DEVICE_SELECT=1 CLARMOR_ALTERNATE_GPU_DETECTION=2 make test >> ${BASE_DIR}/auto_test_make_test_device-1_gpudetect-2.out 2>&1
-        ret_val=$?
-        print_date=`date`
-        echo -e "Finished at $print_date:"
-        if [ $ret_val -ne 0 ]
-        then
-            print_failure $ret_val
-            has_ever_failed=$ret_val
-            echo -e "   Check out ${BASE_DIR}/auto_test_make_test_device-1_gpudetect-2.out to find out what happened."
-        else
-            print_success
-        fi
-        echo ""
+        print_failure $ret_val
+        has_ever_failed=$ret_val
+        echo -e "   Check out ${BASE_DIR}/auto_test_make_test_cutoff-2.out to find out what happened."
+    else
+        print_success
     fi
-
-    build_info_check
-    CAN_TEST=$(${BASE_DIR}/../bin/clarmor-info -g)
-    if [ $((CAN_TEST)) -eq 1 ]
-    then
-        print_date=`date`
-        echo ""
-        echo -e "Starting 'make test' with CLARMOR_DEVICE_SELECT=2 at $print_date ..."
-        cd ${BASE_DIR}/../
-        mv -f ${BASE_DIR}/*.out ${BASE_DIR}/../ &> /dev/null
-        make clean &> /dev/null
-        mv -f ${BASE_DIR}/../*.out ${BASE_DIR} &> /dev/null
-        make -j `nproc` &> ${BASE_DIR}/auto_test_make_test_device-2.out
-        CLARMOR_DEVICE_SELECT=2 make test >> ${BASE_DIR}/auto_test_make_test_device-2.out 2>&1
-        ret_val=$?
-        print_date=`date`
-        echo -e "Finished at $print_date:"
-        if [ $ret_val -ne 0 ]
-        then
-            print_failure $ret_val
-            has_ever_failed=$ret_val
-            echo -e "   Check out ${BASE_DIR}/auto_test_make_test_device-2.out to find out what happened."
-        else
-            print_success
-        fi
-        echo ""
-    fi
+    echo ""
 fi
 
 # This section runs the detector against the desired group if the group
@@ -451,7 +387,7 @@ then
     print_date=`date`
     echo ""
     echo -e "Starting benchmark tests at $print_date ..."
-    ${BASE_DIR}/../bin/clarmor --group $group &> ${BASE_DIR}/auto_test_benchmarks.out
+    ${BASE_DIR}/../bin/run_overflow_detect.py --group $group &> ${BASE_DIR}/auto_test_benchmarks.out
     ret_val=$?
     print_date=`date`
     echo -e "Finished at $print_date:"

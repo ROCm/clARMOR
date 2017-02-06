@@ -22,7 +22,7 @@
 
 # This script will build version 2.5 of the Parboil benchmark suite and put it
 # into the ~/benchmarks/parboil directory.
-# The apps can be run with clarmor.py --group=PARBOIL
+# The apps can be run with run_overflow_detect.py --group=PARBOIL
 
 # Licensing Information:
 # Parboil is available under the Illinois Open Source License (a.k.a. the NCSA
@@ -30,8 +30,11 @@
 # See: http://impact.crhc.illinois.edu/parboil/parboil_download_page.aspx
 # and: parboil/LICENSE
 
-BASE_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-source ${BASE_DIR}/setup_bench_install.sh
+if [ ! -d ~/benchmarks ]; then
+    mkdir -p ~/benchmarks
+fi
+
+cd ~/benchmarks
 
 if [ ! -d ~/benchmarks/parboil ]; then
     if [ ! -f ~/benchmarks/pb2.5driver.tgz ]; then
@@ -76,9 +79,9 @@ if [ ! -d ~/benchmarks/parboil ]; then
     tar -xvf pb2.5benchmarks.tgz;
     tar -xvf pb2.5datasets_standard.tgz
     cp ./common/Makefile.conf.example-ati ./common/Makefile.conf
-    sed -i.bak 's#/opt/ati/#'${OCL_DIR}'#g' ./common/Makefile.conf
+    sed -i.bak 's/ati/AMDAPP/g' ./common/Makefile.conf
     # Patches for mri-gridding.
-    # This one prevents our compiler from complaining about being unable to compare an unsigned int vs. a signed int.
+    # This one prevents our compiler from complainint about being unable to compare an unsigned int vs. a signed int.
     # Previously, the kernel had incorrect parens around a thing they wanted to cast.
     sed -i.bak 's/(LNB)+(index)/((LNB)+(index))/' ./benchmarks/mri-gridding/src/opencl_base/sort.cl
     # This prevents a buffer overflow in the splitRearrange kernel.
@@ -90,9 +93,6 @@ if [ ! -d ~/benchmarks/parboil ]; then
     # Otherwise, we are doing a use-after-free of an event from that command queue, which causes a crash.
     sed -i.bak 's#pb_DestroyTimerSet#//pb_DestroyTimerSet#' ./benchmarks/sad/src/opencl_base/main.cpp
     sed -i.bak 's#OCL_ERRCK_RETVAL( clReleaseCommandQueue#pb_DestroyTimerSet(\&timers);\n  OCL_ERRCK_RETVAL( clReleaseCommandQueue#' ./benchmarks/sad/src/opencl_base/main.cpp
-	# Patch 'histo' so that it works on NV GPUs without running out of local memory space.
-	sed -i.bak 's#lmemKB = 48#lmemKB = 32#' ./benchmarks/histo/src/opencl_base/main.cpp
-	sed -i.bak 's#lmemKB = 24#lmemKB = 16#' ./benchmarks/histo/src/opencl_base/main.cpp
     for i in `./parboil list | grep "^ " | awk {'print $1'}`; do ./parboil compile $i opencl_base; done
     ./parboil compile mri-q opencl
 else

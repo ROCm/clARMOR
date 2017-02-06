@@ -22,7 +22,7 @@
 
 # This script will download hpl-gpu, a version of HPLINPACK that works on AMD
 # GPUs. It will put everything in it into the ~/benchmarks/LINPACK directory.
-# The apps can be run with clarmor.py --group=LINPACK
+# The apps can be run with run_overflow_detect.py --group=LINPACK
 
 # Licensing Information:
 # hpl-gpu is available under a mix of GPLv3 and 4-clause BSD. See:
@@ -34,7 +34,12 @@
 #  agree to that to download it, so you must download it manually.
 
 BASE_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-source ${BASE_DIR}/setup_bench_install.sh
+
+if [ ! -d ~/benchmarks ]; then
+    mkdir -p ~/benchmarks
+fi
+
+cd ~/benchmarks
 
 if [ ! -f ~/benchmarks/LINPACK/hpl-gpu/bin/Generic/xhpl ]; then
     if [ ! -d ~/benchmarks/LINPACK/ ]; then
@@ -47,15 +52,11 @@ if [ ! -f ~/benchmarks/LINPACK/hpl-gpu/bin/Generic/xhpl ]; then
         echo -e "Extracting ACML for LINPACK.."
         mkdir -p ~/benchmarks/LINPACK/acml/
         cd ~/benchmarks/LINPACK/acml/
-		if [ -f ~/benchmarks/acml-6.1.0.31-gfortran64.tgz ]; then
-			mv ~/benchmarks/acml-6.1.0.31-gfortran64.tgz ~/benchmarks/LINPACK/acml/
-		fi
         if [ -f ~/benchmarks/libraries/acml-6.1.0.31-gfortran64.tgz ]; then
-            mv ~/benchmarks/libraries/acml-6.1.0.31-gfortran64.tgz ~/benchmarks/LINPACK/acml/
+            mv ~/benchmarks//libraries/acml-6.1.0.31-gfortran64.tgz ~/benchmarks/LINPACK/acml/
         fi
         if [ ! -f ~/benchmarks/LINPACK/acml/acml-6.1.0.31-gfortran64.tgz ]; then
-			echo -e "Error. Could not find acml-6.1.0.31-gfortran64.tgz in"
-            echo -e "~/benchmarks/, ~/benchmarks/libraries/, or ~/benchmarks/LINPACK/acml/"
+            echo -e "~/benchmarks/libraries/ or ~/benchmarks/LINPACK/acml/"
             echo -e "Downloading ACML requires agreeing to a license."
             echo -e "As such, we cannot automatically download it for you."
             echo -e "Please go to the following site to download the file:"
@@ -132,7 +133,7 @@ if [ ! -f ~/benchmarks/LINPACK/hpl-gpu/bin/Generic/xhpl ]; then
         fi
         CBLAS_PATH=~/benchmarks/LINPACK/CBLAS/ ACML_PATH=~/benchmarks/LINPACK/acml/gfortran64_mp make > /dev/null
         if [ $? -ne 0 ]; then
-            echo -e "Failed to build CALDGEMM"
+            echo -e "Failed to build CLADGEMM"
             exit -1
         fi
     fi
@@ -146,7 +147,7 @@ if [ ! -f ~/benchmarks/LINPACK/hpl-gpu/bin/Generic/xhpl ]; then
     ln -s ../caldgemm/
     cp ./setup/Make.Generic .
     cp ./setup/Make.Generic.Options .
-    AMDAPPSDKROOT=${OCL_DIR} CBLAS_PATH=~/benchmarks/LINPACK/CBLAS/ ACML_PATH=~/benchmarks/LINPACK/acml/gfortran64_mp LD_LIBRARY_PATH=~/benchmarks/LINPACK/lib:$LD_LIBRARY_PATH ./build.sh > /dev/null
+    CBLAS_PATH=~/benchmarks/LINPACK/CBLAS/ ACML_PATH=~/benchmarks/LINPACK/acml/gfortran64_mp LD_LIBRARY_PATH=~/benchmarks/LINPACK/lib:$LD_LIBRARY_PATH ./build.sh > /dev/null
     if [ $? -ne 0 ]; then
         echo -e "Failed to build HPL-GPU"
         exit -1

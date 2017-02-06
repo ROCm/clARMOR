@@ -38,7 +38,7 @@ static uint32_t find_canary_ends(void **image_ptrs, uint32_t num_images,
         cl_memobj *img = cl_mem_find(get_cl_mem_alloc(), image_ptrs[i]);
         if(img == NULL)
         {
-            det_fprintf(stderr, "failure to find cl_memobj for image.\n");
+            printf("failure to find cl_memobj for image.\n");
             exit(-1);
         }
         uint32_t i_lim, j_lim, k_lim, i_dat, j_dat, k_dat;
@@ -62,7 +62,7 @@ static cl_memobj * copy_this_image_canary(cl_command_queue cmd_queue,
     cl_memobj *img = cl_mem_find(get_cl_mem_alloc(), image);
     if(img == NULL)
     {
-        det_fprintf(stderr, "failure to find cl_memobj.\n");
+        printf("failure to find cl_memobj.\n");
         exit(-1);
     }
     uint32_t offset = 0;
@@ -81,6 +81,7 @@ static cl_event perform_cl_image_checks(cl_context kern_ctx,
 {
     cl_int cl_err;
     size_t global_work[3] = {total_canary_len, 1, 1};
+    size_t local_work[3] = {64, 1, 1};
 
     // Create a buffer that holds the endpoint of each buffer, so that the
     // device kernel can see it.
@@ -98,10 +99,11 @@ static cl_event perform_cl_image_checks(cl_context kern_ctx,
     // Launch the kernel that checks the copies of the canary values.
     cl_event kern_end;
     launchOclKernelStruct ocl_args = setup_ocl_args(cmd_queue, check_kern,
-        1, NULL, global_work, NULL, num_init_evts, init_evts, &kern_end);
+        1, NULL, global_work, local_work, num_init_evts, init_evts, &kern_end);
     cl_err = runNDRangeKernel( &ocl_args );
     check_cl_error(__FILE__, __LINE__, cl_err);
 
+#ifdef DEBUG_CHECKER_TIME
     if(global_tool_stats_flags & STATS_CHECKER_TIME)
     {
         clFinish(cmd_queue);
@@ -110,6 +112,7 @@ static cl_event perform_cl_image_checks(cl_context kern_ctx,
                 &times[3]);
         add_to_kern_runtime((times[3] - times[2]) / 1000);
     }
+#endif //DEBUG_CHECKER_TIME
 
     // If we are also fixing any of the corrupted canary bits in the original
     // buffer, then combine those events with waiting for the kernel to check

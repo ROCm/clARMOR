@@ -21,10 +21,6 @@
  ********************************************************************************/
 
 
-/*! \file cl_buffer_copy.h
- * context agnostic copy methods for cl_mem buffer
- */
-
 #ifndef __CL_BUFFER_COPY_H
 #define __CL_BUFFER_COPY_H
 
@@ -39,39 +35,28 @@ void new_queue_buffer_copy(cl_context context, cl_mem from, cl_mem to,
         size_t off_from, size_t off_to, size_t size, unsigned num_evt,
         const cl_event *evt_list, cl_event *out);
 
-/*!
- * Makes a copy of one cl_mem buffer into another cl_mem buffer
- * This function will cover all of the complexities of copying these buffers,
- * even if they were originally from different contexts.
- * To get the best performance, the command_queue should share the same context
- * as the 'from' cl_mem and the 'to' cl_mem. If it does not, a new command
- * queue will be created internally.
- * If the context we must use already has oneo f these internal command queues,
- * we will use the cached version of it.
- *
- * \param command_queue
- *      command queue onto which the copy commands will
- *      nominally be enqueued. See above for cases where this
- *      will not actually be the queue used.
- * \param from
- *      cl_mem that holds the data we will be copying from
- * \param to
- *      cl_mem where we are trying to copy data to. Should already be
- *      created and have enough space to hold all of the copied data
- * \param off_from
- *      offset into the 'from' buffer we will start copying from
- * \param off_to
- *      offset into the 'to' buffer where we will start putting data
- * \param size
- *      the number of bytes to copy between the two buffers
- * \param  num_evt
- *      number of input events that this copy should wait on.
- * \param evt_list
- *      list of cl_events that should finish before the copy starts
- * \param out
- *      cl_event that will inform the outside world when the
- *      asynchronous copies within this command complete
- */
+// Makes a copy of one cl_mem buffer into another cl_mem buffer
+// This function will cover all of the complexities of copying these buffers,
+// even if they were originally from different contexts.
+// To get the best performance, the command_queue should share the same context
+// as the 'from' cl_mem and the 'to' cl_mem. If it does not, a new command
+// queue will be created internally.
+// If the context we must use already has oneo f these internal command queues,
+// we will use the cached version of it.
+// Inputs:
+//      command_queue: command queue onto which the copy commands will
+//                     nominally be enqueued. See above for cases where this
+//                     will not actually be the queue used.
+//      from:   cl_mem that holds the data we will be copying from
+//      to: cl_mem where we are trying to copy data to. Should already be
+//          created and have enough space to hold all of the copied data
+//      off_from: offset into the 'from' buffer we will start copying from 
+//      off_to: offset into the 'to' buffer where we will start putting data
+//      size:   the number of bytes to copy between the two buffers
+//      num_evt:    number of input events that this copy should wait on.
+//      evt_list:   list of cl_events that should finish before the copy starts
+//      out:    cl_event that will inform the outside world when the
+//              asynchronous copies within this command complete
 void inner_buffer_copy(cl_command_queue command_queue, cl_mem from, cl_mem to,
         size_t off_from, size_t off_to, size_t size, unsigned num_evt,
         const cl_event *evt_list, cl_event *out);

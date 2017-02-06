@@ -20,22 +20,23 @@
  * THE SOFTWARE.
  ********************************************************************************/
 
-/*! \file detector_defines.h
- * Values for canary lengths and fills.
- * Also has defines for GPU kernel synchronizations.
- */
-
 #ifndef __POISON_VALUES_H
 #define __POISON_VALUES_H
 
 #include <stdint.h>
 
+
+#define DEBUG_KERN_ENQ_TIME
+#define DEBUG_CHECKER_TIME
+#define DEBUG_MEM_OVERHEAD
+
+
 //GPU check mutators
 //#define SEQUENTIAL
 #define KERN_CALLBACK
-
 //measured in bytes
 #define POISON_FILL_LENGTH 8192
+
 
 //measured in array indexes
 #define IMAGE_POISON_WIDTH 16
@@ -44,8 +45,9 @@
 
 #define POISON_FILL 0xC2
 
-extern const uint8_t poisonFill_8b; ///< 8 bit poison fill
-extern const uint32_t poisonFill_32b; ///< 32 bit poison fill
-extern const unsigned poisonWordLen; ///< length of canary region in 32 bit words
+extern const unsigned poisonFillLength;
+extern const uint8_t poisonFill_8b;
+extern const unsigned poisonFill_32b;
+extern const unsigned poisonWordLen;
 
 #endif //__POISON_VALUES_H

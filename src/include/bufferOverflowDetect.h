@@ -21,10 +21,6 @@
  ********************************************************************************/
 
 
-/*! \file bufferOverflowDetect.h
- * Methods to launch an overflow detection scheme.
- */
-
 #ifndef __BUFFER_OVERFLOW_DETECT_H
 #define __BUFFER_OVERFLOW_DETECT_H
 
@@ -38,14 +34,14 @@
 
 
 
-/*!
+/*
  * find duplicate arguments
  *
- * \param nargs
+ * uint32_t nargs
  *      number of arguments to the kernel
- * \param args
+ * kernel_arg *args
  *      list to information about kernel arguments
- * \param dupe_p
+ * uint32_t **dupe_p
  *      Output
  *      pointer to duplicate list to be created
  *      uint32_t at index i is equal to i if arg i is unique in the set of indexes <= i,
@@ -54,71 +50,39 @@
  */
 void findDuplicates(uint32_t nargs, kernel_arg *args, uint32_t **dupe_p);
 
-/*!
+/*
  * uses one of the overflow detection methods to verify the integrity of the canary regions
  * by default chooses between checking on cpu vs gpu, by number of active buffers
  *
- * \param cmdQueue
- *      cl_command_queue on which to perform the verification
- * \param kern
- *      cl_kernel to verify
- * \param dupe
- *      list of duplicate kernel arguments
- * \param evt
- *      leading event, synchronization point for start of check
- * \param retEvt
- *      end event, synchronization point for end of check
  */
 void verifyBufferInBounds(cl_command_queue cmdQueue, cl_kernel kern, uint32_t *dupe, const cl_event *evt, cl_event *retEvt);
 
-/*!
+/*
  * deletes the kernel and any arguments created by the overflow detector
  *
- * \param del_kern
- *      cl_kernel deletion target
- * \param dupe
- *      list of duplicate kernel arguments
  */
 void delPoisonKernel(cl_kernel del_kern, uint32_t *dupe);
 
-/*!
+/*
  * create a copy kernel
  * arguments uninitialized
  *
- * \param kernel
- *      kernel to copy
- * \return duplicate kernel
  */
 cl_kernel kernelDuplicate(cl_kernel kernel);
 
-/*!
+/*
  * If there are buffers that still need to be expanded with canaries,
  *  this function will create a new kernel with the updated arguments
  * If all buffers have canaries, returns the argument kernel
  *
- * \param command_queue
- *      create the new kernel on this queue
- * \param kernel
- *      use this kernel to create the new kernel
- * \param dupe
- *      list of duplicate kernel arguments
- * \return kernel with poisoned buffers
  */
 cl_kernel createPoisonedKernel(cl_command_queue command_queue,
         cl_kernel kernel,
         uint32_t *dupe);
 
-/*!
+/*
  * copies buffer arguments across kernels
  *
- * \param to
- *      copy buffers to this kernel
- * \param from
- *      copy buffers from this kernel
- * \param dupe
- *      list of duplicate kernel arguments
- * \param command_queue
- *      copy using this cl_command_queue
  */
 void copyKernelBuffers(cl_kernel to, cl_kernel from,
         uint32_t * dupe, cl_command_queue command_queue);

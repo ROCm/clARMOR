@@ -20,35 +20,19 @@
  * THE SOFTWARE.
  ********************************************************************************/
 
-/*! \file check_utils.h
- * Common functions for CPU and GPU checks.
- */
-
 #ifndef __CHECK_UTILS__
 #define __CHECK_UTILS__
 
 #include <stdint.h>
 #include <CL/cl.h>
 
-/*!
+/*
  * will update canary region with POISON_FILL
  * works for cl_mem (buffers and images) and svm
  *
  * will perform context conversions if the buffer belongs to a different context than the command queue / events
  * return event is in the context of the command queue
  *
- * \param cmdQueue
- *      cl_command_queue for performing writes
- * \param buffer
- *      cl_mem or svm to perform the fill in
- * \param blocking
- *      force synchronous
- * \param numEvts
- *      number of input events
- * \param evt
- *      input events
- * \param retEvt
- *      output events
  */
 void mendCanaryRegion(cl_command_queue cmdQueue, void * const buffer, cl_bool blocking, uint32_t numEvts, const cl_event *evt, cl_event *retEvt);
 

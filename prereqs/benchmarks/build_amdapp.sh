@@ -24,91 +24,51 @@
 # the ~/benchmarks/AMDAPP/ folder so that we can make some
 # performance-enhancing modifications (mostly putting data in the right
 # side of the PCIe bus).
-# The apps can be run with clarmor.py --group=AMDAPP
+# The apps can be run with run_overflow_detect.py --group=AMDAPP
 
 # Licensing Information:
 # The benchmarks in the AMD APP SDK are made available under the AMD Software
 # Development Kit License Agreement.
 
-BASE_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-source ${BASE_DIR}/setup_bench_install.sh
+if [ ! -d ~/benchmarks ]; then
+    mkdir -p ~/benchmarks
+fi
 
-cd ~/benchmarks/AMDAPP/
+cd ~/benchmarks
 
-if [ ! -d ~/benchmarks/AMDAPP/BlackScholes/ ]; then
-    echo -e "Copying benchmarks out into main AMDAPP directory..."
-    cp -R ~/benchmarks/AMDAPP/AMDAPP_install/samples/opencl/benchmark/* .
-    if [ -d ~/benchmarks/AMDAPP/AMDAPP_install/samples/opencl/cl/1.x/ ]; then
-        cp -R ~/benchmarks/AMDAPP/AMDAPP_install/samples/opencl/cl/1.x/* .
-        cp -R ~/benchmarks/AMDAPP/AMDAPP_install/samples/opencl/cpp_cl/1.x/* .
-        if [ $CL_V2_SUPPORTED -eq 1 ]; then
-            cp -R ~/benchmarks/AMDAPP/AMDAPP_install/samples/opencl/cl/2.0/* .
-        fi
+if [ ! -d ~/benchmarks/AMDAPP ];
+then
+    mkdir -p ~/benchmarks/AMDAPP
+    cd ~/benchmarks/AMDAPP
+    cp -R /opt/AMDAPP/samples/opencl/benchmark/* .
+    if [ -d /opt/AMDAPP/samples/opencl/cl/1.x/ ]; then
+        cp -R /opt/AMDAPP/samples/opencl/cl/1.x/* .
+        cp -R /opt/AMDAPP/samples/opencl/cpp_cl/1.x/* .
+        cp -R /opt/AMDAPP/samples/opencl/cl/2.0/* .
     else
-        cp -R ~/benchmarks/AMDAPP/AMDAPP_install/samples/opencl/cl/* .
-        cp -R ~/benchmarks/AMDAPP/AMDAPP_install/samples/opencl/cpp_cl/* .
+        cp -R /opt/AMDAPP/samples/opencl/cl/* .
+        cp -R /opt/AMDAPP/samples/opencl/cpp_cl/* .
     fi
-fi
 
-# The changes below with inMemFlags prevents the APP SDK application
-# from putting its data into host memory. Actually, you want these to be
-# in device memory.
-BENCH_CL1="AdvancedConvolution BinomialOption BitonicSort BlackScholes BlackScholesDP DCT DwtHaar1D EigenValue FastWalshTransform FloydWarshall FluidSimulation2D GaussianNoise HDRToneMapping Histogram ImageOverlap Mandelbrot MatrixMultiplication MatrixMulDouble MatrixTranspose MersenneTwister MonteCarloAsian MonteCarloAsianDP NBody PrefixSum QuasiRandomSequence RadixSort RecursiveGaussian Reduction ScanLargeArrays SimpleConvolution SobelFilter StringSearch UnsharpMask URNG"
-BENCH_CL2="BinarySearchDeviceSideEnqueue BufferBandwidth BufferImageInterop CalcPie DeviceEnqueueBFS ExtractPrimes ImageBandwidth ImageBinarization KmeansAutoclustering RangeMinimumQuery SVMBinaryTreeSearch"
-if [ $CL_V2_SUPPORTED -eq 1 ]; then
-    BENCH="$BENCH_CL1 $BENCH_CL2"
-else
-    BENCH="$BENCH_CL1"
-fi
-
-if [ ! -f /usr/lib/libOpenCL.so.1 ]; then
-    rm -f ~/benchmarks/AMDAPP/AMDAPP_install/lib/x86_64/libOpenCL.so
-    ln -s ${OCL_LIB_DIR}/libOpenCL.so ~/benchmarks/AMDAPP/AMDAPP_install/lib/x86_64/libOpenCL.so
-fi
-
-BENCH_TO_BUILD=""
-for to_check in $BENCH
-do
-    if [ ! -f ~/benchmarks/AMDAPP/$to_check/$to_check ]; then
-        BENCH_TO_BUILD="$BENCH_TO_BUILD $to_check"
-    fi
-done
-
-AMDAPPSDKROOT=../AMDAPP_install
-if [ BENCH_TO_BUILD != "" ]; then
-    echo "Trying to build $BENCH_TO_BUILD"
-    for i in $BENCH_TO_BUILD; do
+    # The changes below with inMemFlags prevents the APP SDK application
+    # from putting its data into host memory. Actually, you want these to be
+    # in device memory.
+    for i in AdvancedConvolution BinarySearchDeviceSideEnqueue BinomialOption BitonicSort BlackScholes BlackScholesDP BufferBandwidth BufferImageInterop CalcPie DCT DeviceEnqueueBFS DwtHaar1D EigenValue ExtractPrimes FastWalshTransform FloydWarshall FluidSimulation2D GaussianNoise HDRToneMapping Histogram ImageBandwidth ImageBinarization ImageOverlap KmeansAutoclustering Mandelbrot MatrixMultiplication MatrixMulDouble MatrixTranspose MersenneTwister MonteCarloAsian MonteCarloAsianDP NBody PrefixSum QuasiRandomSequence RadixSort RangeMinimumQuery RecursiveGaussian Reduction ScanLargeArrays SimpleConvolution SobelFilter StringSearch SVMBinaryTreeSearch UnsharpMask URNG; do
         sed -i.bak s'/^        inMemFlags/        \/\/inMemFlags/' ./$i/$i.cpp
-        if [ ! -d ~/benchmarks/AMDAPP/$i ] || [ -f ~/benchmarks/AMDAPP/$i/bin/x86_64/Release/$i ]; then
-            echo -e "Skipping $i..."
-            continue
-        fi
         cd ~/benchmarks/AMDAPP/$i
-        sed -i.bak s'#../../../../../include/#../AMDAPP_install/include/#g' ./CMakeLists.txt
-        sed -i.bak s'#../../../../../lib/#'${OCL_LIB_DIR}'#g' ./CMakeLists.txt
-        sed -i.bak s'#../../../../include/#../AMDAPP_install/include/#g' ./CMakeLists.txt
-        sed -i.bak s'#../../../../lib/#'${OCL_LIB_DIR}'#g' ./CMakeLists.txt
         cmake .
         make -j `nproc`
-        if [ $? -ne 0 ]; then
-            echo -e "Failed to build $i"
-            exit -1
-        fi
         cd ~/benchmarks/AMDAPP/
     done
-	if [ ! -f ~/benchmarks/AMDAPP/BoxFilter/bin/x86_64/Release/BoxFilter ]; then
-		sed -i.bak s'/^        inMemFlags/        \/\/inMemFlags/' ./BoxFilter/BoxFilterSeparable.cpp
-		sed -i.bak s'/^        inMemFlags/        \/\/inMemFlags/' ./BoxFilter/BoxFilterSAT.cpp
-		cd ~/benchmarks/AMDAPP/BoxFilter/
-		sed -i.bak s'#../../../../../include/#../AMDAPP_install/include/#g' ./CMakeLists.txt
-		sed -i.bak s'#../../../../../lib/#'${OCL_LIB_DIR}'#g' ./CMakeLists.txt
-		cmake .
-		make -j `nproc`
-		if [ $? -ne 0 ]; then
-			echo -e "Failed to build BoxFilter"
-			exit -1
-		fi
-	fi
+    sed -i.bak s'/^        inMemFlags/        \/\/inMemFlags/' ./BoxFilter/BoxFilterSeparable.cpp
+    sed -i.bak s'/^        inMemFlags/        \/\/inMemFlags/' ./BoxFilter/BoxFilterSAT.cpp
+    cd ~/benchmarks/AMDAPP/BoxFilter/
+    cmake .
+    make -j `nproc`
+    if [ $? -ne 0 ]; then
+        echo -e "Failed to build AMD APP SDK Samples"
+        exit -1
+    fi
 else
     echo -e "~/benchmarks/AMDAPP exists. Not rebuilding AMD APP SDK samples."
 fi

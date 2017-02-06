@@ -20,10 +20,7 @@
  * THE SOFTWARE.
  ********************************************************************************/
 
-
-/*! \file cl_event_lists.h
- * Structs and list manipulators to keep data created by OpenCL calls.
- */
+// Structs and list manipulators to keep data created by OpenCL calls.
 
 #ifndef __CL_EVENT_LISTS_H__
 #define __CL_EVENT_LISTS_H__
@@ -35,82 +32,39 @@ extern "C" {
 #define CL_USE_DEPRECATED_OPENCL_2_0_APIS
 #include <CL/cl.h>
 
-/*!
- * Sometimes our detector returns fake events to users that are not
- * the events created by the real OpenCL API call. As such, when they
- * perform calls like clReleaseEvent() or get profiling information,
- * we must be able to link these two events together. As such, the
- * original_cl_event value lets us find the that now-hidden event
- * from the values given back to the user.
- */
+// Sometimes our detector returns fake events to users that are not
+// the events created by the real OpenCL API call. As such, when they
+// perform calls like clReleaseEvent() or get profiling information,
+// we must be able to link these two events together. As such, the
+// original_cl_event value lets us find the that now-hidden event
+// from the values given back to the user.
 typedef struct cl_evt_info_
 {
-    cl_event handle; /// The user-visible cl_event
+    cl_event handle; // The user-visible cl_event
     uint32_t ref_count;
     cl_event internal_event;
 } cl_evt_info;
 
-/*!
- * A global list of pointers to the cl_event information descriptors.
- * Pass this list into the insert, remove, and find, & delete functions below.
- *
- * \return void pointer to unordered_map of cl_evt_info
- */
+// A global list of pointers to the cl_event information descriptors.
+// Pass this list into the insert, remove, and find, & delete functions below.
 void* get_cl_evt_list();
 
 // These functions will add or remove a cl_evt_info from a list, where the
 // list is of the type returned by the above get_cl_evt_list() function.
 // These lists are indexed by the handle in the real cl_event.
 
-/*!
- *
- * \param map_v
- *      void pointer to unordered_map of cl_evt_info
- * \param evt_info
- *      cl_evt_info struct pointer
- *
- * \return
- *      0 on success
- *      non-zero on failure
- */
+// Functions return 0 on success, non-zero on failure
 int cl_event_insert(void* map_v, cl_evt_info* evt_info);
 
-/*!
- * If the cl_event exists, remove it from the list and return a pointer
- * to its cl_evt_info structure.
- *
- * \param map_v
- *      void pointer to unordered_map of cl_evt_info
- * \param evt
- *      cl_event to remove
- *
- * \return removed cl_evt_info object pointer
- */
+// If the cl_event exists, remove it from the list and return a pointer
+// to its cl_evt_info structure.
 cl_evt_info* cl_event_remove(void* map_v, cl_event evt);
 
-/*!
- * If the cl_kernel exists, return a pointer to its kinfo structure.
- *
- * \param map_v
- *      void pointer to unordered_map of cl_evt_info
- * \param evt
- *      cl_event to remove
- *
- * \return cl_evt_info object pointer
- */
+// If the cl_kernel exists, return a pointer to its kinfo structure.
 cl_evt_info* cl_event_find(void* map_v, cl_event evt);
 
-/*
- * Free a particular cl_evt_info structure. If you don't remove it from
- * the list before deleting it, you're likely to see a segfault.
- *
- * \param item
- *      cl_evt_info struct pointer
- *
- * \return
- *      0 on success
- *      non-zero on failure
- */
+// Free a particular cl_evt_info structure. If you don't remove it from
+// the list before deleting it, you're likely to see a segfault.
 int cl_event_delete(cl_evt_info* item);
 
 #ifdef __cplusplus

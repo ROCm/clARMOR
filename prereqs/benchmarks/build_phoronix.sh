@@ -22,16 +22,13 @@
 
 # This script will download the Phoronix Test Suite benchmarks from the web and
 # build them into the ~/benchmarks/phoronix directory.
-# The apps can be run with clarmor.py --group=PHORONIX
+# The apps can be run with run_overflow_detect.py --group=PHORONIX
 
 # Licensing Information:
 #  - JuliaGPU uses an MIT license. See: JuliaGPU-v1.2pts/LICENSE.txt
 #  - mandelbulbGPU uses an MIT license. See: mandelbulbGPU-v1.0pts/LICENSE.txt
 #  - MandelGPU uses an MIT license. See: MandelGPU-v1.3pts/LICENSE.txt
 #  - SmallPT-GPU uses an MIT license. See: SmallptGPU-v1.6pts/LICENSE.txt
-
-BASE_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-source ${BASE_DIR}/setup_bench_install.sh
 
 if [ ! -d ~/benchmarks/phoronix ]; then
     mkdir -p ~/benchmarks/phoronix
@@ -45,7 +42,7 @@ if [ ! -d ~/benchmarks/phoronix/JuliaGPU-v1.2pts ]; then
     fi
     tar -xvf JuliaGPU-v1.2pts-1.tar.bz2
     cd JuliaGPU-v1.2pts/
-    sed -i.bak 's#/home/david/src/ati-stream-sdk-v2.0-lnx64#'${OCL_DIR}'#' ./Makefile
+    sed -i.bak s'/\/home\/david\/src\/ati-stream-sdk-v2.0-lnx64/\/opt\/AMDAPP/' ./Makefile
     sed -i.bak s'/-L.\+CL/\nLDFLAGS=-L\$(ATISTREAMSDKROOT)\/lib\/x86_64 -lglut -lglut -lGL -lm -lOpenCL/' ./Makefile
     sed -i.bak s'/displayfunc.c$/displayfunc.c \$(LDFLAGS)/' ./Makefile
     sed -i.bak s'/O3/g -O3/' ./Makefile
@@ -62,7 +59,7 @@ if [ ! -d ~/benchmarks/phoronix/MandelGPU-v1.3pts ]; then
     fi
     tar -xvf MandelGPU-v1.3pts-1.tar.bz2
     cd MandelGPU-v1.3pts/
-	sed -i.bak 's#/home/david/src/ati-stream-sdk-v2.0-lnx64#'${OCL_DIR}'#' ./Makefile
+    sed -i.bak s'/\/home\/david\/src\/ati-stream-sdk-v2.0-lnx64/\/opt\/AMDAPP/' ./Makefile
     sed -i.bak s'/-L.\+CL/\nLDFLAGS=-L\$(ATISTREAMSDKROOT)\/lib\/x86_64 -lglut -lglut -lGL -lm -lOpenCL/' ./Makefile
     sed -i.bak s'/displayfunc.c$/displayfunc.c \$(LDFLAGS)/' ./Makefile
     sed -i.bak s'/O3/g -O3/' ./Makefile
@@ -79,7 +76,7 @@ if [ ! -d ~/benchmarks/phoronix/SmallptGPU-v1.6pts ]; then
     fi
     tar -xvf SmallptGPU-v1.6pts-1.tar.bz2
     cd SmallptGPU-v1.6pts
-	sed -i.bak 's#/home/david/src/ati-stream-sdk-v2.0-lnx64#'${OCL_DIR}'#' ./Makefile
+    sed -i.bak s'/\/home\/david\/src\/ati-stream-sdk-v2.0-lnx64/\/opt\/AMDAPP/' ./Makefile
     sed -i.bak s'/-L.\+CL/\nLDFLAGS=-L\$(ATISTREAMSDKROOT)\/lib\/x86_64 -lglut -lglut -lGL -lm -lOpenCL/' ./Makefile
     sed -i.bak s'/displayfunc.c$/displayfunc.c \$(LDFLAGS)/' ./Makefile
     sed -i.bak s'/O3/g -O3/' ./Makefile
@@ -97,7 +94,7 @@ if [ ! -d ~/benchmarks/phoronix/mandelbulbGPU-v1.0pts ]; then
     fi
     tar -xvf mandelbulbGPU-v1.0pts-1.tar.bz2
     cd mandelbulbGPU-v1.0pts
-	sed -i.bak 's#/home/david/src/ati-stream-sdk-v2.0-lnx64#'${OCL_DIR}'#' ./Makefile
+    sed -i.bak s'/\/home\/david\/src\/ati-stream-sdk-v2.0-lnx64/\/opt\/AMDAPP/' ./Makefile
     sed -i.bak s'/-L.\+CL/\nLDFLAGS=-L\$(ATISTREAMSDKROOT)\/lib\/x86_64 -lglut -lglut -lGL -lm -lOpenCL/' ./Makefile
     sed -i.bak s'/displayfunc.c$/displayfunc.c \$(LDFLAGS)/' ./Makefile
     sed -i.bak s'/O3/g -O3/' ./Makefile

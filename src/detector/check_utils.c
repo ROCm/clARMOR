@@ -152,6 +152,7 @@ void poisonFillImageCanaries(cl_command_queue cmdQueue, cl_memobj *img, uint32_t
  */
 void mendCanaryRegion(cl_command_queue cmdQueue, void * const buffer, cl_bool blocking, uint32_t numEvts, const cl_event *evt, cl_event *retEvt)
 {
+    cl_int cl_err;
     cl_command_queue fillQueue;
     cl_event finish = NULL, *waits = NULL;
 
@@ -173,11 +174,10 @@ void mendCanaryRegion(cl_command_queue cmdQueue, void * const buffer, cl_bool bl
             poisonFillImageCanaries(fillQueue, m1, numEvts, waits, &finish);
         else
         {
-            cl_int cl_err = clEnqueueFillBuffer(fillQueue, m1->handle, &poisonFill_8b, sizeof(uint8_t), m1->size - POISON_FILL_LENGTH, POISON_FILL_LENGTH, numEvts, waits, &finish);
+            cl_err = clEnqueueFillBuffer(fillQueue, m1->handle, &poisonFill_8b, sizeof(uint8_t), m1->size - POISON_FILL_LENGTH, POISON_FILL_LENGTH, numEvts, waits, &finish);
             check_cl_error(__FILE__, __LINE__, cl_err);
         }
     }
-#ifdef CL_VERSION_2_0
     else
     {
         cl_svm_memobj *m2;
@@ -187,11 +187,10 @@ void mendCanaryRegion(cl_command_queue cmdQueue, void * const buffer, cl_bool bl
             getCommandQueueForContext(m2->context, &fillQueue);
             convertEvents(m2->context, numEvts, waits);
 
-            cl_int cl_err = clEnqueueSVMMemFill(fillQueue, (char*)m2->handle + m2->size - POISON_FILL_LENGTH, &poisonFill_8b, sizeof(uint8_t), POISON_FILL_LENGTH, numEvts, waits, &finish);
+            cl_err = clEnqueueSVMMemFill(fillQueue, (char*)m2->handle + m2->size - POISON_FILL_LENGTH, &poisonFill_8b, sizeof(uint8_t), POISON_FILL_LENGTH, numEvts, waits, &finish);
             check_cl_error(__FILE__, __LINE__, cl_err);
         }
     }
-#endif
 
     if(waits)
         free(waits);

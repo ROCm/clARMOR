@@ -22,7 +22,6 @@
 
 #include <unordered_map>
 #include <map>
-#include <set>
 
 template <typename LL_Type>
 int insert(LL_Type **list, LL_Type *item, pthread_mutex_t *lock)
@@ -294,74 +293,3 @@ ITEM map_next(void* map_v, KEY handle, pthread_mutex_t *lock)
 
     return ret;
 }
-
-
-template <typename ITEM, typename CMP>
-int set_insert(void* set_v, ITEM item, pthread_mutex_t *lock)
-{
-    if(set_v == NULL)
-        return L_FAIL;
-
-    if(lock)
-        pthread_mutex_lock(lock);
-
-    std::set<ITEM, CMP> *set = (std::set<ITEM, CMP>*)set_v;
-
-    if(set->empty())
-        set->clear();
-
-    set->insert(item);
-
-    if(lock)
-        pthread_mutex_unlock(lock);
-
-    return L_SUCCESS;
-}
-
-template <typename ITEM, typename CMP>
-ITEM set_remove(void* set_v, ITEM item, pthread_mutex_t *lock)
-{
-    if(set_v == NULL)
-        return NULL;
-
-    if(lock)
-        pthread_mutex_lock(lock);
-
-    std::set<ITEM, CMP> *set = (std::set<ITEM, CMP>*)set_v;
-    ITEM ret = NULL;
-
-    typename std::set<ITEM, CMP>::iterator got = set->find(item);
-    if(got != set->end())
-    {
-        ret = *got;
-        set->erase(item);
-    }
-
-    if(lock)
-        pthread_mutex_unlock(lock);
-
-    return ret;
-}
-
-template <typename ITEM, typename CMP>
-ITEM set_find(void* set_v, ITEM item, pthread_mutex_t *lock)
-{
-    if(set_v == NULL)
-        return NULL;
-
-    if(lock)
-        pthread_mutex_lock(lock);
-
-    std::set<ITEM, CMP> *set = (std::set<ITEM, CMP>*)set_v;
-    ITEM ret = NULL;
-
-    typename std::set<ITEM, CMP>::iterator got = set->find(item);
-    if(got != set->end())
-        ret = *got;
-
-    if(lock)
-        pthread_mutex_unlock(lock);
-
-    return ret;
-}
-

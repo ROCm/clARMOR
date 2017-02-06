@@ -20,122 +20,58 @@
  * THE SOFTWARE.
  ********************************************************************************/
 
-
-/*! \file cl_utils.h
- * Methods for interaction with cl objects
- */
-
 #ifndef _CL_UTILS_H_
 #define _CL_UTILS_H_
 
 #include "cl_interceptor.h"
 
-/*!
- * Takes in a cl_context and creates a user event within that context.
- * Also sets the user event to CL_COMPLETE. Then returns in.
- *
- * \param kern_ctx
- *      event context
- * \return user event (complete)
- */
+// Takes in a cl_context and creates a user event within that context.
+// Also sets the user event to CL_COMPLETE. Then returns in.
 cl_event create_complete_user_event(cl_context kern_ctx);
 
-/*!
- * finds the space for a flattened canary array for this image. This is
- * useful for functions that want to read a linearized version of the
- * canaries for checking.
- *
- * \param image_type
- *      a description of what type of image this is, 1D, 2D, etc.
- * \param data_size
- *      each pixel in the image is this many bytes
- * \param i_lim
- *      the full width of the image, including canaries
- * \param j_lim
- *      the full height of the image, including canaries
- * \param j_dat
- *      the height of the original image, without canaries
- * \param k_dat
- *      the depth of the original image, without canaries
- * \return length of the canaries
- */
+// finds the space for a flattened canary array for this image. This is
+// useful for functions that want to read a linearized version of the
+// canaries for checking.
+// Inputs:
+//      image_type: a description of what type of image this is, 1D, 2D, etc.
+//      data_size: each pixel in the image is this many bytes
+//      i_lim:  the full width of the image, including canaries
+//      j_lim:  the full height of the image, including canaries
+//      j_dat:  the height of the original image, without canaries
+//      k_dat:  the depth of the original image, without canaries
 uint64_t get_image_canary_size(cl_mem_object_type image_type,
         size_t data_size, uint32_t i_lim, uint32_t j_lim, uint32_t j_dat,
         uint32_t k_dat);
 
-/*!
- * This function calculates the many dimensions of a 1D, 2D, or 3D
- * cl_mem image, including how much space is reserved for canaries.
- *
- * \param image_desc
- *      this describes the image, and this function then splits
- *      out the appropriate information into the other vars.
- *
- * \param i_lim
- *      actual width of the image,
- *      including the canaries.
- * \param j_lim
- *      actual height of the image,
- *      including the canaries.
- * \param k_lim
- *      actual depth of the image,
- *      including the canaries.
- * \param i_dat
- *      width of the original
- *      image *without* the included canaries.
- * \param j_dat
- *      height of the original
- *      image *without* the included canaries.
- * \param k_dat
- *      depth of the original
- *      image *without* the included canaries.
- */
+// This function calculates the many dimensions of a 1D, 2D, or 3D
+// cl_mem image, including how much space is reserved for canaries.
+// Inputs:
+//      image_desc: this describes the image, and this function then splits
+//                  out the appropriate information into the other vars.
+// In/Out:
+//      i_lim, j_lim, k_lim: the actual width, height, and depth of the image,
+//          including the canaries.
+//      i_dat, j_dat, k_dat: the width, height, and depth of the original
+//          image *without* the included canaries.
 void get_image_dimensions(cl_image_desc image_desc, uint32_t *i_lim,
         uint32_t *j_lim, uint32_t *k_lim, uint32_t *i_dat,
         uint32_t *j_dat, uint32_t *k_dat);
 
-/*!
- * Assign all of the parts of a launchOclKernelStruct.
- *
- * \param cmd_queue
- * \param kernel
- * \param work_dim
- * \param global_work_offset
- * \param global_work
- * \param local_work
- * \param num_events_in_wait_list
- * \param kern_wait
- * \param out_evt
- * \return launchOclKernelStruct
- */
+// Assign all of the parts of a launchOclKernelStruct.
 launchOclKernelStruct setup_ocl_args(cl_command_queue cmd_queue,
         cl_kernel kernel, cl_uint work_dim, size_t * global_work_offset,
         size_t *global_work, size_t *local_work,
         cl_uint num_events_in_wait_list, cl_event *kern_wait,
         cl_event *out_evt);
 
-/*!
- * Set a particular argument for the kernel that is passed in, and then
- * automatically run check_cl_error() to ensure there's no problem.
- *
- * \param kernel
- * \param arg_index
- * \param arg_size
- * \param arg_value
- */
+// Set a particular argument for the kernel that is passed in, and then
+// automatically run check_cl_error() to ensure there's no problem.
 void cl_set_arg_and_check(cl_kernel kernel, cl_uint arg_index, size_t arg_size,
         const void *arg_value);
 
 #ifdef CL_VERSION_2_0
-/*!
- * Set a particular SVM argument and check it, like above.
- *
- * \param kernel
- * \param arg_index
- * \param arg_value
- */
+// Set a particular SVM argument and check it, like above.
 void cl_set_svm_arg_and_check(cl_kernel kernel, cl_uint arg_index,
         const void *arg_value);
-
 #endif // CL_VERSION_2_0
 #endif // _CL_UTILS_H_

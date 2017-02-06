@@ -29,9 +29,7 @@
 #include "meta_data_lists/cl_memory_lists.h"
 #include "universal_event.h"
 #include "cl_buffer_copy.h"
-#include "wrapper_utils.h"
 #include "cl_copy_utils.h"
-#include "util_functions.h"
 
 #include "cl_image_to_buffer.h"
 
@@ -149,7 +147,7 @@ void inner_image_to_buffer_copy(cl_command_queue command_queue,
     cl_memobj *from_info = cl_mem_find(get_cl_mem_alloc(), src_image);
     if (to_info == NULL || from_info == NULL)
     {
-        det_fprintf(stderr, "Failed to find memory regions %p %p at %s:%d\n",
+        fprintf(stderr, "Failed to find memory regions %p %p at %s:%d\n",
                 (void*)to_info, (void*)from_info, __FILE__, __LINE__);
         exit(-1);
     }

@@ -22,7 +22,7 @@
 
 # This script will build v1.0.3 of the SNU OpenCL port of the NAS Parallel
 # Benchmarks and put them into the ~/benchmarks/SNU_NPB-1.0.3 directory.
-# The apps can be run with clarmor.py --group=NPB_OCL
+# The apps can be run with run_overflow_detect.py --group=NPB_OCL
 
 # Licensing Information:
 # SNU NAS Parallel Benchmarks use a variant of the MIT license, the important
@@ -33,8 +33,11 @@
 #
 # See, for example, SNU_NPB-1.0.3/NPB3.3-OCL/BT/bt.c
 
-BASE_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-source ${BASE_DIR}/setup_bench_install.sh
+if [ ! -d ~/benchmarks ]; then
+    mkdir -p ~/benchmarks
+fi
+
+cd ~/benchmarks
 
 if [ ! -d ~/benchmarks/SNU_NPB-1.0.3 ]; then
     if [ ! -f ~/benchmarks/SNU_NPB-1.0.3.tar.gz ]; then
@@ -48,29 +51,21 @@ if [ ! -d ~/benchmarks/SNU_NPB-1.0.3 ]; then
     fi
     tar -xvf SNU_NPB-1.0.3.tar.gz
     cd ~/benchmarks/SNU_NPB-1.0.3/NPB3.3-OCL/;
-    sed -i.bak 's#C_INC = #C_INC = -I'${OCL_INCLUDE_DIR}' #' ./config/make.def
+    sed -i.bak 's#C_INC = #C_INC = -I/opt/AMDAPP/include/ #' ./config/make.def
     for bench in BT CG EP FT IS LU MG SP
     do
-        if [ $bench == "LU" ]; then
-            class=S
-        else
-            class=A
-        fi
-        # Because Nvidia's OpenCL runtime does not support including .h
-        # files with #ifdef (the -D defines are parsed after the include
-        # happens), this code manually "opens up" the header values that
-        # we want to use in each benchmark.
-        sed -i.bak "s/#define __"${bench}"_H__/#define __"${bench}"_H__\n#ifdef CLASS\n#undef CLASS\n#endif\n#define CLASS '"${class}"'\n/" ~/benchmarks/SNU_NPB-1.0.3/NPB3.3-OCL/${bench}/`echo "${bench,,}"`.h
-
-        # Don't do this build in parallel. The makefiles for this have a
-        # race between creating a sysconfig file and building the actual
-        # benchmarks. It's easier to just not do a parallel build than to
-        # fix this in each makefile.
-        make $bench CLASS=$class
-        if [ $? -ne 0 ]; then
-            echo -e "Failed to build $bench class $class"
-            exit -1
-        fi
+        for class in S W A B C
+        do
+            # Don't do this build in parallel. The makefiles for this have a
+            # race between creating a sysconfig file and building the actual
+            # benchmarks. It's easier to just not do a parallel build than to
+            # fix this in each makefile.
+            make $bench CLASS=$class
+            if [ $? -ne 0 ]; then
+                echo -e "Failed to build $bench class $class"
+                exit -1
+            fi
+        done
     done
 else
     echo -e "~/benchmarks/SNU_NPB-1.0.3 exists. Not rebuilding the OpenCL version of NPB."

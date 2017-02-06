@@ -27,7 +27,7 @@
 // so expect no overflows.
 #include "common_test_functions.h"
 
-const char *dev_q_kernel_source = "\n"\
+const char *kernel_source = "\n"\
 "__kernel void child_kern(__global uint *svm_buffer, uint len) {\n"\
 "    uint i = get_global_id(0);\n"\
 "    if (i < len) {\n"\
@@ -42,14 +42,6 @@ const char *dev_q_kernel_source = "\n"\
 "        ndrange_t child_ndr = ndrange_1D(work_items);\n"\
 "        enqueue_kernel(queue, CLK_ENQUEUE_FLAGS_NO_WAIT, child_ndr,\n"\
 "           ^{child_kern(svm_buffer, len);});\n"\
-"    }\n"\
-"}\n";
-
-const char *kernel_source = "\n"\
-"__kernel void child_kern(__global uint *svm_buffer, uint len) {\n"\
-"    uint i = get_global_id(0);\n"\
-"    if (i < len) {\n"\
-"        svm_buffer[i] = i;\n"\
 "    }\n"\
 "}\n"\
 "\n"\
@@ -73,7 +65,7 @@ void run_device_enqueue_test(const cl_device_id device,
     cl_int cl_err;
 
     // Create the device queue.
-    cl_queue_properties dev_properties[] = {CL_QUEUE_PROPERTIES,
+    cl_command_queue_properties dev_properties[] = {CL_QUEUE_PROPERTIES,
         CL_QUEUE_ON_DEVICE | CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE |
             CL_QUEUE_ON_DEVICE_DEFAULT, 0};
     cl_command_queue device_queue = clCreateCommandQueueWithProperties(
@@ -288,14 +280,6 @@ int main(int argc, char** argv)
     cl_platform_id platform = setup_platform(platform_to_use);
     cl_device_id device = setup_device(device_to_use, platform_to_use,
             platform, dev_type);
-
-    if (!device_supports_svm(device, 0) && !device_supports_svm(device, 1))
-    {
-        output_fake_errors(OUTPUT_FILE_NAME, EXPECTED_ERRORS);
-        printf("Proper SVM not supported. Skipping Good Complex SVM Test.\n");
-        return 0;
-    }
-
     cl_context context = setup_context(platform, device);
     cl_command_queue cmd_queue = setup_cmd_queue(context, device);
 
@@ -320,35 +304,14 @@ int main(int argc, char** argv)
     // different access stride. Still no overflow.
     run_two_svm_test(context, cmd_queue, program, flags, buffer_size, 4);
 
-    cl_program dev_q_program = 0;
-    if (device_supports_dev_queue(device))
-    {
-        // Run a test to see if a device-enqueued kernel that creates a buffer
-        // overflow can be caught by the tool.
-        dev_q_program = setup_program(context, 1, &dev_q_kernel_source,
-                device);
-        run_device_enqueue_test(device, context, cmd_queue, dev_q_program,
-                flags, buffer_size);
-    }
-    else
-    {
-        // We don't support device queues, so run one of the tests again
-        // so that the total number of errors is correct.
-        run_two_svm_test(context, cmd_queue, program, flags, buffer_size, 1);
-    }
+    // Run a test to see if a device-enqueued kernel works properly.
+    run_device_enqueue_test(device, context, cmd_queue, program, flags, buffer_size);
 
     flags = CL_MEM_READ_WRITE | CL_MEM_SVM_FINE_GRAIN_BUFFER;
     run_svm_back_to_back(context, cmd_queue, program, flags, buffer_size);
     run_two_svm_test(context, cmd_queue, program, flags, buffer_size, 1);
     run_two_svm_test(context, cmd_queue, program, flags, buffer_size, 4);
-
-    if (device_supports_dev_queue(device))
-    {
-        run_device_enqueue_test(device, context, cmd_queue, dev_q_program,
-                flags, buffer_size);
-    }
-    else
-        run_two_svm_test(context, cmd_queue, program, flags, buffer_size, 1);
+    run_device_enqueue_test(device, context, cmd_queue, program, flags, buffer_size);
 
     printf("Done Running Good Complex SVM Test.\n");
 #else // CL_VERSION_2_0

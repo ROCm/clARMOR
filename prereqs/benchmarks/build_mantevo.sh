@@ -21,16 +21,13 @@
 
 
 # This script will download and buildthe CloverLeaf and TeaLeaf Mantevo apps.
-# They can be run with clarmor.py --group=MANTEVO
+# They can be run with run_overflow_detect.py --group=MANTEVO
 
 # Licensing Information:
 #  - CloverLeaf is available under the GPLv3. See CloverLeaf_OpenCL/clover_leaf.f90
 #  - CloverLeaf3D is available under the GPLv3. See CloverLeaf3D_OpenCL/clover_leaf.f90
 #  - TeaLeaf is available under the GPLv3. See TeaLeaf_OpenCL/tea_leaf.f90
 #  - TeaLeaf3D is available under the GPLv3. See TeaLeaf3D_OpenCL/tea_leaf.f90
-
-BASE_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-source ${BASE_DIR}/setup_bench_install.sh
 
 if [ ! -d ~/benchmarks/mantevo ]; then
     mkdir -p ~/benchmarks/mantevo
@@ -66,18 +63,10 @@ if [ ! -f ~/benchmarks/mantevo/TeaLeaf_OpenCL/tea_leaf ]; then
     sed -i.bak s'/CFLAGS_          = -O3/CFLAGS_          = -O3 -g -march=native -funroll-loops/' ./Makefile
     sed -i.bak s'/FLAGS_          = -O3/FLAGS_          = -O3 -g -march=native -funroll-loops/' ./Makefile
     sed -i.bak s'/MPICXX_LIB=#-lmpi_cxx/MPICXX_LIB=-lmpi_cxx/' ./Makefile
-    sed -i.bak s'#LDLIBS+=-lOpenCL -lstdc++ $(MPICXX_LIB)#LDLIBS+=-lOpenCL -lstdc++ -lmpi $(MPICXX_LIB) -L'${OCL_LIB_DIR}'#' ./Makefile
-    sed -i.bak s'#CFLAGS=\$(CFLAGS_\$(COMPILER)) \$(OMP) \$(I3E) \$(C_OPTIONS) -c#CFLAGS=$(CFLAGS_$(COMPILER)) $(OMP) $(I3E) $(C_OPTIONS) -c -I'${OCL_INCLUDE_DIR}'#' ./Makefile
+    sed -i.bak s'#LDLIBS+=-lOpenCL -lstdc++ $(MPICXX_LIB)#LDLIBS+=-lOpenCL -lstdc++ -lmpi $(MPICXX_LIB) -L/opt/AMDAPP/lib/x86_64/#' ./Makefile
+    sed -i.bak s'#CFLAGS=\$(CFLAGS_\$(COMPILER)) \$(OMP) \$(I3E) \$(C_OPTIONS) -c#CFLAGS=$(CFLAGS_$(COMPILER)) $(OMP) $(I3E) $(C_OPTIONS) -c -I/opt/AMDAPP/include/#' ./Makefile
     sed -i.bak s'/tl_max_iters=10000/tl_max_iters=10/' ./tea.in
-    if [ $AMD_OCL -eq 1 ]; then
-        sed -i.bak s'/opencl_vendor=any/opencl_vendor=advanced/' ./tea.in
-    fi
-	if [ $NV_OCL -eq 1 ]; then
-		sed -i.bak s'/opencl_vendor=any/opencl_vendor=nvidia/' ./tea.in
-	fi
-	if [ $INT_OCL -eq 1 ]; then
-		sed -i.bak s'/opencl_vendor=any/opencl_vendor=intel/' ./tea.in
-	fi
+    sed -i.bak s'/opencl_vendor=any/opencl_vendor=advanced/' ./tea.in
     sed -i.bak s'/opencl_type=gpu/opencl_type=gpu\nuse_opencl_kernels/' ./tea.in
     make COMPILER=GNU -j `nproc`
     if [ $? -ne 0 ]; then
@@ -94,18 +83,12 @@ if [ ! -f ~/benchmarks/mantevo/TeaLeaf3D_OpenCL/tea_leaf ]; then
     sed -i.bak s'/CFLAGS_GNU       = -O3 -march=native -funroll-loops/CFLAGS_GNU       = -O3 -march=native -funroll-loops -g/' ./Makefile
     sed -i.bak s'/CFLAGS_          = -O3/CFLAGS_          = -O3 -g -march=native -funroll-loops/' ./Makefile
     sed -i.bak s'/FLAGS_          = -O3/FLAGS_          = -O3 -g -march=native -funroll-loops/' ./Makefile
-    sed -i.bak s'#LDLIBS+=-lOpenCL -lstdc++ $(MPICXX_LIB)#LDLIBS+=-lOpenCL -lstdc++ $(MPICXX_LIB) -L'${OCL_LIB_DIR}'#' ./Makefile
-    sed -i.bak s'#CFLAGS=$(CFLAGS_$(COMPILER)) $(OMP) $(I3E) $(C_OPTIONS) -c#CFLAGS=$(CFLAGS_$(COMPILER)) $(OMP) $(I3E) $(C_OPTIONS) -c -I'${OCL_INCLUDE_DIR}'#' ./Makefile
-	if [ $AMD_OCL -eq 1 ]; then
-		sed -i.bak s'/opencl_vendor=nvidia/opencl_vendor=advanced/' ./tea.in
-	fi
-	if [ $INT_OCL -eq 1 ]; then
-		sed -i.bak s'/opencl_vendor=nvidia/opencl_vendor=intel/' ./tea.in
-	fi
+    sed -i.bak s'#LDLIBS+=-lOpenCL -lstdc++ $(MPICXX_LIB)#LDLIBS+=-lOpenCL -lstdc++ $(MPICXX_LIB) -L/opt/AMDAPP/lib/x86_64/#' ./Makefile
+    sed -i.bak s'#CFLAGS=$(CFLAGS_$(COMPILER)) $(OMP) $(I3E) $(C_OPTIONS) -c#CFLAGS=$(CFLAGS_$(COMPILER)) $(OMP) $(I3E) $(C_OPTIONS) -c -I/opt/AMDAPP/include/#' ./Makefile
+    sed -i.bak s'/opencl_vendor=nvidia/opencl_vendor=advanced/' ./tea.in
     sed -i.bak s'/opencl_device=0/opencl_device=0\n use_opencl_kernels/' ./tea.in
     sed -i.bak s'/end_step=20/end_step=2/' ./tea.in
-    # Makefile broken for parallel builds here, just run it serial.
-    make COMPILER=GNU
+    make COMPILER=GNU -j `nproc`
     if [ $? -ne 0 ]; then
         echo -e "Failed to build TeaLeaf3D"
         exit -1
@@ -117,19 +100,14 @@ fi
 if [ ! -f ~/benchmarks/mantevo/CloverLeaf_OpenCL/clover_leaf ]; then
     cd ~/benchmarks/mantevo/CloverLeaf_OpenCL/
     git checkout 85e9aa0baa22b2049d5da12233d4e7a6c53f450a
-    sed -i.bak s'#OCL_AMD_INC=-I/opt/opencl/amd-app-2.7/include#OCL_AMD_INC=-I'${OCL_INCLUDE_DIR}' -I/usr/lib/openmpi/include -pthread -I/usr/lib/openmpi/lib#' ./Makefile
-    sed -i.bak s'#OCL_AMD_LIB=-L/opt/opencl/amd-app-2.7/lib/x86_64 -lOpenCL -lstdc++#OCL_AMD_LIB=-L'${OCL_LIB_DIR}' -lOpenCL -lstdc++ -lmpi -lmpi_cxx#' ./Makefile
+    sed -i.bak s'#OCL_AMD_INC=-I/opt/opencl/amd-app-2.7/include#OCL_AMD_INC=-I/opt/AMDAPP/include/ -I/usr/lib/openmpi/include -pthread -I/usr/lib/openmpi/lib#' ./Makefile
+    sed -i.bak s'#OCL_AMD_LIB=-L/opt/opencl/amd-app-2.7/lib/x86_64 -lOpenCL -lstdc++#OCL_AMD_LIB=-L/opt/AMDAPP/lib/x86_64/ -lOpenCL -lstdc++ -lmpi -lmpi_cxx#' ./Makefile
     sed -i.bak s'#FLAGS=$(FLAGS_$(COMPILER)) $(I3E) $(OPTIONS) $(OCL_LIB) -DUSE_EXPLICIT_COMMS_BUFF_PACK -DCLOVER_OUTPUT_FILE=$(CLOVER_OUT_STRING)#FLAGS=$(FLAGS_$(COMPILER)) $(OCL_INC) $(I3E) $(OPTIONS) -DUSE_EXPLICIT_COMMS_BUFF_PACK -DCLOVER_OUTPUT_FILE=$(CLOVER_OUT_STRING)\nLDFLAGS=$(OCL_LIB) -L/usr//lib -L/usr/lib/openmpi/lib -lmpi_f90 -lmpi_f77 -lmpi -ldl -lhwloc#' ./Makefile
     sed -i.bak s'#CFLAGS=$(CFLAGS_$(COMPILER)) $(I3E)#CFLAGS=$(CFLAGS_$(COMPILER)) $(OCL_INC) $(I3E)#' ./Makefile
     sed -i.bak s'#CloverCL.o                      \\#CloverCL.o                      \\\n    $(LDFLAGS)                      \\#' ./Makefile
     sed -i.bak s'#MPI_COMPILER=mpif90#MPI_COMPILER=gfortran-4.8#' ./Makefile
     sed -i.bak s'#-O3#-O3 -g#' ./Makefile
-	if [ $AMD_OCL -eq 1 ]; then
-		sed -i.bak s'# opencl_vendor=Nvidia# opencl_vendor=Advanced#' ./clover_bm.in
-	fi
-	if [ $INT_OCL -eq 1 ]; then
-		sed -i.bak s'# opencl_vendor=Nvidia# opencl_vendor=Intel#' ./clover_bm.in
-	fi
+    sed -i.bak s'# opencl_vendor=Nvidia# opencl_vendor=Advanced#' ./clover_bm.in
     sed -i.bak s'# end_step=2955# end_step=10#' ./clover_bm.in
     for i in `grep -R ocl_knls.h * | sed s/:/\ /g | awk {'print $1'}`; do
         sed -i.bak s'%#include "ocl_knls.h"%#include "'"$PWD"'/ocl_knls.h"%' $i
@@ -146,17 +124,12 @@ fi
 if [ ! -f ~/benchmarks/mantevo/CloverLeaf3D_OpenCL/clover_leaf ]; then
     cd ~/benchmarks/mantevo/CloverLeaf3D_OpenCL/
     git checkout 8772c04f90a9e01ddecf1cecd990b1e3f21e63bf
-    sed -i.bak s'#CFLAGS_GNU       = -O3 -march=native -funroll-loops#CFLAGS_GNU       = -O3 -march=native -funroll-loops -I'${OCL_INCLUDE_DIR}' -I/usr/lib/openmpi/include -pthread -I/usr/lib/openmpi/lib#' ./Makefile
-    sed -i.bak s'#LDLIBS+=-lOpenCL -lstdc++ $(MPICXX_LIB)#LDLIBS+=-L'${OCL_LIB_DIR}' -lOpenCL -lstdc++ $(MPICXX_LIB)#' ./Makefile
-    sed -i.bak s'#FLAGS=$(FLAGS_$(COMPILER)) $(OMP) $(I3E) $(OPTIONS)#FLAGS=$(FLAGS_$(COMPILER)) $(OMP) $(I3E) $(OPTIONS) -I'${OCL_INCLUDE_DIR}' -I/usr/lib/openmpi/include -pthread -I/usr/lib/openmpi/lib#' ./Makefile
+    sed -i.bak s'#CFLAGS_GNU       = -O3 -march=native -funroll-loops#CFLAGS_GNU       = -O3 -march=native -funroll-loops -I/opt/AMDAPP/include/ -I/usr/lib/openmpi/include -pthread -I/usr/lib/openmpi/lib#' ./Makefile
+    sed -i.bak s'#LDLIBS+=-lOpenCL -lstdc++ $(MPICXX_LIB)#LDLIBS+=-L/opt/AMDAPP/lib/x86_64/ -lOpenCL -lstdc++ $(MPICXX_LIB)#' ./Makefile
+    sed -i.bak s'#FLAGS=$(FLAGS_$(COMPILER)) $(OMP) $(I3E) $(OPTIONS)#FLAGS=$(FLAGS_$(COMPILER)) $(OMP) $(I3E) $(OPTIONS) -I/opt/AMDAPP/include/i -I/usr/lib/openmpi/include -pthread -I/usr/lib/openmpi/lib#' ./Makefile
     sed -i.bak s'#MPI_COMPILER=mpif90#MPI_COMPILER=gfortran-4.8\nLDFLAGS=-L/usr//lib -L/usr/lib/openmpi/lib -lmpi_f90 -lmpi_f77 -lmpi -ldl -lhwloc#' ./Makefile
     sed -i.bak s'#-O3#-O3 -g#' ./Makefile
-	if [ $AMD_OCL -eq 1 ]; then
-		sed -i.bak s'#opencl_vendor=nvidia#opencl_vendor=advanced#' ./clover.in
-	fi
-	if [ $INT_OCL -eq 1 ]; then
-		sed -i.bak s'#opencl_vendor=nvidia#opencl_vendor=intel#' ./clover.in
-	fi
+    sed -i.bak s'#opencl_vendor=nvidia#opencl_vendor=advanced#' ./clover.in
     sed -i.bak s'#end_step=300#end_step=10#' ./clover.in
     make COMPILER=GNU -j `nproc`
     if [ $? -ne 0 ]; then

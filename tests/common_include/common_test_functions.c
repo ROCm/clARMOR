@@ -36,70 +36,6 @@ static void print_help(const char * const description)
     fprintf(stderr, "       cpu/gpu/accelerator/custom - default=gpu\n");
 }
 
-int device_supports_cl2plus(cl_device_id device)
-{
-    int ret = 1;
-
-    cl_int cl_err;
-    size_t size_of_str = 0;
-    cl_err = clGetDeviceInfo(device, CL_DEVICE_VERSION, 0, NULL, &size_of_str);
-    check_cl_error(__FILE__, __LINE__, cl_err);
-    char *string = malloc(size_of_str);
-    cl_err = clGetDeviceInfo(device, CL_DEVICE_VERSION, size_of_str, string,
-            NULL);
-    check_cl_error(__FILE__, __LINE__, cl_err);
-    const char * ocl1 = "OpenCL 1";
-    if (strncmp(ocl1, string, strlen(ocl1)) == 0)
-    {
-        fprintf(stderr, "\n\nOnly supports OpenCL 1\n");
-        ret = 0;
-    }
-    free(string);
-
-    return ret;
-}
-
-int device_supports_svm(cl_device_id device, int check_fine_grain)
-{
-#ifdef CL_VERSION_2_0
-    cl_int cl_err;
-    cl_device_svm_capabilities caps;
-    cl_err = clGetDeviceInfo(device, CL_DEVICE_SVM_CAPABILITIES,
-            sizeof(cl_device_svm_capabilities), &caps, NULL);
-    if (cl_err == CL_INVALID_VALUE)
-        return 0;
-    check_cl_error(__FILE__, __LINE__, cl_err);
-    if (check_fine_grain == 0 && (caps & CL_DEVICE_SVM_COARSE_GRAIN_BUFFER))
-        return 1;
-    if (check_fine_grain == 1 && (caps & CL_DEVICE_SVM_FINE_GRAIN_BUFFER))
-        return 1;
-    return 0;
-#else
-    (void)device;
-    (void)check_fine_grain;
-    return 0;
-#endif
-}
-
-int device_supports_dev_queue(cl_device_id device)
-{
-#ifdef CL_VERSION_2_0
-    cl_int cl_err;
-    cl_uint queues;
-    cl_err = clGetDeviceInfo(device, CL_DEVICE_MAX_ON_DEVICE_QUEUES,
-            sizeof(cl_uint), &queues, NULL);
-    if (cl_err == CL_INVALID_VALUE)
-        return 0;
-    check_cl_error(__FILE__, __LINE__, cl_err);
-    if (queues > 0)
-        return 1;
-    return 0;
-#else
-    (void)device;
-    return 0;
-#endif
-}
-
 void check_opts(const int argc, char** argv, const char *description,
         uint32_t * const platform, uint32_t * const device,
         cl_device_type * const dev_type)
@@ -320,12 +256,11 @@ cl_program setup_program(const cl_context context,
 #else
     char build_opt[] = "";
 #endif
-    cl_err = clBuildProgram(program, 1, &device, build_opt, NULL, NULL);
+    cl_err = clBuildProgram(program, 1, &device, build_opt, NULL, &cl_err);
     if (cl_err != CL_SUCCESS)
     {
         size_t log_size;
         char *log;
-        cl_int old_err = cl_err;
         cl_err = clGetProgramBuildInfo(program, device, CL_PROGRAM_BUILD_LOG,
                 0, NULL, &log_size);
         check_cl_error(__FILE__, __LINE__, cl_err);
@@ -334,7 +269,6 @@ cl_program setup_program(const cl_context context,
                 log_size, log, NULL);
         check_cl_error(__FILE__, __LINE__, cl_err);
         fprintf(stderr, "Build Failure!\n");
-        fprintf(stderr, "Error returned was: %s\n", cluErrorString(old_err));
         fprintf(stderr, "Kernel:\n%s\n", *source);
         fprintf(stderr, "\nLog (log size: %lu):\n%s\n", log_size, log);
         free(log);

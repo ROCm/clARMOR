@@ -22,18 +22,21 @@
 
 # This script will download PolyBench-ACC from GitHub and build it into the
 # ~/benchmarks/PolyBench-ACC/ directory.
-# The apps can be run with clarmor.py --group=POLYBENCH
+# The apps can be run with run_overflow_detect.py --group=POLYBENCH
 
 # Licensing Information:
 # PolyBench/ACC uses a 3-clause BSD license. See PolyBench-ACC/LICENSE
-
-BASE_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-source ${BASE_DIR}/setup_bench_install.sh
 
 MAKE_CMD="make CFLAGS=-DLARGE_DATASET"
 
 #Set the following lines to use double precision instead of floats
 USE_DOUBLE=1
+
+if [ ! -d ~/benchmarks ]; then
+    mkdir -p ~/benchmarks
+fi
+
+cd ~/benchmarks/
 
 if [ ! -f ~/benchmarks/PolyBench-ACC/detector_done_building ]; then
     if [ ! -d ~/benchmarks/PolyBench-ACC/ ]; then
@@ -45,7 +48,7 @@ if [ ! -f ~/benchmarks/PolyBench-ACC/detector_done_building ]; then
     git checkout 8356309f68fc1a9f26876ec9ca702a77c063b929
     
     cd ~/benchmarks/PolyBench-ACC/OpenCL/
-    sed -i.bak s'#/global/homes/s/sgrauerg/NVIDIA_GPU_Computing_SDK#'${OCL_DIR}'#' ~/benchmarks/PolyBench-ACC/OpenCL/utilities/common.mk
+    sed -i.bak s'/\/global\/homes\/s\/sgrauerg\/NVIDIA_GPU_Computing_SDK/\/opt\/AMDAPP\//' ~/benchmarks/PolyBench-ACC/OpenCL/utilities/common.mk
     sed -i.bak s'/OpenCL\/common\/inc/include\//' ~/benchmarks/PolyBench-ACC/OpenCL/utilities/common.mk
     sed -i.bak s'/OpenCL\/common\/lib/lib\/x86_64/' ~/benchmarks/PolyBench-ACC/OpenCL/utilities/common.mk
     sed -i.bak s'/O3/g -O3/' ~/benchmarks/PolyBench-ACC/OpenCL/utilities/common.mk

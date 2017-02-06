@@ -20,10 +20,6 @@
  * THE SOFTWARE.
  ********************************************************************************/
 
-
-/*! \file single_buffer_cl_buffer.h
- */
-
 #ifndef __SINGLE_BUFFER_CL_BUFFER_H
 #define __SINGLE_BUFFER_CL_BUFFER_H
 
@@ -32,28 +28,6 @@
 
 #include "meta_data_lists/cl_kernel_lists.h"
 
-/*!
- * call this function to verify cl_mem buffer and svm canary regions
- *
- * \param kern_ctx
- *      use this context
- * \param cmd_queue
- *      use this queue
- * \param num_buff
- *      verify this many cl_mem buffers
- * \param buffer_ptrs
- *      array of cl_mem
- * \param kern_info
- *      work kernel information
- * \param dupe
- *      duplicate arguments list
- * \param evt
- *      wait on this event
- * \param is_svm
- *      buffers are svm
- * \param ret_evt
- *      return this finish event
- */
 void verify_cl_buffer_single(cl_context kern_ctx, cl_command_queue cmd_queue,
         uint32_t num_buff, void **buffer_ptrs, kernel_info *kern_info,
         uint32_t *dupe, const cl_event *evt, int is_svm, cl_event *ret_evt);

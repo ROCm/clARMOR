@@ -18,6 +18,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
+
 include ../../make/master.mk
 
 # Can't use CURDIR, that is based on the root directory.
@@ -35,9 +36,6 @@ all:
 
 .PHONY: test
 test:
-
-.PHONY: cpu_test
-cpu_test:
 
 .PHONY: build_test
 build_test:

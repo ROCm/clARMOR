@@ -214,12 +214,19 @@ int main(int argc, char** argv)
     // Make buffer a cube for the 3D test, if possible.
     uint64_t max_size;
     clGetDeviceInfo(device, CL_DEVICE_IMAGE3D_MAX_WIDTH, sizeof(uint64_t), &width, NULL);
+    /*
     clGetDeviceInfo(device, CL_DEVICE_IMAGE3D_MAX_HEIGHT, sizeof(uint64_t), &height, NULL);
+    */
     clGetDeviceInfo(device, CL_DEVICE_IMAGE3D_MAX_DEPTH, sizeof(uint64_t), &depth, NULL);
     clGetDeviceInfo(device, CL_DEVICE_MAX_MEM_ALLOC_SIZE, sizeof(uint64_t), &max_size, NULL);
-    run_3d_test(device, context, cmd_queue, program, width, 2, 2);
-    run_3d_test(device, context, cmd_queue, program, 2, height, 2);
-    run_3d_test(device, context, cmd_queue, program, 2, 2, depth);
+    /*
+    if(max_size < width*height*depth)
+        width = max_size / (depth*height);
+    width = 4;
+    */
+    height = 4;
+
+    run_3d_test(device, context, cmd_queue, program, width, height, depth);
 
     printf("Done Running Good max dimension image_cl1_1 Test.\n");
     return 0;

@@ -18,6 +18,11 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
+
+# All of the test benchmarks use basically the same makefile.
+# Just set "BENCH_NAME" and "EXPECTED_ERRORS" before including this to make a
+# valid test makefile.
+
 # BENCH_NAME is the name of the executable for this benchmark
 # EXPECTED_ERRORS is the number of buffer overflows you expect the tool to find
 
@@ -59,28 +64,11 @@ test: run_test
 		exit 2;\
 	fi
 
-.PHONY: cpu_test
-cpu_test: run_cpu_test
-	@CHECK_ERROR=`grep total ${OUTPUT_FILE_NAME} | awk {'print $$5'}`; \
-	if ! [ -n "$${CHECK_ERROR:+1}" ]; then \
-		echo "ERROR. Output log of buffer overflow not found at ${THIS_DIR}/buffer_overflow_detector.out";\
-		echo "blah $$CHECK_ERROR";\
-		exit 1;\
-	fi;\
-	if [ $$CHECK_ERROR -ne ${EXPECTED_ERRORS} ]; then \
-		echo "ERROR. Found $$CHECK_ERROR buffer overflows instead of ${EXPECTED_ERRORS}";\
-		exit 2;\
-	fi
-
 build_test: $(BENCH_NAME).exe
 
 .PHONY: run_test
 run_test: build_test
 	$(DETECT_SCRIPT) -l -w $(THIS_DIR) -r "$(THIS_DIR)/$(BENCH_NAME).exe"
 
-.PHONY: run_cpu_test
-run_cpu_test: build_test
-	$(DETECT_SCRIPT) -l -w $(THIS_DIR) -r "$(THIS_DIR)/$(BENCH_NAME).exe -t cpu"
-
 $(BENCH_NAME).exe: $(UTILS_DIR_COBJECTS) $(UTILS_DIR_CPPOBJECTS) $(TEST_COBJECTS) $(TEST_CPPOBJECTS)
-	$(CC) $^ $(LDFLAGS) -lm -ldl -o $@
+	$(CC) $^ $(LDFLAGS) -lm -o $@

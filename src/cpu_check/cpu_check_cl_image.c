@@ -27,8 +27,6 @@
 #include "cl_err.h"
 #include "cl_utils.h"
 #include "cpu_check_utils.h"
-#include "meta_data_lists/cl_memory_lists.h"
-#include "wrapper_utils.h"
 
 #include "cpu_check_cl_image.h"
 
@@ -240,7 +238,7 @@ void verify_images(kernel_info *kern_info, uint32_t num_images,
         m1 = cl_mem_find(get_cl_mem_alloc(), image_ptrs[i]);
         if(m1 == NULL)
         {
-            det_fprintf(stderr, "failure to find cl_memobj %p.\n", image_ptrs[i]);
+            printf("failure to find cl_memobj %p.\n", image_ptrs[i]);
             exit(-1);
         }
         buffer_images[i] = m1;

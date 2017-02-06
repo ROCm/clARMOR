@@ -20,7 +20,8 @@
 
 
 This folder contains all of the files to run a series of functional tests on
-clARMOR. In general, there are two kinds of tests:
+the AMD Research OpenCL buffer overflow detector. In general, there are two
+kinds of tests:
 
  1. Tests that have buffer overflows which the tool should find.
  2. Tests that do not have buffer overflows, and the tool should not find any.

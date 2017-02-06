@@ -22,14 +22,17 @@
 
 # This script will download a version of the OpenDwarfs benchmark suite
 # from GitHub and build it into the ~/benchmarks/OpenDwarfs directory.
-# The apps can be run with clarmor.py --group=OPENDWARFS
+# The apps can be run with run_overflow_detect.py --group=OPENDWARFS
 
 # License Information:
 # OpenDwarfs is made available under the LGPL v2.1.
 # See https://github.com/vtsynergy/OpenDwarfs/blob/master/LICENSE
 
-BASE_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-source ${BASE_DIR}/setup_bench_install.sh
+if [ ! -d ~/benchmarks ]; then
+    mkdir -p ~/benchmarks
+fi
+
+cd ~/benchmarks
 
 if [ ! -d ~/benchmarks/OpenDwarfs/build ];
 then
@@ -49,7 +52,7 @@ then
     mkdir build
     cd build
     sed -i.bak s'/-Werror//g' ../Makefile.in
-    ../configure --with-opencl-sdk=${OCL_DIR} --with-apps=bwa_hmm,crc,csr,gem,nqueens,swat,tdm
+    ../configure --with-opencl-sdk=/opt/AMDAPP/ --with-apps=bwa_hmm,crc,csr,gem,nqueens,swat,tdm
     sed -i.bak s'/LIBS = -lOpenCL/LIBS = -lm -lOpenCL/' ./Makefile
     sed -i.bak s'/CFLAGS =/CFLAGS = -g -O3/' ./Makefile
     make -j `nproc`

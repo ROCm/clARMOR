@@ -20,11 +20,6 @@
  * THE SOFTWARE.
  ********************************************************************************/
 
-
-/*! \file cl_interceptor.h
- * Internal functions for cl manipulation.
- */
-
 #ifndef __CL_INTERCEPTOR_H
 #define __CL_INTERCEPTOR_H
 
@@ -34,15 +29,13 @@
 extern "C" {
 #endif
 
-/*!
- * Structure used to hold all of the arguments to a call to
- * clEnqueueNDRangeKernel. Because the OpenCL API wrapper will catch any
- * calls to this, the detector-internal kernel calls would be analyzed,
- * leading to an infinite recursion of checks. Instead, we directly call
- * the real interceptor function using runNDRangeKernel().
- * That call takes this struct, which includes all of the arguments that
- * it will eventually pass to the real OpenCL kernel enqueue function.
- */
+// Structure used to hold all of the arguments to a call to
+// clEnqueueNDRangeKernel. Because the OpenCL API wrapper will catch any
+// calls to this, the detector-internal kernel calls would be analyzed,
+// leading to an infinite recursion of checks. Instead, we directly call
+// the real interceptor function using runNDRangeKernel().
+// That call takes this struct, which includes all of the arguments that
+// it will eventually pass to the real OpenCL kernel enqueue function.
 typedef struct {
     cl_command_queue command_queue;
     cl_kernel kernel;
@@ -55,46 +48,30 @@ typedef struct {
     cl_event * event;
 } launchOclKernelStruct;
 
-/*!
- * Function that will run clEnqueueNDRangeKernel without going through the
- * buffer overflow detector wrapper. The API is the same as the OpenCL
- * API for clEnqueueNDRangeKernel, except that the arguments are passed
- * through a launchOclKernelStruct.
- *
- * \param ocl_args
- *      cl_kernel launch arguments
- * \return cl error code
- */
+// Function that will run clEnqueueNDRangeKernel without going through the
+// buffer overflow detector wrapper. The API is the same as the OpenCL
+// API for clEnqueueNDRangeKernel, except that the arguments are passed
+// through a launchOclKernelStruct.
 cl_int runNDRangeKernel(launchOclKernelStruct *ocl_args);
 
-#ifdef CL_VERSION_2_0
-/*!
- * Function to call clSVMAlloc() when we are inside of our buffer overflow
- * detector. If this function is called instead of clSVMAlloc(), the newly
- * created SVM region will not have a canary appended at the end.
- *
- * \param context
- *      context for svmalloc
- * \param flags
- *      flags for svmalloc
- * \param size
- *      size of svmalloc
- * \param alignment
- *      memory alignment
- * \return svm pointer
- */
+// Function to call clSVMAlloc() when we are inside of our buffer overflow
+// detector. If this function is called instead of clSVMAlloc(), the newly
+// created SVM region will not have a canary appended at the end.
 void *internalSVMAlloc(cl_context context, cl_svm_mem_flags flags,
         size_t size, unsigned int alignment);
-#endif
 
-/*!
- * Call this when releasing a cl_mem region from an internal allocation.
- * This is primarily only used for proper memory allocation size tracking.
- *
- * \param memobj
- *      cl_mem release target
- */
+// Call this when releasing a cl_mem region from an internal allocation.
+// This is primarily only used for proper memory allocation size tracking.
 void releaseInternalMemObject(cl_mem memobj);
+
+// Given an OpenCL context, find a command queue associated with it. We
+// handle this in our OpenCL wrapper becuase we cache command queues.
+// (For reasons why we cache the command queues, see the comment in the
+// wrapper for clCreateCommandQueue). If we do not have a cached command
+// queue for this context, this call will create one. As such, you should
+// always be able to get a legal command queue out of this call.
+// Returns 0 on success, non-zero on failure.
+int getCommandQueueForContext(cl_context context, cl_command_queue *cmdQueue);
 
 #ifdef __cplusplus
 }

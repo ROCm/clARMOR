@@ -22,61 +22,58 @@
 
 # This script will download a version of Hetero-Mark from GitHub
 # and build it into the ~/benchmarks/Hetero-Mark/ directory
-# The apps can be run with clarmor.py --group=HETERO-MARK
+# The apps can be run with run_overflow_detect.py --group=HETERO-MARK
 
 # Licensing Information:
 # Hetero-Mark is available under the MIT license.
 # https://github.com/NUCAR-DEV/Hetero-Mark/blob/Develop/LICENSE
 
-BASE_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-source ${BASE_DIR}/setup_bench_install.sh
+if [ ! -d ~/benchmarks ]; then
+    mkdir -p ~/benchmarks
+fi
 
-if [ ! -d ~/benchmarks/Hetero-Mark/build/src/opencl12 ] || ( [ $CL_V2_SUPPORTED -eq 1 ] && [ ! -d ~/benchmarks/Hetero-Mark/build/src/opencl20 ]); then
-	if [ ! -d ~/benchmarks/Hetero-Mark ]; then
-		echo -e "\n\nAbout to log into GitHub to get Hetero-Mark:"
-		git clone -b amd_fixes https://github.com/jlgreathouse/Hetero-Mark.git
-	fi
-	cd Hetero-Mark
-	mkdir build
-	cd build
-	cmake ..
+cd ~/benchmarks
 
-	# Only build all of Hetero-Mark if we support OpenCL 2.0 on this machine.
-	if [ $CL_V2_SUPPORTED -eq 1 ]; then
+if [ ! -d ~/benchmarks/Hetero-Mark/build/src/opencl12 ] || [ ! -d ~/benchmarks/Hetero-Mark/build/src/opencl20 ]; then
+# Only build Hetero-Mark if we support OpenCL 2.0 on this machine.
+    echo -e "\tChecking OpenCL version. Please wait."
+    CL_VERSION=`clinfo | grep "Device OpenCL C version" | head -n 1 | awk {'print $7'}`
+    if (( $(echo "$CL_VERSION >= 2.0" | bc -l) )); then
+        if [ ! -d ~/benchmarks/Hetero-Mark ]; then
+            echo -e "\n\nAbout to log into GitHub to get Hetero-Mark:"
+           git clone -b amd_fixes https://github.com/jlgreathouse/Hetero-Mark.git
+        fi
+        cd Hetero-Mark
+        mkdir build
+        cd build
+        cmake ..
         make -j `nproc`
         if [ $? -ne 0 ]; then
             echo -e "Failed to build Hetero-Mark"
             exit -1
         fi
-		if [ ! -f ~/benchmarks/Hetero-Mark/build/src/opencl20/sw_cl20/sw_Kernels.cl ]; then
-			cd ~/benchmarks/Hetero-Mark/build/src/opencl20/sw_cl20/
-			ln -s ./sw_cl20_kernel.cl sw_Kernels.cl
-		fi
-		if [ ! -f ~/benchmarks/Hetero-Mark/build/src/opencl20/aes_cl20/aes_Kernels.cl ]; then
-			cd ~/benchmarks/Hetero-Mark/build/src/opencl20/aes_cl20/
-			ln -s ./aes_cl20_kernel.cl ./aes_Kernels.cl
-		fi
     else
-        echo -e "This system does not support OpenCL 2.0. Skipping Hetero-Mark CL2.0 build."
-		for bench in aes_cl12 fir_cl12 hmm_cl12 iir_cl12 kmeans_cl12 pagerank_cl12 sw_cl12; do
-			make -j `nproc` $bench
-			if [ $? -ne 0 ]; then
-				echo -e "Failed to build Hetero-Mark"
-				exit -1
-			fi
-		done
+        echo -e "This system does not support OpenCL 2.0. Skipping Hetero-Mark build."
     fi
 
     if [ ! -f ~/benchmarks/Hetero-Mark/build/src/opencl12/sw_cl12/sw_Kernels.cl ]; then
         cd ~/benchmarks/Hetero-Mark/build/src/opencl12/sw_cl12/
         ln -s ./sw_cl12_kernel.cl sw_Kernels.cl
     fi
+    if [ ! -f ~/benchmarks/Hetero-Mark/build/src/opencl20/sw_cl20/sw_Kernels.cl ]; then
+        cd ~/benchmarks/Hetero-Mark/build/src/opencl20/sw_cl20/
+        ln -s ./sw_cl20_kernel.cl sw_Kernels.cl
+    fi
     if [ ! -f ~/benchmarks/Hetero-Mark/build/src/opencl12/aes_cl12/aes_cl12_Kernels.cl ]; then
         cd ~/benchmarks/Hetero-Mark/build/src/opencl12/aes_cl12/
         ln -s ./aes_cl12_kernel.cl ./aes_cl12_Kernels.cl
     fi
+    if [ ! -f ~/benchmarks/Hetero-Mark/build/src/opencl20/aes_cl20/aes_Kernels.cl ]; then
+        cd ~/benchmarks/Hetero-Mark/build/src/opencl20/aes_cl20/
+        ln -s ./aes_cl20_kernel.cl ./aes_Kernels.cl
+    fi
 else
-    echo -e "~/benchmarks/Hetero-Mark/build/src/opencl* exists. Not rebuilding Hetero-Mark."
+    echo -e "~/benchmarks/Hetero-Mark/build/src/opencl12/ and opencl20/ exist. Not rebuilding Hetero-Mark."
 fi
 if [ ! -f ~/benchmarks/Hetero-Mark/data/aes/detector_input.txt ]; then
     cd ~/benchmarks/Hetero-Mark/data/aes/

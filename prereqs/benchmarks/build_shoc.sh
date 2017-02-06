@@ -22,13 +22,16 @@
 
 # This script will download the SHOC benchmark suite from GitHub and build it
 # into the ~/benchmarks/shoc directory.
-# The apps can be run with clarmor.py --group=SHOC
+# The apps can be run with run_overflow_detect.py --group=SHOC
 
 # Licensing Information:
 # SHOC is distributed under a 3-clause BSD license. See shoc/LICENSE.txt
 
-BASE_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-source ${BASE_DIR}/setup_bench_install.sh
+if [ ! -d ~/benchmarks ]; then
+    mkdir -p ~/benchmarks
+fi
+
+cd ~/benchmarks
 
 if [ ! -f ~/benchmarks/shoc/Makefile ]; then
     if [ ! -d ~/benchmarks/shoc ]; then
@@ -37,24 +40,7 @@ if [ ! -f ~/benchmarks/shoc/Makefile ]; then
     fi
     cd shoc
     git checkout 9432edb93c9a146fef3e2022e0de7733f3ffe725
-
-	# Without this, we can end up with a "negative available memory size" which infinite loops
-	sed -i.bak 's#int memSize#unsigned int memSize#' ./src/opencl/level0/DeviceMemory.cpp
-	sed -i.bak 's#long availMem#unsigned long availMem#' ./src/opencl/level0/DeviceMemory.cpp
-	# Sometimes global and local size don't divide evently, so remove local size.
-	sed -i.bak 's#const size_t globalWorkSize#size_t globalWorkSize#' ./src/opencl/level1/spmv/Spmv.cpp
-	sed -i.bak '332s#{#{ globalWorkSize += (localWorkSize - (globalWorkSize % localWorkSize));#' ./src/opencl/level1/spmv/Spmv.cpp
-	sed -i.bak 's#const size_t scalarGlobalWSize#size_t scalarGlobalWSize#' ./src/opencl/level1/spmv/Spmv.cpp
-	sed -i.bak '608s#{#{ scalarGlobalWSize += (localWorkSize - (scalarGlobalWSize % localWorkSize));#' ./src/opencl/level1/spmv/Spmv.cpp
-	sed -i.bak 's#const size_t vectorGlobalWSize#size_t vectorGlobalWSize#' ./src/opencl/level1/spmv/Spmv.cpp
-	sed -i.bak '686s#{#{ vectorGlobalWSize += (localWorkSize - (vectorGlobalWSize % localWorkSize));#' ./src/opencl/level1/spmv/Spmv.cpp
-
-
-	if [ $NV_OCL -eq 1 ]; then
-		CFLAGS="-g -O3 -I"${OCL_INCLUDE_DIR} LIBS="-lOpenCL" CPPFLAGS="-g -O3 -I"${OCL_INCLUDE_DIR} ./configure --with-opencl --without-cuda --without-mpi
-	else
-		CFLAGS="-g -O3 -I"${OCL_INCLUDE_DIR} LDFLAGS="-L"${OCL_LIB_DIR} LIBS="-lOpenCL" CPPFLAGS="-g -O3 -I"${OCL_INCLUDE_DIR} ./configure --with-opencl --without-cuda --without-mpi
-	fi
+    CFLAGS="-g -O3 -I/opt/AMDAPP/include/" LDFLAGS="-L/opt/AMDAPP/lib/x86_64/" LIBS="-lOpenCL" CPPFLAGS="-g -O3 -I/opt/AMDAPP/include/" ./configure --with-opencl --without-cuda --without-mpi
     make -j `nproc`
     if [ $? -ne 0 ]; then
         echo -e "Failed to build SHOC."

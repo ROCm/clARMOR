@@ -21,10 +21,7 @@
  ********************************************************************************/
 
 #include <stdio.h>
-#include "util_functions.h"
-
 #include "cl_err.h"
-
 const char *cluErrorString(const cl_int err)
 {
     switch(err)
@@ -169,9 +166,9 @@ void check_cl_error(const char * const file_name, const int line_num,
 {
     if (cl_err != CL_SUCCESS)
     {
-        det_fprintf(stderr, "OpenCL error, exiting application.\n");
-        det_fprintf(stderr, "%s:%d: error: %s (%d)\n", file_name, line_num,
-                cluErrorString(cl_err), cl_err);
+        fprintf(stderr, "OpenCL error, exiting application.\n");
+        fprintf(stderr, "%s:%d: error: %s\n", file_name, line_num,
+                cluErrorString(cl_err));
         exit(-1);
     }
     return;
@@ -181,7 +178,7 @@ void print_program_build_err(cl_context context, cl_program prog,
         cl_int cl_err)
 {
     // Print error header
-    det_fprintf(stderr, "Error building OpenCL kernel near %s:%d\n",
+    fprintf(stderr, "Error building OpenCL kernel near %s:%d\n",
             __FILE__, __LINE__);
 
     // Try to get the error log
@@ -209,11 +206,11 @@ void print_program_build_err(cl_context context, cl_program prog,
         check_cl_error(__FILE__, __LINE__, cl_err);
 
         // Print the log
-        det_fprintf(stderr, "Error log:\n");
-        det_fprintf(stderr, "%s\n", log);
+        fprintf(stderr, "Error log:\n");
+        fprintf(stderr, "%s\n", log);
         free(log);
         free(dev_id);
     }
     else
-        det_fprintf(stderr, "Unable to get build log for device.\n");
+        fprintf(stderr, "Unable to get build log for device.\n");
 }

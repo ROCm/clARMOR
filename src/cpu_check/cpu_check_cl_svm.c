@@ -26,9 +26,6 @@
 #include "cl_err.h"
 #include "cl_utils.h"
 #include "cpu_check_utils.h"
-#include "meta_data_lists/cl_memory_lists.h"
-#include "wrapper_utils.h"
-#include "util_functions.h"
 
 #include "cpu_check_cl_svm.h"
 
@@ -45,7 +42,7 @@ static void set_up_svm_canary_copy(cl_context kern_ctx, uint32_t num_svm,
         m1 = cl_svm_mem_find(get_cl_svm_mem_alloc(), svm_ptrs[i]);
         if(m1 == NULL)
         {
-            det_fprintf(stderr, "failure to find cl_svm_memobj %p.\n", svm_ptrs[i]);
+            printf("failure to find cl_svm_memobj %p.\n", svm_ptrs[i]);
             exit(-1);
         }
         if (m1->context == kern_ctx)
@@ -55,10 +52,10 @@ static void set_up_svm_canary_copy(cl_context kern_ctx, uint32_t num_svm,
 
         //index to beginning of canary region
         c_base_ptrs[i] = (char*)m1->handle;
-        canary_ptrs[i]= c_base_ptrs[i] + (m1->size - POISON_FILL_LENGTH);
+        canary_ptrs[i]= c_base_ptrs[i] + (m1->size - poisonFillLength);
 
         map_ptrs[i] = clSVMAlloc(kern_ctx, CL_MEM_READ_WRITE,
-                POISON_FILL_LENGTH, 0);
+                poisonFillLength, 0);
     }
 }
 
@@ -80,13 +77,13 @@ static void copy_and_map_svm_canaries(cl_context kern_ctx,
         }
         //copy canary region for this svm to smaller svm
         cl_err = clEnqueueSVMMemcpy(cmd_queue, CL_NON_BLOCKING, map_ptrs[i],
-                canary_ptrs[i], POISON_FILL_LENGTH, 1, incoming_evt,
+                canary_ptrs[i], poisonFillLength, 1, incoming_evt,
                 &(copy_events[i]));
         check_cl_error(__FILE__, __LINE__, cl_err);
 
         //map in smaller svm
         cl_err = clEnqueueSVMMap(cmd_queue, CL_NON_BLOCKING, CL_MAP_READ,
-                map_ptrs[i], POISON_FILL_LENGTH, 1, &(copy_events[i]),
+                map_ptrs[i], poisonFillLength, 1, &(copy_events[i]),
                 &(map_events[i]));
         check_cl_error(__FILE__, __LINE__, cl_err);
     }
@@ -204,11 +201,5 @@ void verify_svm(kernel_info *kern_info, uint32_t num_svm,
     free(canary_ptrs);
     free(map_ptrs);
     free(base_ptrs);
-#else
-    (void)kern_info;
-    (void)num_svm;
-    (void)svm_ptrs;
-    (void)dupe;
-    (void)evt;
 #endif
 }

@@ -21,7 +21,8 @@
 
 
 # The following is a step-by-step guide for installing the appropriate
-# tools and software for using clARMOR on a fresh Ubuntu 14.04.4 install.
+# tools and software for using the AMD Research OpenCL Buffer Overflow Detector
+# on a fresh Ubuntu 14.04.4 LTS installation.
 
 # Note that there's very likely some overkill on the installs here. This is
 # based off a more comprehensive set of installation directions for a larger

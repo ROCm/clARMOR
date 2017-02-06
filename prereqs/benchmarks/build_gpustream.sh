@@ -22,7 +22,7 @@
 
 # This script will download a working version of the GPU-STREAM benchmark
 # from GitHub and build it into the ~/benchmarks/GPU-STREAM directory.
-# The apps can be run with clarmor.py --group=GPUSTREAM
+# The apps can be run with run_overflow_detect.py --group=GPUSTREAM
 
 # Licensing Information:
 # GPU-STREAM is available under a permissive license that allows its use
@@ -36,8 +36,11 @@
 #      "based on a variant of the GPU-STREAM benchmark code"
 # https://github.com/UoB-HPC/GPU-STREAM/blob/master/LICENSE
 
-BASE_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-source ${BASE_DIR}/setup_bench_install.sh
+if [ ! -d ~/benchmarks ]; then
+    mkdir -p ~/benchmarks
+fi
+
+cd ~/benchmarks
 
 # Test to see if the first guy has been build, not all of them
 # testing all benchmarks would be a big pain to write..
@@ -49,11 +52,7 @@ if [ ! -f ~/benchmarks/GPU-STREAM/gpu-stream-ocl ]; then
     cd ~/benchmarks/GPU-STREAM
     git checkout bbee43998514a8d618592adb90bcb1b27d4764e0
 
-	if [ ! -z ${CUDA_LIB_PATH+x} ] || [ ! -z ${CUDA_PATH+x} ]; then
-		sed -i.bak s"#O3#g -O3 -I "${OCL_INCLUDE_DIR}"#" ~/benchmarks/GPU-STREAM/Makefile
-	else
-		sed -i.bak s"#O3#g -O3 -I "${OCL_INCLUDE_DIR}" -L "${OCL_LIB_DIR}"#" ~/benchmarks/GPU-STREAM/Makefile
-	fi
+    sed -i.bak s'/O3/g -O3 -I\/opt\/AMDAPP\/include\/ -L\/opt\/AMDAPP\/lib\/x86_64\//' ~/benchmarks/GPU-STREAM/Makefile
     make -j `nproc` gpu-stream-ocl
     if [ $? -ne 0 ]; then
         echo -e "Failed to build GPU-STREAM"

@@ -128,7 +128,7 @@ const char *image_copy_canary_src =
     uint buffID;\n\
     for(buffID=0; buffID < num_buff && tid >= ends[buffID]; buffID++){}\n\
     if(buffID >= num_buff) return;\n\
-    uint localBuff = tid - ((buffID > 0) ? ends[buffID-1] : 0);\n\
+    uint localBuff = tid - (buffID > 0) ? ends[buffID-1] : 0;\n\
     uint ret = INT_MAX;\n\
     if(poison != B[tid])\n\
     {\n\

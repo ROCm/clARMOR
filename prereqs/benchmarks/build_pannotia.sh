@@ -22,7 +22,7 @@
 
 # This script will download a version of the Pannotia benchmark suite
 # from GitHub and build it into the ~/benchmarks/pannotia directory.
-# The apps can be run with clarmor.py --group=PANNOTIA
+# The apps can be run with run_overflow_detect.py --group=PANNOTIA
 
 # Licensing Information:
 # Pannotia was written by AMD Research and the copyright is owned by AMD.
@@ -30,8 +30,11 @@
 # license. See:
 # https://github.com/pannotia/pannotia/blob/master/license
 
-BASE_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-source ${BASE_DIR}/setup_bench_install.sh
+if [ ! -d ~/benchmarks ]; then
+    mkdir -p ~/benchmarks
+fi
+
+cd ~/benchmarks
 
 # Test to see if the first guy has been build, not all of them
 # testing all benchmarks would be a big pain to write..
@@ -41,9 +44,8 @@ if [ ! -f ~/benchmarks/pannotia/graph_app/bc/bc ]; then
         git clone https://github.com/jlgreathouse/pannotia.git
     fi
     cd ~/benchmarks/pannotia
-    git checkout cd63a4874b6cf0b68d79acba0a7e795f7dbbe777
+    git checkout 583ec115f21862adba84a76d9ff8dc8bfa0adcc2
 
-	sed -i.bak 's#OPENCL_DIR = /opt/AMDAPP/#OPENCL_DIR = '${OCL_DIR}'#' ~/benchmarks/pannotia/common/make.config
     make -j `nproc`
     cd ~/benchmarks/pannotia/dataset/sssp
     #wget http://www.dis.uniroma1.it/challenge9/data/USA-road-d/USA-road-d.USA.gr.gz

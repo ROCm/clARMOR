@@ -69,7 +69,7 @@ static void perform_cl_buffer_checks(cl_command_queue cmd_queue,
                     buffer_ptrs[i]);
             if(m1 == NULL)
             {
-                det_fprintf(stderr, "failure to find cl_svm_memobj.\n");
+                printf("failure to find cl_svm_memobj.\n");
                 exit(-1);
             }
             mem_handle = m1->handle;
@@ -81,7 +81,7 @@ static void perform_cl_buffer_checks(cl_command_queue cmd_queue,
             cl_memobj *m1 = cl_mem_find(get_cl_mem_alloc(), buffer_ptrs[i]);
             if(m1 == NULL)
             {
-                det_fprintf(stderr, "failure to find cl_memobj.\n");
+                printf("failure to find cl_memobj.\n");
                 exit(-1);
             }
             mem_handle = (void*)(m1->handle);
@@ -93,11 +93,7 @@ static void perform_cl_buffer_checks(cl_command_queue cmd_queue,
         cl_set_arg_and_check(check_kern, 1, sizeof(unsigned), &i);
         cl_set_arg_and_check(check_kern, 3, sizeof(unsigned), &offset);
         if (is_svm)
-        {
-#ifdef CL_VERSION_2_0
             cl_set_svm_arg_and_check(check_kern, 4, mem_handle);
-#endif
-        }
         else
         {
             cl_set_arg_and_check(check_kern, 4, sizeof(void*),
@@ -115,6 +111,7 @@ static void perform_cl_buffer_checks(cl_command_queue cmd_queue,
         clFinish(cmd_queue);
 #endif
 
+#ifdef DEBUG_CHECKER_TIME
         if(global_tool_stats_flags & STATS_CHECKER_TIME)
         {
             clFinish(cmd_queue);
@@ -123,6 +120,7 @@ static void perform_cl_buffer_checks(cl_command_queue cmd_queue,
                     &times[2], &times[3]);
             add_to_kern_runtime((times[3] - times[2]) / 1000);
         }
+#endif //DEBUG_CHECKER_TIME
     }
 }
 

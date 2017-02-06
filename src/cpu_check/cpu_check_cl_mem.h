@@ -20,10 +20,6 @@
  * THE SOFTWARE.
  ********************************************************************************/
 
-
-/*! \file cpu_check_cl_mem.h
- */
-
 #ifndef __CPU_CHECK_CL_MEM_H
 #define __CPU_CHECK_CL_MEM_H
 
@@ -32,24 +28,17 @@
 
 #include "meta_data_lists/cl_kernel_lists.h"
 
-/*!
- * Find any overflows in cl_mem buffer objects.
- *
- * \param kern_info
- *      information about the kernel that had the last opportunity
- *      to write to this buffer.
- * \param num_cl_mem
- *      number of cl_mem buffers in the array buffer_ptrs
- * \param buffer_ptrs
- *      array of void* that are actuall cl_mem objects
- * \param dupe
- *      array that describes which, if any, arguments to the kernel
- *      are duplicates of one another. See cpu_check_utils.h for a
- *      full description.
- * \param evt
- *      The cl_event that tells us when the real kernel has completed,
- *      so that we can start checking its canaries.
- */
+// Find any overflows in cl_mem buffer objects.
+// Inputs:
+//      kern_info: information about the kernel that had the last opportunity
+//                  to write to this buffer.
+//      num_cl_mem: number of cl_mem buffers in the array buffer_ptrs
+//      buffer_ptrs:    array of void* that are actuall cl_mem objects
+//      dupe:   array that describes which, if any, arguments to the kernel
+//              are duplicates of one another. See cpu_check_utils.h for a
+//              full description.
+//      evt:    The cl_event that tells us when the real kernel has completed,
+//              so that we can start checking its canaries.
 void verify_cl_mem(kernel_info *kern_info, uint32_t num_cl_mem,
         void **buffer_ptrs, uint32_t *dupe, const cl_event *evt);
 

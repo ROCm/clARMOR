@@ -37,14 +37,14 @@ static cl_mem create_clmem_copies(cl_context kern_ctx,
 {
     cl_int cl_err;
     cl_mem clmem_canary_copies = clCreateBuffer(kern_ctx, 0,
-            POISON_FILL_LENGTH*(num_cl_mem), 0, &cl_err);
+            poisonFillLength*(num_cl_mem), 0, &cl_err);
     check_cl_error(__FILE__, __LINE__, cl_err);
     for(uint32_t i = 0; i < num_cl_mem; i++)
     {
         cl_memobj *m1 = cl_mem_find(get_cl_mem_alloc(), buffer_ptrs[i]);
         if(m1 == NULL)
         {
-            det_fprintf(stderr, "failure to find cl_memobj at %s:%d.\n", __FILE__,
+            printf("failure to find cl_memobj at %s:%d.\n", __FILE__,
                     __LINE__);
             exit(-1);
         }
@@ -70,7 +70,7 @@ static void *create_svm_copies(cl_context kern_ctx, cl_command_queue cmd_queue,
             POISON_FILL_LENGTH*num_svm, 0);
     if (svm_canary_copies == NULL)
     {
-        det_fprintf(stderr, "Failed to SVMAlloc at %s:%d\n", __FILE__,
+        fprintf(stderr, "Failed to SVMAlloc at %s:%d\n", __FILE__,
                 __LINE__);
         exit(-1);
     }
@@ -82,7 +82,7 @@ static void *create_svm_copies(cl_context kern_ctx, cl_command_queue cmd_queue,
         m1 = cl_svm_mem_find(get_cl_svm_mem_alloc(), buffer_ptrs[i]);
         if(m1 == NULL)
         {
-            det_fprintf(stderr, "failure to find cl_svm_memobj at %s:%d.\n", __FILE__,
+            printf("failure to find cl_svm_memobj at %s:%d.\n", __FILE__,
                     __LINE__);
             exit(-1);
         }
@@ -98,14 +98,6 @@ static void *create_svm_copies(cl_context kern_ctx, cl_command_queue cmd_queue,
         mend_this_canary(kern_ctx, cmd_queue, m1->handle, events[i],
                 &mend_events[i]);
     }
-#else
-    (void)kern_ctx;
-    (void)cmd_queue;
-    (void)num_svm;
-    (void)buffer_ptrs;
-    (void)evt;
-    (void)events;
-    (void)mend_events;
 #endif
     return svm_canary_copies;
 }
@@ -138,7 +130,7 @@ static void ** create_svm_ptr_copies(cl_context kern_ctx,
                 buffer_ptrs[i]);
         if(m1 == NULL)
         {
-            det_fprintf(stderr, "failure to find cl_svm_memobj.\n");
+            printf("failure to find cl_svm_memobj.\n");
             exit(-1);
         }
 
@@ -192,9 +184,6 @@ static cl_event perform_cl_buffer_checks(cl_context kern_ctx,
         cl_set_arg_and_check(check_kern, 6, sizeof(void*), (void*) &result);
     }
     else
-#else
-    (void)svm_canary_copies;
-    (void)copy_svm_ptrs;
 #endif
     {
         check_kern = get_canary_check_kernel_no_svm(kern_ctx);
@@ -213,6 +202,7 @@ static cl_event perform_cl_buffer_checks(cl_context kern_ctx,
     cl_int cl_err = runNDRangeKernel( &ocl_args );
     check_cl_error(__FILE__, __LINE__, cl_err);
 
+#ifdef DEBUG_CHECKER_TIME
     if(global_tool_stats_flags & STATS_CHECKER_TIME)
     {
         clFinish(cmd_queue);
@@ -221,6 +211,7 @@ static cl_event perform_cl_buffer_checks(cl_context kern_ctx,
                 &times[3]);
         add_to_kern_runtime((times[3] - times[2]) / 1000);
     }
+#endif //DEBUG_CHECKER_TIME
 
     cl_event mend_finish, finish;
     if(!get_error_envvar())

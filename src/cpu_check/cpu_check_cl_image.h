@@ -20,10 +20,6 @@
  * THE SOFTWARE.
  ********************************************************************************/
 
-
-/*! \file cpu_check_cl_image.h
- */
-
 #ifndef __CPU_CHECK_CL_IMAGE_H
 #define __CPU_CHECK_CL_IMAGE_H
 
@@ -32,24 +28,17 @@
 
 #include "meta_data_lists/cl_kernel_lists.h"
 
-/*
- * Find any overflows in cl_mem image objects.
- *
- * \param kern_info
- *      information about the kernel that had the last opportunity
- *      to write to this buffer.
- * \param num_images
- *      number of image cl_mem buffers in the array image_ptrs
- * \param image_ptrs
- *      array of void* that each point to a cl_mem image
- * \param dupe
- *      array that describes which, if any, arguments to the kernel
- *      are duplicates of one another. See cpu_check_utils.h for a
- *      full description.
- * \param evt
- *      The cl_event that tells us when the real kernel has completed,
- *      so that we can start checking its canaries.
- */
+// Find any overflows in cl_mem image objects.
+// Inputs:
+//      kern_info: information about the kernel that had the last opportunity
+//                  to write to this buffer.
+//      num_images: number of image cl_mem buffers in the array image_ptrs
+//      image_ptrs: array of void* that each point to a cl_mem image
+//      dupe:   array that describes which, if any, arguments to the kernel
+//              are duplicates of one another. See cpu_check_utils.h for a
+//              full description.
+//      evt:    The cl_event that tells us when the real kernel has completed,
+//              so that we can start checking its canaries.
 void verify_images(kernel_info *kern_info, uint32_t num_images,
         void **image_ptrs, uint32_t *dupe, const cl_event *evt);
 

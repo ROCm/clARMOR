@@ -22,14 +22,17 @@
 
 # This script will download Rodinia 3.1 and build it into the
 # ~/benchmarks/rodinia_3.1/ directory.
-# The apps can be run with clarmor.py --group=RODINIA
+# The apps can be run with run_overflow_detect.py --group=RODINIA
 
 # Licensing Information:
 # Rodinia is made available under a 3-clause BSD license.
 # See rodinia_3.1/LICENSE
 
-BASE_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-source ${BASE_DIR}/setup_bench_install.sh
+if [ ! -d ~/benchmarks ]; then
+    mkdir -p ~/benchmarks
+fi
+
+cd ~/benchmarks
 
 if [ ! -d ~/benchmarks/rodinia_3.1 ]; then
     if [ ! -f ~/benchmarks/rodinia_3.1.tar.bz2 ];
@@ -44,12 +47,10 @@ if [ ! -d ~/benchmarks/rodinia_3.1 ]; then
     fi
     tar -xvf rodinia_3.1.tar.bz2
     cd rodinia_3.1/
-	sed -i.bak s"#OPENCL_DIR = /if10/kw5na/Packages/AMD-APP-SDK-v2.8-RC-lnx64#OPENCL_DIR = "${OCL_DIR}"#" ./common/make.config
-	sed -i.bak s"#OPENCL_INC = $(OPENCL_DIR)/include/#OPENCL_INC = "${OCL_INCLUDE_DIR}"#" ./common/make.config
-	sed -i.bak s"#OPENCL_LIB = $(OPENCL_DIR)/lib/x86_64/#OPENCL_LIB = "${OCL_LIB_DIR}"#" ./common/make.config
+    sed -i.bak 's/\/if10\/kw5na\/Packages\/AMD-APP-SDK-v2.8-RC-lnx64/\/opt\/AMDAPP\//' ./common/make.config
     sed -i.bak s'/opencl.h/cl.h/' ./opencl/dwt2d/main.cpp
     sed -i.bak s'/platformIds\[1/platformIds\[0/' ./opencl/dwt2d/main.cpp
-    sed -i.bak s"#/usr/local/cuda-5.5/include#"${OCL_INCLUDE_DIR}"#" ./opencl/dwt2d/Makefile 
+    sed -i.bak s'/\/usr\/local\/cuda-5.5\/include/\/opt\/AMDAPP\/include/' ./opencl/dwt2d/Makefile 
     sed -i.bak s'/^}$/return 0;\n}/' ./opencl/heartwall/main.c
     sed -i.bak s'/^}$/return 0;\n}/' ./opencl/srad/main.c
     sed -i.bak s'/platformID\[1/platformID\[0/' ./opencl/hybridsort/bucketsort.c

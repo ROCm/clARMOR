@@ -18,11 +18,36 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
-This is clARMOR, the AMD Research Memory Overflow Reporter for OpenCL. This
-tool wraps API calls to OpenCL libraries and dynamically checks for memory
-errors caused by OpenCL kernels. When an error is detected (e.g. when a kernel
-writes beyond the end of a buffer), error information is printed to the screen
-and is optionally logged to an output file.
+===============================================================================
+Special directions for recreating the CGO 2017 work
+===============================================================================
+
+The data in this branch is slightly different than our main branch. It contains
+most of our files as they were when we took our data for the CGO 2017 paper
+"Dynamic Buffer Overflow Detection for GPGPUS". This branch also includes some
+of our helper scripts used to run all of the benchmarks in the paper, as well
+as a test microbenchmark that was used fill in some of the paper's data.
+
+Some of the major differences:
+ * The major runscript was named run_overflow_detect.py instead of 'clarmor'.
+   The majority of what it does is still the same.
+ * We did not yet wrap dlsym() calls, so this version will not necessarily
+   work for applications that load OpenCL using dlopen()/dlsym().
+ * The time_all_benchmarks.sh script can be used to automatically create a
+   runtime log for every benchmark. This was used to create Figure 10 in the
+   paper, in conjunction with the mean_time_files.py script.
+ * bufferUpBench is our microbenchmark that can be used to generate Figures 3
+   through 8. To run this for all of these data points, please use the script
+   helper_master.sh (which will run helper_clmem.sh, helper_image.sh, and
+   helper_svm.sh).
+
+
+===============================================================================
+This is the AMD Research OpenCL Buffer Overflow Detector. This tool wraps
+API calls to OpenCL libraries and dynamically checks for memory errors caused
+by OpenCL kernels. When an error is detected (e.g. when an OpenCL kernel writes
+beyond the end of an OpenCL buffer), error information is printed to the
+screen and is optionally logged to a detector output file.
 
 The details of how this tool works can be found in the ./docs/ directory, but
 the broad overview is that this is a canary-based overflow detector. OpenCL
@@ -39,10 +64,10 @@ Debugging information about this buffer overflow is then printed to the screen
 and, optionally, to a log file. The tool will then either continue running in
 order to try to find more problems, or, optionally, will exit with an error.
 
-This tool is only useful for finding buffer overflows in buffers created using
-OpenCL APIs and caused by OpenCL APIs or OpenCL kernels. It does not work for
-fine-grained system shared virtual memory, since those regions are allocated
-with traditional calls to malloc. It does not attempt to find buffer overflows
+This tool is only useful for finding buffer overflows in OpenCL kernels and
+against buffers created using OpenCL APIs. It does not work for fine-grained
+system shared virtual memory, since those regions are allocated with
+traditional calls to malloc. It does not attempt to find buffer overflows
 from host-side functions that may write into OpenCL buffer regions. For
 instance, mapping a buffer and then writing outside of the mapped region
 will not necessarily be detected. If it is detected, it may be mis-attributed.
@@ -65,15 +90,9 @@ It has been carefully designed to attempt to reduce the runtime overheads it
 causes. It will detect overflows in cl_mem buffers, coarse-grained SVM, and
 memory buffers for n-dimensional images.
 
-Our tests put its average performance overheads in the 10s of percents, though
-the exact slowdown caused by clARMOR will depend on your application, its
-inputs, the number of buffers, the size of the kernels, and many other factors.
-This is described in greater detail in our paper at the 2017 Int'l Symp.
-on Code Generation and Optimization (CGO), "Dynamic Buffer Overflow Detection
-for GPGPUs". This paper can be found in the ./docs/ directory.
 
-
-clARMOR has been tested on the following systems:
+The AMD Research OpenCl Buffer Overflow Detector has been tested on the
+following systems:
 OpenCL 2.0:
  1) AMD FirePro W9100 GPU running on 64-bit Ubuntu 14.04.4 with the AMD APP
     SDK v3.0 and fglrx 15.30.3 drivers.
@@ -83,43 +102,35 @@ OpenCL 2.0:
 OpenCL 1.2:
  1) AMD Radeon HD 7950 GPU running on 64-bit CentOS 6.4 with the AMD APP SDK
     v2.8 and fglrx 13.20.6 drivers. This requires installing GCC 4.7.
- 2) AMD A10-7850K CPU running on 64-bit Ubuntu 14.04.4 with the AMD APP SDK
-    v3.0 OpenCL runtime.
- 3) Nvidia TITAN X (Pascal) GPU running on 64-bit Ubuntu 14.04.5 with the
-    CUDA SDK v8 and Nvidia drivers v367.48.
 
 
 Currently, this tool does *not* detect the following types of overflows:
  1) Buffer overflows that overflow in a negative direction. In other words,
     writing bytes before the beginning of a buffer is not detected as an error.
- 2) Buffer overflows in the __private, __local, or __constant memory spaces.
- 3) Buffer overflows caused by reads (since these do not disrupt the canary
-    regions).
 
 
 
---------------------------------------------------------------------------------
-Setting up and building clARMOR
---------------------------------------------------------------------------------
+-------------------------------------------------------------------------------
+Setting up and building the AMD Research OpenCL Buffer Overflow Detector
+-------------------------------------------------------------------------------
 
-clARMOR requires a number of utilities in order to properly run. Information
-about these prerequisites can be found in the prereqs/ directory. In particular,
-the file prereqs/README.txt discusses information about how to set up a system
-to run this tool.
+The AMD Research OpenCL Buffer Overflow Detector requires a number of utilities
+in order to properly run. Information about these prerequisites can be found
+in the prereqs/ directory. In particular, the file prereqs/README.txt discusses
+information about how to set up a system to run this tool.
 
-Currently, this tool is designed to detect buffer overflows caused by OpenCL
-kernels that run on GPUs or CPUs. It has been tested most extensively using the
-AMD APP SDK OpenCL runtime implementation and AMD Catalyst GPU drivers.
-It is designed to run only on Linux. All of these things should be set up
-separately from this tool.
+Currently, this tool is designed to detect buffer overflows on GPU-based OpenCL
+kernels. It has been tested using the AMD APP SDK OpenCL implementation on top
+of AMD Catalyst drivers. It is designed to run only on Linux. All of these
+things should be set up separately from this tool.
 
 This tool requires Python and Python-Argparse. To fully run the test system,
-Clang's scan-build tool should be installed, as should Cppcheck and pylint.
+Clang's scan-build tool should be installed, as should Cppcheck.
 
 This tool has been tested using both GCC (v >= 4.7) and clang (v >= 3.3)
 
-To build the clARMOR using your default C and C++ compilers, execute the
-following from the main directory:
+To build the AMD Research OpenCL Buffer Overflow Detector using your default
+C and C++ compilers, just execute the following from the main directory:
     make
 
 To build the tool using another compiler (e.g. clang), override the CC and
@@ -129,12 +140,8 @@ CXX environment variables. For example:
 (Note that the above means that you can also use 'scan-build make' to run
 LLVM's static analyzer on this tool.)
 
-To test the tool against its included functional GPU tests, execute:
+To test the tool against its included functional tests, execute:
     make test
-
-To test the tool against its included functional tests, but to run those tests
-(and thus the detection algorithms) on the CPU, execute:
-    make cpu_test
 
 To simply build these functional tests without running them, execute:
     make build_test
@@ -142,27 +149,25 @@ To simply build these functional tests without running them, execute:
 To run Cppcheck against the detector and all the test codes, run:
     make check
 
-To run pylint against all of the Python files, execute:
-    make pylint
-
 Finally, to clean up any builds and remove any temporary files, run:
     make clean
 
 
 
---------------------------------------------------------------------------------
-Running clARMOR
---------------------------------------------------------------------------------
+-------------------------------------------------------------------------------
+Running the AMD Research OpenCL Buffer Overflow Detector
+-------------------------------------------------------------------------------
 
-clARMOR is primarily run using 'bin/clarmor'.
-Executing this tool with the '-h' or '--help' will explain its arguments.
+The AMD Research OpenCL Buffer Overflow Detector is primarily run using the
+script 'bin/run_overflow_detect.py'. Executing this script with the '-h' or
+'--help' argument will explain the arguments to this tool.
 
 The simplest description of how to use the buffer overflow detector is to run:
-    bin/clarmor -w {working directory} -r "{command line}"
+    bin/run_overflow_detect.py -w {working directory} -r "{command line}"
 
 For example, the following will run the FFT benchmark in the AMD APP SDK
 through the buffer overflow detector:
-    ./bin/clarmor -w /opt/AMDAPP/samples/opencl/bin/x86_64 -r FFT
+    ./bin/run_overflow_detect.py -w /opt/AMDAPP/samples/opencl/bin/x86_64 -r FFT
 
 
 In the above example command line, the following two parameters were used:
@@ -180,7 +185,7 @@ In the above example command line, the following two parameters were used:
         the PATH, this can simply be the name of the binary you wish to run.
         Alternately, it can contain the entire path to the program that you
         want to run.
-        This parameter can be put into quotation marks ("") to allow for spaces
+        This parameter can be put into quotation marks to allow for spaces
         in the application-under-test's command line.
 
 Other important functions that can be controlled when using the runscript:
@@ -192,70 +197,50 @@ Other important functions that can be controlled when using the runscript:
         This is disabled by default, meaning that the program will try to
         run to completion even in the face of a detected overflow.
 
-    --error_exitcode (or -x):
-        Allows the user to specify an exit code for program termination upon
-        overflow detection. This flag is only meaningful if --exit_on_overflow
-        is set. By default, the error code is set to -1.
-
     --log (or -l):
-        This enables logging to a file, rather than simply printing out
-        information about buffer overflows to the screen. By default, this
-        log file will be stored in the working directory (set with the '-w'
-        parameter). By default, the file will be:
-        {working_directory}/buffer_overflow_detector.out
-        The following parameter, '--logfile', allows this to be overridden.
+        This enables logging to a file, rather than simply printint out
+        information about buffer overflows to the screen. This log file will
+        be stored in the working directory (set with the '-w' parameter).
+        The file will be {working_directory}/buffer_overflow_detector.out
+        by default. The following parameter, '--logfile', allows this to be
+        overridden.
 
     --logfile (or -f):
         If using the '--log' parameter described above, this can be used to put
         the logfile in a different directory and with a different filename.
         This should be the entire path to the logfile, including the filename.
 
-    --prefix
-        Allows the user to specify a string to be appended to the front of each
-        output line generated by the tool when it finds an overflow.
-        This is "clARMOR: " by default.
-
-    --device_select (or -c):
+    --cutoff_for_device (or -c):
         The buffer overflow detector can perform the canary region checks on
         the device or on the host. The CPU has the benefit of running faster
         when there are fewer buffers to check, since it has more serial
         performance and has very little launch overhead to amortize. The device
         (in particular, if it's a GPU) is better when there are more buffers,
         since the checks would have ample parallel work.
-        This will manually select between running on the CPU or device.
-        Setting this to 1 will run all checks on the device.
-        Setting this to 2 will run all checks on the host.
-        Setting this to 0 or leaving it unset lets the library decide what to do.
+        This sets the cutoff for the number of buffers that a kernel must be
+        able to access before it is checked on the device. Setting this to 1
+        means that all checks run on the device.
+        Setting this to 0 lets the library decide what to do.
         This can also be controlled by setting the environment variable:
-            CLARMOR_DEVICE_SELECT
+            DEVICE_CHECK_CUTOFF
 
     --gpu_method (or -m):
         An override to decide how to perform device-side canary checks.
         This tool has multiple methods of performing these checks, and this
         helps override the default.
-        0 (default): Launch a single checker kernel for all canary values. For SVM
-            buffers, make no copies of the canaries; instead, check them
-            in-place by passing pointers to the checker kernel.
-        1: launch a single checker kernel that will check all of the
+        0 (default): launch a single checker kernel that will check all of the
             canary values for all of the buffers. These canaries are copied
             into a single input buffer that is checked by the kernel.
+        1: Launch a single checker kernel for all canary values. For SVM
+            buffers, make no copies of the canaries; instead, check them
+            in-place by passing pointers to the checker kernel.
         2: Launch a single kernel per buffer to check the canaries in-place.
 
-    --backtrace
-        Will print a user-readable host-side backtrace for each overflow
-        detected.
-
-    --no_api_check
-        Normally, clARMOR will check both OpenCL kernels and OpenCL API calls.
-        API calls like clEnqueueCopyBuffer() can attempt to move too much data
-        into a buffer. clARMOR will check the limits of the data movement
-        for these API calls before they run.
-        This flag turns off that API checking.
-
     --detector_path (or -d):
-        This should be the root directory of the clARMOR installation you are using.
-        This should be automatically set as a path relative to the location of the
-        run script, but if it is incorrect, you can set it with this parameter.
+        This should be the root directory of the AMD Research OpenCL Buffer
+        Overflow Detector installation you are using. This should be
+        automatically set as a path relative to the location of the run script,
+        but if it is incorrect, you can set it with this parameter.
 
 The following parameter can be used to help debug broken applications and
 problems in the detector itself:
@@ -265,28 +250,25 @@ problems in the detector itself:
         also searching for buffer overflows.
 
     --use_pdb:
-        This will run the clarmor script within PDB, in order to
+        This will run the run_overflow_detect.py script within PDB, in order to
         help debug any problems in it.
 
 The following parameters are useful for benchmarking the tool. They will
 run benchmarks or groups of benchmarks that are described in the
-bin/clarmor-benchmarks file. These will override values passed with the -w and
+bin/benchmarks.py file. These will override values passed with the -w and
 -r parameters. These settings assume you've installed the benchmarks using the
 prereqs/download_and_build_benchmarks.sh script.
     --benchmark (or -b):
         Use this to run a single benchmark from the list of names at the top of
-        bin/clarmor-benchmarks. For example, 'FFT' will automatically set the
+        bin/benchmarks.py. For example, 'FFT' will automatically set the
         working directory and command line to run the FFT benchmark.
-        Open up bin/clarmor-benchmarks to see the list of benchmarks.
+        Open up bin/benchmarks.py to see the list of benchmarks.
 
     --group (or -g):
         Run an entire group of benchmarks from one command line call.
         For instance, using 'AMDAPP' will run all of the support benchmarks
         from the AMD APP SDK. The special group ALL_BENCHMARKS will run
         all other groups, running (as the name implies) all benchmarks.
-
-    --time_file (or -t)
-        Record real/system/user runtime with tool to the specified time file.
 
     --perf_stat (or -p):
         A set of boolean flags that can be used to turn on different kinds of
@@ -303,20 +285,21 @@ prereqs/download_and_build_benchmarks.sh script.
 
 
 
---------------------------------------------------------------------------------
-Benchmarking clARMOR
---------------------------------------------------------------------------------
+-------------------------------------------------------------------------------
+Benchmarking the AMD Research OpenCL Buffer Overflow Detector
+-------------------------------------------------------------------------------
 
-clARMOR is designed to run at very low runtime overheads. The ideal detector
-would cause no runtime overheads. However, this tool must catch OpenCL API
-calls, expand buffers to include canary values, and must run checks on these
-canaries after each kernel finishes execution. As such, there is some amount of
-runtime overhead.
+The AMD Research OpenCL Buffer Overflow Detector is designed to run at very low
+runtime overheads. The ideal detector would cause no runtime overheads.
+However, this tool must catch OpenCL API calls, expand buffers to include
+canary values, and must run checks on these canaries after each kernel
+finishes execution. As such, there is some amount of runtime overhead.
 
 In order to verify that the buffer overflow detector works and to help measure
-its overheads, clARMOR includes a series of benchmarking mechanisms to allow it
-to automatically run against a large number (over 175) OpenCL applications from
-a variety of benchmark suites and libraries.
+its overheads, the AMD Research OpenCL Buffer Overflow Detector includes a
+series of benchmarking mechanisms to allow it to automatically run against
+a large number (over 150) OpenCL applications from a variety of benchmark
+suites and libraries.
 
 To begin with, you should download the benchmarks. The detector includes a
 selection of scripts to help automatically download and build these programs.
@@ -335,10 +318,10 @@ spit out a warning and tell you what to download and wheere to put it.
 
 
 After the benchmarks have finished building, they will be contained in
-the ~/benchmarks/ folder. clARMOR can then automatically run them through a
-series of benchmark scripts.
+the ~/benchmarks/ folder. The AMD Research OpenCL Buffer Overflow detector
+can then automatically run them through a series of benchmark scripts.
 
-The script 'bin/clamor-benchmarks' includes a collection of benchmark groups,
+The script 'bin/benchmarks.py' includes a collection of benchmark groups,
 benchmark names, and the command lines to run each of these benchmarks.
 
 The groups of benchmarks are declared at the top, and each is a Python string
@@ -355,42 +338,42 @@ Each benchmark has a number of parameters:
         command line. For instance, this can be used to set environment
         variables for this benchmark.
 
-The normal runscript, 'bin/clarmor' has two flags that can help
+The normal runscript, 'bin/run_overflow_detect.py' has two flags that can help
 with these benchmark runs:
     --benchmark (or -b):
         This is useful for running a single benchmark. The parameter here is the
-        name of the benchmark that is found in bin/clarmor-benchmarks
+        name of the benchmark that is found in bin/benchmarks.py
 
     --group (or -g):
         This will allow you to run a group of benchmarks with a single command.
         The group used here should be one of the group names from the file
-        bin/clarmor-benchmarks.
+        bin/benchmarks.py.
 
 
-For example, in the clarmor-benchmarks file, there is a group called 'AMDAPP'.
-One of the benchmarks in this group is 'BlackScholes'. To automatically run the
+For example, in the benchmarks.py file, there is a group called 'AMDAPP'. One
+of the benchmarks in this group is 'BlackScholes'. To automatically run the
 BlackScholes benchmark, use the following example command:
-    ./bin/clarmor --benchmark BlackScholes
+    ./bin/run_overflow_detect.py --benchmark BlackScholes
 
 Alternately, to run all of the benchmarks in the AMD APP SDK group, use:
-    ./bin/clarmor --group AMDAPP
+    ./bin/run_overflow_detect.py --group AMDAPP
 
 
---------------------------------------------------------------------------------
+-------------------------------------------------------------------------------
 Software Architecture
---------------------------------------------------------------------------------
-Work in progress...
+-------------------------------------------------------------------------------
 
---------------------------------------------------------------------------------
+
+-------------------------------------------------------------------------------
 Coding Standards
---------------------------------------------------------------------------------
-Work in progress...
+-------------------------------------------------------------------------------
 
 
---------------------------------------------------------------------------------
-Testing clARMOR
---------------------------------------------------------------------------------
-The simplest way to run all of the tests for clARMOR is to use the script at:
+-------------------------------------------------------------------------------
+Testing
+-------------------------------------------------------------------------------
+The simplest way to run all of the tests for the AMD Research OpenCL Buffer
+Overflow Detector is to use the script at:
     tests/automated_test.sh
 
 This script will all of the tests below, back to back, and report the results
@@ -403,11 +386,6 @@ script will run, depending on command-line flags.
 The simplest way to run all tests is:
     ./tests/automated_test.sh -b -g ALL_BENCHMARKS
 
-Not all of these benchmarks are guaranteed to work on systems with Nvidia
-GPUs. This is primarily because the benchmark authors often subtly break the
-OpenCL standard (or because some features are unsupported on Nvidia GPUs).
-As such, you may need to run "-g ALL_BENCHMARKS_NV" to only run those
-benchmarks that have been previously tested to work on Nvidia GPUs.
 
 The build-time tests are:
 'make check' will run cppcheck, a static code analyzer, over all of the tools
@@ -438,13 +416,10 @@ The build-time tests are:
     errors that should be found. If the detector finds too few or too many, the
     tests will fail.
 
-'make cpu_test' will run the same tests as the normal make test, but will
-    ensure that they run on the CPU. This is useful for testing on systems
-    that do not have a GPU.
 
 With regards to the benchmark tests:
 It is also possible to automatically run the buffer overflow detector across
-the same benchmarks that are used for performance testing, as described above.
+the same benchmarks that are used for performanc testing, as described above.
 
 By default, the benchmark build process should patch all of these benchmarks to
 no longer have any buffer overflows. However, running the tool across all of

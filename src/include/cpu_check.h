@@ -20,11 +20,6 @@
  * THE SOFTWARE.
  ********************************************************************************/
 
-
-/*! \file cpu_check.h
- * Function to initiate the cpu check
- */
-
 #ifndef __CPU_CHECK_H
 #define __CPU_CHECK_H
 
@@ -33,41 +28,31 @@
 
 #include "meta_data_lists/cl_kernel_lists.h"
 
-/*!
- * Take in a series of cl_mem buffers, SVM buffers, and images that just
- * executing in a particular kernel, and check their canary regions to see
- * if there were any buffer overflows.
- *
- * \param num_cl_mem
- *      the number of cl_mem buffers that in the buffer_ptrs list
- * \param num_svm
- *      the number of SVM regions in the buffer_ptrs list
- * \param num_images
- *      the number of cl_mem images that are in the image_ptrs list
- * \param buffer_ptrs
- *      an array that contains all of the cl_mem buffers and SVM
- *      buffers to check, back to back. The first part of the list
- *      must be cl_mem buffers, and the second part must be SVM.
- *      This contains the actual cl_mem or void* that represent
- *      the buffer. Do not pass a pointer to the cl_mem.
- * \param image_ptrs
- *      an array that contains all of the cl_mem images to check.
- *      This contains the actual cl_mem that represent the buffer.
- *      Do not pass a pointer ot the cl_mem.
- * \param kern_info
- *      Information about the kernel that just ran before this
- *      check. Information in here, in particular, will be used
- *      when printing out information about buffer overflows.
- * \param dupe
- *      List of arguments in the kernel that are duplicates. This is
- *      used when printing out information about buffers overflows.
- *      The syntax of each entry in the array is "the first kernel arg
- *      that is this memory buffer". So if dupe[i]==i, where i is arg
- *      number, this is the first arg that points to that buffer.
- * \param evt
- *      The output event from the real kernel, so that we don't start
- *      checking the buffers until the kernel completes.
- */
+// Take in a series of cl_mem buffers, SVM buffers, and images that just
+// executing in a particular kernel, and check their canary regions to see
+// if there were any buffer overflows.
+// Inputs:
+//      num_cl_mem: the number of cl_mem buffers that in the buffer_ptrs list
+//      num_svm: the number of SVM regions in the buffer_ptrs list
+//      num_images: the number of cl_mem images that are in the image_ptrs list
+//      buffer_ptrs: an array that contains all of the cl_mem buffers and SVM
+//                   buffers to check, back to back. The first part of the list
+//                   must be cl_mem buffers, and the second part must be SVM.
+//                   This contains the actual cl_mem or void* that represent
+//                   the buffer. Do not pass a pointer to the cl_mem.
+//      image_ptrs: an array that contains all of the cl_mem images to check.
+//                  This contains the actual cl_mem that represent the buffer.
+//                  Do not pass a pointer ot the cl_mem.
+//      kern_info:  Information about the kernel that just ran before this
+//                  check. Information in here, in particular, will be used
+//                  when printing out information about buffer overflows.
+//      dupe:   List of arguments in the kernel that are duplicates. This is
+//              used when printing out information about buffers overflows.
+//              The syntax of each entry in the array is "the first kernel arg
+//              that is this memory buffer". So if dupe[i]==i, where i is arg
+//              number, this is the first arg that points to that buffer.
+//      evt:    The output event from the real kernel, so that we don't start
+//              checking the buffers until the kernel completes.
 void verify_buffer_on_host(uint32_t num_cl_mem, uint32_t num_svm,
         uint32_t num_images, void **buffer_ptrs, void **image_ptrs,
         kernel_info *kern_info, uint32_t *dupe, const cl_event *evt);

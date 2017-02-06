@@ -26,7 +26,6 @@
 #include "cl_err.h"
 #include "check_utils.h"
 #include "overflow_error.h"
-#include "util_functions.h"
 
 #include "cpu_check_utils.h"
 
@@ -56,20 +55,10 @@ void cpu_parse_canary(cl_command_queue cmd_queue, uint32_t check_len,
             uint8_t byte = *(((uint8_t*)map_ptr) + sizeof(uint32_t)*p + q);
             if(byte != poisonFill_8b && sizeof(uint32_t)*p + q < check_len)
             {
-                char * backtrace_str = NULL;
-                if(get_print_backtrace_envvar())
-                {
-                    //clEnqueueNDRangeKernel->kernelLaunchFunc->verifyBufferInBounds->verify_buffer_on_host->verify_cl_mem->cpu_parse_canary
-                    backtrace_str = get_backtrace_level(5);
-                }
-                overflowError(kern_info, buffer, sizeof(uint32_t)*p + q, backtrace_str);
+                overflowError(kern_info, buffer, sizeof(uint32_t)*p + q);
                 printDupeWarning(kern_info->handle, dupe);
-                optionalKillOnOverflow(get_exitcode_envvar(), 0);
+                optionalKillOnOverflow(-1, 0);
                 mendCanaryRegion(cmd_queue, buffer, CL_TRUE, 0, NULL, NULL);
-
-                if(backtrace_str)
-                    free(backtrace_str);
-
                 break;
             }
         }

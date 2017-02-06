@@ -20,7 +20,6 @@
  * THE SOFTWARE.
  ********************************************************************************/
 
-#define _GNU_SOURCE
 #include <string.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -62,8 +61,8 @@ void initialize_logging(void)
     else
     {
         int err_val = errno;
-        det_fprintf(stderr, "Could not open detector log file: %s\n", log_loc);
-        det_fprintf(stderr, "   %s\n", strerror(err_val));
+        fprintf(stderr, "Could not open detector log file: %s\n", log_loc);
+        fprintf(stderr, "   %s\n", strerror(err_val));
     }
 }
 
@@ -79,19 +78,17 @@ void finalize_detector(void)
 
 static void print_err_header(void)
 {
-    det_fprintf(stderr, "\n");
-    det_fprintf(stderr, CYAN_TEXT RED_BG "ATTENTION:" RESET_TEXT "\n");
+    fprintf(stderr, "\n" CYAN_TEXT RED_BG "ATTENTION:" RESET_TEXT "\n");
 }
 
 static void print_warn_header(void)
 {
-    det_fprintf(stderr, "\n");
-    det_fprintf(stderr, BLACK_TEXT YELLOW_BG "WARNING:" RESET_TEXT "\n");
+    fprintf(stderr, "\n" BLACK_TEXT YELLOW_BG "WARNING:" RESET_TEXT "\n");
 }
 
 static void print_err_footer(void)
 {
-    det_fprintf(stderr, "\n");
+    fprintf(stderr, "\n");
 }
 
 static void print_and_log_err(const char * format, ...)
@@ -99,7 +96,7 @@ static void print_and_log_err(const char * format, ...)
     va_list args;
 
     va_start(args, format);
-    det_vfprintf(stderr, format, args);
+    vfprintf(stderr, format, args);
     va_end(args);
 
     if (log_file != NULL)
@@ -188,19 +185,6 @@ void apiImageOverflowError(char * const func, void * const buffer, int x, int y,
     else
         print_and_log_err("   Third dimension overflow %d slice(s) past end.\n", z+1);
 
-    char * backtrace_str = NULL;
-    if(get_print_backtrace_envvar())
-    {
-        //clEnqueue->apiImageOverflowCheck->apiImageOverflowError
-        backtrace_str = get_backtrace_level(3);
-    }
-
-    if(backtrace_str)
-        print_and_log_err("%s\n", backtrace_str);
-
-    if(backtrace_str)
-        free(backtrace_str);
-
     print_err_footer();
 }
 
@@ -224,19 +208,6 @@ void apiOverflowError(char * const func, void * const buffer, const unsigned bad
         print_and_log_err("   First observed writing %u byte(s) past the end.\n",
                 bad_byte+1);
     }
-
-    char * backtrace_str = NULL;
-    if(get_print_backtrace_envvar())
-    {
-        //clEnqueue->apiBufferOverflowCheck->apiOverflowError
-        backtrace_str = get_backtrace_level(3);
-    }
-
-    if(backtrace_str)
-        print_and_log_err("%s\n", backtrace_str);
-
-    if(backtrace_str)
-        free(backtrace_str);
 
     print_err_footer();
 }
@@ -272,8 +243,7 @@ int getBufferIndex(kernel_arg *argList, void* buffer)
  */
 void overflowError(const kernel_info * const kernInfo,
         void * const buffer,
-        const unsigned bad_byte,
-        char * const backtrace_str)
+        const unsigned bad_byte)
 {
     cl_int cl_err;
     size_t size_ret = 0;
@@ -289,14 +259,14 @@ void overflowError(const kernel_info * const kernInfo,
     check_cl_error(__FILE__, __LINE__, cl_err);
     if (size_ret == 0)
     {
-        det_fprintf(stderr, "Bad calloc size (%lu) at %s:%d\n",
+        fprintf(stderr, "Bad calloc size (%lu) at %s:%d\n",
                 size_ret, __FILE__, __LINE__);
         exit(-1);
     }
     kernelName = calloc(size_ret, sizeof(char));
     if (kernelName == NULL)
     {
-        det_fprintf(stderr, "Calloc failed at %s:%d (size: %lu)\n",
+        fprintf(stderr, "Calloc failed at %s:%d (size: %lu)\n",
                 __FILE__, __LINE__, size_ret);
         exit(-1);
     }
@@ -309,40 +279,25 @@ void overflowError(const kernel_info * const kernInfo,
     {
         // Get Buffer Name
         char *bufferName = NULL;
-#ifdef CL_VERSION_1_2
         cl_err = clGetKernelArgInfo(kernInfo->handle, argIndex,
                 CL_KERNEL_ARG_NAME, 0, NULL, &size_ret);
-        if (cl_err != CL_KERNEL_ARG_INFO_NOT_AVAILABLE)
+        check_cl_error(__FILE__, __LINE__, cl_err);
+        if (size_ret == 0)
         {
-            check_cl_error(__FILE__, __LINE__, cl_err);
-
-            if (size_ret == 0)
-            {
-                det_fprintf(stderr, "Bad calloc size (%lu) at %s:%d\n",
-                        size_ret, __FILE__, __LINE__);
-                exit(-1);
-            }
-            bufferName = calloc(size_ret, sizeof(char));
-            if (kernelName == NULL)
-            {
-                det_fprintf(stderr, "Calloc failed at %s:%d (size: %lu)\n",
-                        __FILE__, __LINE__, size_ret);
-                exit(-1);
-            }
-
-            cl_err = clGetKernelArgInfo(kernInfo->handle, argIndex,
-                    CL_KERNEL_ARG_NAME, size_ret, bufferName, NULL);
-            check_cl_error(__FILE__, __LINE__, cl_err);
+            fprintf(stderr, "Bad calloc size (%lu) at %s:%d\n",
+                    size_ret, __FILE__, __LINE__);
+            exit(-1);
         }
-        else
+        bufferName = calloc(size_ret, sizeof(char));
+        if (kernelName == NULL)
         {
-            int num_bytes = asprintf(&bufferName, "Argument %d", argIndex);
-            CHECK_ASPRINTF_RET(num_bytes);
+            fprintf(stderr, "Calloc failed at %s:%d (size: %lu)\n",
+                    __FILE__, __LINE__, size_ret);
+            exit(-1);
         }
-#else
-        int num_bytes = asprintf(&bufferName, "Argument %d", argIndex);
-        CHECK_ASPRINTF_RET(num_bytes);
-#endif
+        cl_err = clGetKernelArgInfo(kernInfo->handle, argIndex,
+                CL_KERNEL_ARG_NAME, size_ret, bufferName, NULL);
+        check_cl_error(__FILE__, __LINE__, cl_err);
 
         cl_memobj *m1 = cl_mem_find(get_cl_mem_alloc(), buffer);
         if(m1 && m1->is_image)
@@ -377,10 +332,7 @@ void overflowError(const kernel_info * const kernInfo,
                 bad_byte+1);
     }
 
-    if(backtrace_str)
-        print_and_log_err("%s\n", backtrace_str);
     print_err_footer();
-
 
     // Free before leaving.
     if (kernelName != NULL)
@@ -421,64 +373,47 @@ void printDupeWarning(const cl_kernel kern, const uint32_t * const dupe)
         size_t size_ret = 0;
 
         // Get original argument's name
-        //det_fprintf(stderr, "Dupe[%d] = %d\n", i, dupe[i]);
-#ifdef CL_VERSION_1_2
+        fprintf(stderr, "Dupe[%d] = %d\n", i, dupe[i]);
         cl_err = clGetKernelArgInfo(kern, dupe[i], CL_KERNEL_ARG_NAME,
                 0, NULL, &size_ret);
-        if (cl_err != CL_KERNEL_ARG_INFO_NOT_AVAILABLE)
+        check_cl_error(__FILE__, __LINE__, cl_err);
+        if (size_ret == 0)
         {
-            check_cl_error(__FILE__, __LINE__, cl_err);
-            if (size_ret == 0)
-            {
-                det_fprintf(stderr, "Bad calloc size (%lu) at %s:%d\n",
-                        size_ret, __FILE__, __LINE__);
-                exit(-1);
-            }
-            origArgName = calloc(size_ret, sizeof(char));
-            if (origArgName == NULL)
-            {
-                det_fprintf(stderr, "Calloc failed at %s:%d (size: %lu)\n",
-                        __FILE__, __LINE__, size_ret);
-                exit(-1);
-            }
-            cl_err = clGetKernelArgInfo(kern, dupe[i], CL_KERNEL_ARG_NAME,
-                    size_ret, origArgName, NULL);
-            check_cl_error(__FILE__, __LINE__, cl_err);
+            fprintf(stderr, "Bad calloc size (%lu) at %s:%d\n",
+                    size_ret, __FILE__, __LINE__);
+            exit(-1);
+        }
+        origArgName = calloc(size_ret, sizeof(char));
+        if (origArgName == NULL)
+        {
+            fprintf(stderr, "Calloc failed at %s:%d (size: %lu)\n",
+                    __FILE__, __LINE__, size_ret);
+            exit(-1);
+        }
+        cl_err = clGetKernelArgInfo(kern, dupe[i], CL_KERNEL_ARG_NAME,
+                size_ret, origArgName, NULL);
+        check_cl_error(__FILE__, __LINE__, cl_err);
 
-            // Get second (cloned) argument's name
-            cl_err = clGetKernelArgInfo(kern, i, CL_KERNEL_ARG_NAME, 0, NULL,
-                    &size_ret);
-            check_cl_error(__FILE__, __LINE__, cl_err);
-            if (size_ret == 0)
-            {
-                det_fprintf(stderr, "Bad calloc size (%lu) at %s:%d\n",
-                        size_ret, __FILE__, __LINE__);
-                exit(-1);
-            }
-            cloneArgName = calloc(size_ret, sizeof(char));
-            if (cloneArgName == NULL)
-            {
-                det_fprintf(stderr, "Calloc failed at %s:%d (size: %lu)\n",
-                        __FILE__, __LINE__, size_ret);
-                exit(-1);
-            }
-            cl_err = clGetKernelArgInfo(kern, i, CL_KERNEL_ARG_NAME, size_ret,
-                    cloneArgName, NULL);
-            check_cl_error(__FILE__, __LINE__, cl_err);
-        }
-        else
+        // Get second (cloned) argument's name
+        cl_err = clGetKernelArgInfo(kern, i, CL_KERNEL_ARG_NAME, 0, NULL,
+                &size_ret);
+        check_cl_error(__FILE__, __LINE__, cl_err);
+        if (size_ret == 0)
         {
-            int num_bytes = asprintf(&origArgName, "Argument %d", dupe[i]);
-            CHECK_ASPRINTF_RET(num_bytes);
-            num_bytes = asprintf(&cloneArgName, "Argument %d", i);
-            CHECK_ASPRINTF_RET(num_bytes);
+            fprintf(stderr, "Bad calloc size (%lu) at %s:%d\n",
+                    size_ret, __FILE__, __LINE__);
+            exit(-1);
         }
-#else
-        int num_bytes = asprintf(&origArgName, "Argument %d", dupe[i]);
-        CHECK_ASPRINTF_RET(num_bytes);
-        num_bytes = asprintf(&cloneArgName, "Argument %d", i);
-        CHECK_ASPRINTF_RET(num_bytes);
-#endif
+        cloneArgName = calloc(size_ret, sizeof(char));
+        if (cloneArgName == NULL)
+        {
+            fprintf(stderr, "Calloc failed at %s:%d (size: %lu)\n",
+                    __FILE__, __LINE__, size_ret);
+            exit(-1);
+        }
+        cl_err = clGetKernelArgInfo(kern, i, CL_KERNEL_ARG_NAME, size_ret,
+                cloneArgName, NULL);
+        check_cl_error(__FILE__, __LINE__, cl_err);
 
         print_and_log_err("    %s (argument %lu) is the same buffer as %s "
             "(argument %lu)\n", cloneArgName, i, origArgName, dupe[i]);
@@ -488,14 +423,14 @@ void printDupeWarning(const cl_kernel kern, const uint32_t * const dupe)
         if (origArgName != NULL)
             free(origArgName);
     }
-    det_printf("\n");
+    printf("\n");
 }
 
 void optionalKillOnOverflow(const int err_ret_val, pthread_t parent)
 {
     if (get_error_envvar())
     {
-        det_fprintf(stderr, "Exiting application because of buffer overflow.\n");
+        fprintf(stderr, "Exiting application because of buffer overflow.\n");
         if(parent)
             pthread_kill(parent, 1);
         exit(err_ret_val);

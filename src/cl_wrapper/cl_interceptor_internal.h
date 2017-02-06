@@ -20,24 +20,21 @@
  * THE SOFTWARE.
  ********************************************************************************/
 
-
-/*! \file cl_interceptor_internal.h
- * This file is used to by the OpenCL LD_PRELOAD interceptor to declare the
- * wrapper functions for each of the OpenCL APIs that it uses.
- * Each of these is a function pointer that will be used to point to the
- * *real* OpenCL function. Our LD_PRELOAD wrapper will take over the name
- * of the real function, do some work, then call the appropriate real
- * function pointer (in most cases -- in some cases, we never call the real
- * function because it has bugs.)
- *
- * Portability function headers added for stuff like the Win32 platform.
- * Including these blank definitions here so that code checkers and compilers
- * that didn't properly find cl_platform will know that we can just ignore them
- */
-
 #ifndef __CL_INTERCEPTOR_INTERNAL_H
 #define __CL_INTERCEPTOR_INTERNAL_H
 
+// This file is used to by the OpenCL LD_PRELOAD interceptor to declare the
+// wrapper functions for each of the OpenCL APIs that it uses.
+// Each of these is a function pointer that will be used to point to the
+// *real* OpenCL function. Our LD_PRELOAD wrapper will take over the name
+// of the real function, do some work, then call the appropriate real
+// function pointer (in most cases -- in some cases, we never call the real
+// function because it has bugs.)
+
+#include <dlfcn.h>
+// Portability function headers added for stuff like the Win32 platform.
+// Including these blank definitions here so that code checkers and compilers
+// that didn't properly find cl_platform will know that we can just ignore them
 #ifndef CL_API_ENTRY
     #define CL_API_ENTRY
 #endif

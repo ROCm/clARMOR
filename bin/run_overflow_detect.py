@@ -1,6 +1,7 @@
 #! /usr/bin/env python
 # coding=utf-8
 
+
 # Copyright (c) 2016 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -21,6 +22,8 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
+
+
 # Script to run the AMD Research Buffer Overflow Detector
 import os
 import sys
@@ -28,19 +31,13 @@ import argparse
 import logging
 import time
 import subprocess
-import imp
 
 # this sets up the Pyton package top-level folder.
 bin_dir = os.path.dirname(os.path.realpath(__file__))
 src_dir = os.path.normpath(os.path.expanduser(os.path.join(bin_dir, '..')))
 sys.path.insert(0, src_dir)
 
-# Load in the benchmarks files without creating a .pyc
-with open(os.path.join(bin_dir, "clarmor-benchmarks")) as bench_file:
-    global benchmarks
-    benchmarks = imp.new_module('benchmarks')
-    exec(bench_file.read(), benchmarks.__dict__)
-
+import bin.benchmarks as benchmarks
 from resource import getrusage as resource_usage, RUSAGE_CHILDREN
 
 #------------------------------------------------------------------------------#
@@ -100,15 +97,11 @@ def add_arguments(parser):
             dest='exit_on_overflow', default=False,
             help=('Exit the application with an error upon detecting the ' +
                 'first buffer overflow'))
-    parser.add_argument('-x', '--error_exitcode', default=-1, dest='error_exitcode',
-            help='Exit with this error for detected overflows.')
     parser.add_argument('-l', '--log', action='store_true', dest='logging',
             default=False, help='Enable logging of detector output to a file.')
     parser.add_argument('-f', '--logfile', dest='logfile_location',
             default='{working_directory}/buffer_overflow_detector.out',
             help='Location to store output log if using --log.')
-    parser.add_argument('--prefix', default="clARMOR: ", dest='prefix',
-            help='Add this string to each error output line before it prints.')
     parser.add_argument('-t', '--time_file', dest='time_file',
             default=None, help='Record application runtime to named file in CSV format.')
     parser.add_argument('-c', '--device_select', dest='device_select',
@@ -116,7 +109,7 @@ def add_arguments(parser):
                                 '1=DEVICE_GPU' +
                                 '2=DEVICE_CPU' +
                                 'if unset, clARMOR will choose' +
-                                'Sets the CLARMOR_DEVICE_SELECT environment variable.'))
+                                'Sets the DETECTOR_DEVICE_SELECT environment variable.'))
     parser.add_argument('-m', '--gpu_method', dest='gpu_method',
             default=None, help=('Set what kind of GPU-based checks to use. ' +
                                 '0=multiple buffers with SVM pointers, ' +
@@ -127,18 +120,14 @@ def add_arguments(parser):
                                 '1=kernel enqueue time. ' +
                                 '2=checker time. ' +
                                 '4=memory overhead.'))
-    parser.add_argument('--backtrace', default=False, action='store_true',
-            help='Print backtraces with errors.')
-    parser.add_argument('--no_api_check', default=False, action='store_true',
-            help='Disable API checking.')
     parser.add_argument('--use_gdb', default=False, action='store_true',
             help='Use GDB to debug programs invoked by this script.')
     parser.add_argument('--use_pdb', default=False, action='store_true',
             help='Use PDB to debug this script.')
     parser.add_argument('-b', '--benchmark', default=None,
-            help='Run a benchmark. See clarmor-benchmarks for a list.')
+            help='Name of benchmark to run. See benchmarks.py for a list.')
     parser.add_argument('-g', '--group', default=None,
-            help=('Name of benchmark group to run. See clarmor-benchmarks.'))
+            help=('Name of benchmark group to run. See benchmarks.py.'))
 
 # Try to set the LD_PRELOAD for our wrapper library.
 # If the library does not exist, print out the approprirate error.
@@ -188,7 +177,7 @@ def run_cmd( args, cmd, prefix = None ):
         cmd = prefix + " " + cmd
 
     # Run the actual command here.
-    print args["prefix"] + "Final command line to run: %s\n" % cmd
+    print "Final command line to run: %s\n" % cmd
     return os.system( cmd )
 
 def run_detect_overflow(args, parser):
@@ -208,13 +197,13 @@ def run_detect_overflow(args, parser):
     elif args["benchmark"] != None and args["cmd_line"] == None:
         benchmarkName=args["benchmark"]
 
-        # Verify that the clarmor-benchmarks file was set up correctly.
+        # Verify that the benchmarks.py file was set up correctly.
         # Do we have a command? Do we have a benchmark directory?
         if benchmarkName not in benchmarks.benchCMD:
-            print "Command for %s not found in clarmor-benchmarks" % benchmarkName
+            print "Command for %s not found in benchmarks.py" % benchmarkName
             sys.exit(-1)
         if benchmarkName not in benchmarks.benchCD:
-            print "Directory for %s not found in clarmor-benchmarks" % benchmarkName
+            print "Directory for %s not found in benchmarks.py" % benchmarkName
             sys.exit(-1)
 
         # Set up the benchmark variables that we will use below.
@@ -247,17 +236,18 @@ def run_detect_overflow(args, parser):
     # Some of our benchmarks need to know how many compute units are available
     # on the GPU, or they will deadlock. This logic is used to fill in that
     # information automatically.
-    if "USE_NUM_ACTIVE_CUS" in args["cmd_line"]:
-        print args["prefix"] + "Gathering the number of active compute units for this application..."
-        cmd = bin_dir+"/clarmor-info"
-        p = subprocess.Popen(cmd, stdout = subprocess.PIPE,
-                                stderr = subprocess.PIPE,
-                                stdin = subprocess.PIPE)
-        out, err = p.communicate("-g -n")
-        num_cus = int(out)
-        if num_cus == 0:
-            num_cus = 1
-        args["cmd_line"] = args["cmd_line"].replace("USE_NUM_ACTIVE_CUS", str(num_cus))
+
+    cmd = bin_dir+"/get_num_cus.exe"
+    p = subprocess.Popen(cmd, stdout = subprocess.PIPE,
+                              stderr = subprocess.PIPE,
+                              stdin = subprocess.PIPE)
+    out, err = p.communicate()
+    num_cus = int(out)
+    if num_cus == 0:
+        num_cus = 1
+
+    args["cmd_line"] = args["cmd_line"].replace("USE_NUM_ACTIVE_CUS", str(num_cus))
+
 
 
     #--------------------------------------------------------------------------#
@@ -284,47 +274,32 @@ def run_detect_overflow(args, parser):
     if not args["logfile_location"]:
         args["logfile_location"] = args["working_dir"] + "/buffer_overflow_detector.out"
     if args["logging"]:
-        string_to_add = " CLARMOR_LOG_LOCATION=" + args["logfile_location"] + " "
-        prefix += string_to_add
-
-    if args["prefix"] != None:
-        string_to_add = " CLARMOR_LOG_PREFIX=\"" + args["prefix"] + "\" "
+        string_to_add = " DETECTOR_LOG_LOCATION=" + args["logfile_location"] + " "
         prefix += string_to_add
 
     if args["device_select"]:
         if (int(args["device_select"]) < 0):
             print "ERROR. --device_select must be >= 0."
             bad_command_line = 1
-        string_to_add = " CLARMOR_DEVICE_SELECT=" + str(args["device_select"]) + " "
+        string_to_add = " DETECTOR_DEVICE_SELECT=" + str(args["device_select"]) + " "
         prefix += string_to_add
 
     if args["gpu_method"]:
         if (int(args["gpu_method"]) < 0):
             print "ERROR. --gpu_method must be >= 0."
             bad_command_line = 1
-        string_to_add = " CLARMOR_ALTERNATE_GPU_DETECTION=" + str(args["gpu_method"]) + " "
+        string_to_add = " USE_ALTERNATE_GPU_DETECTION=" + str(args["gpu_method"]) + " "
         prefix += string_to_add
 
     if args["perf_stat"]:
         if (int(args["perf_stat"]) < 0):
             print "ERROR. --perf_stat must be >= 0."
             bad_command_line = 1
-        string_to_add = " CLARMOR_PERFSTAT_MODE=" + str(args["perf_stat"]) + " "
+        string_to_add = " TOOL_PERF_STATISTIC_MODE=" + str(args["perf_stat"]) + " "
         prefix += string_to_add
-
-    if args["backtrace"]:
-        prefix += " CLARMOR_PRINT_BACKTRACE=1 "
-
-    if args["no_api_check"]:
-        prefix += " CLARMOR_DISABLE_API_CHECK=1 "
 
     if args["exit_on_overflow"] == 1:
-        prefix += " CLARMOR_EXIT_ON_OVERFLOW=1 "
-
-    if args["error_exitcode"]:
-        string_to_add = " CLARMOR_ERROR_EXITCODE=" + str(args["error_exitcode"]) + " "
-        prefix += string_to_add
-
+        prefix += " EXIT_ON_OVERFLOW=1 "
     # If you want to NOT use the wrapper (e.g. for testing), use this line:
     #prefix = global_prefix
 
@@ -347,7 +322,7 @@ def run_detect_overflow(args, parser):
     # End of buffer overflow detector run.
     if bad_command_line == 1:
         sys.exit(-1)
-    print args["prefix"] + "Done!"
+    print( "Done!" )
 
     # Reset LD_PRELOAD so that it doesn't continue to grow forever
     LD_PRELOAD = save_LD_PRELOAD
@@ -410,7 +385,7 @@ def main():
         print Group
         Group = Group.split()
         for benchmark in Group:
-            print "\n\n" + args["prefix"] + "********* Running Benchmark: %s *********" % benchmark
+            print "\n\n********* Running Benchmark: %s *********" % benchmark
             sys.stdout.flush()
             # Detector function can modify args, so make fresh copy every time
             args["benchmark"]=benchmark
