@@ -1,0 +1,486 @@
+#! /usr/bin/env python
+# coding=utf-8
+
+# Copyright (c) 2016 Advanced Micro Devices, Inc. All rights reserved.
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+# THE SOFTWARE.
+
+# Script to run the AMD Research Buffer Overflow Detector
+import os
+import sys
+import argparse
+import logging
+import time
+import subprocess
+import imp
+
+# this sets up the Pyton package top-level folder.
+bin_dir = os.path.dirname(os.path.realpath(__file__))
+src_dir = os.path.normpath(os.path.expanduser(os.path.join(bin_dir, '..')))
+sys.path.insert(0, src_dir)
+
+# Load in the benchmarks files without creating a .pyc
+with open(os.path.join(bin_dir, "clarmor-benchmarks")) as bench_file:
+    global benchmarks
+    benchmarks = imp.new_module('benchmarks')
+    exec(bench_file.read(), benchmarks.__dict__)
+
+from resource import getrusage as resource_usage, RUSAGE_CHILDREN
+
+#------------------------------------------------------------------------------#
+#GlobalVars
+
+current_dir      = os.getcwd()
+LD_PRELOAD       = os.getenv('LD_PRELOAD')
+PATH             = os.getenv('PATH')
+use_gdb          = 0
+use_pdb          = 0
+global_prefix    = ""
+
+#------------------------------------------------------------------------------#
+# ClassesAndMethods
+# This class is use to format the output of python when -h or --help is called.
+class CombineFormatters(argparse.ArgumentDefaultsHelpFormatter,
+        argparse.RawTextHelpFormatter):
+    pass
+
+#------------------------------------------------------------------------------#
+# Utilities
+def check_path_exists(dirname):
+    if not os.path.exists(dirname):
+        logging.warning("File/Directory ( %s ) does not exist", dirname)
+        return False
+    return True
+
+def get_abs_path(input_arg):
+    abs_path = os.path.expanduser(input_arg)
+    abs_path = os.path.expandvars(abs_path)
+    abs_path = os.path.abspath(abs_path)
+    return abs_path
+
+def get_abs_path_and_validate(input_arg):
+    abs_path = get_abs_path(input_arg)
+    check_path_exists(abs_path)
+    return abs_path
+
+def print_and_exit_on_cmd_error(cmd, err_code):
+    if not err_code == 0:
+        logging.error("Command (%s) failed with error code %s.", cmd, err_code)
+        logging.error("Exiting script.")
+        sys.exit(2)
+
+def add_arguments(parser):
+    parser.add_argument('-h', '--help', action='store_true', dest="help",
+            default=False, help='Print out this help menu.')
+    parser.add_argument('-d', '--detector_path', dest='detector_path',
+            default=bin_dir+'/..',
+            help='Path to the root of the detector installation directory.')
+    parser.add_argument('-w', '--working_directory', dest='working_dir',
+            default=current_dir,
+            help='Directory from which to run the application.')
+    parser.add_argument('-r', '--run', dest='cmd_line', default=None,
+            help='Command line of the application to run through the dtector.')
+    parser.add_argument('-e', '--exit_on_overflow', action='store_true',
+            dest='exit_on_overflow', default=False,
+            help=('Exit the application with an error upon detecting the ' +
+                'first buffer overflow'))
+    parser.add_argument('-x', '--error_exitcode', default=-1, dest='error_exitcode',
+            help='Exit with this error for detected overflows.')
+    parser.add_argument('-l', '--log', action='store_true', dest='logging',
+            default=False, help='Enable logging of detector output to a file.')
+    parser.add_argument('-f', '--logfile', dest='logfile_location',
+            default='{working_directory}/buffer_overflow_detector.out',
+            help='Location to store output log if using --log.')
+    parser.add_argument('--prefix', default="clARMOR: ", dest='prefix',
+            help='Add this string to each error output line before it prints.')
+    parser.add_argument('-t', '--time_file', dest='time_file',
+            default=None, help='Record application runtime to named file in CSV format.')
+    parser.add_argument('-c', '--device_select', dest='device_select',
+            default=None, help=('force check onto specific device ' +
+                                '1=DEVICE_GPU' +
+                                '2=DEVICE_CPU' +
+                                'if unset, clARMOR will choose' +
+                                'Sets the CLARMOR_DEVICE_SELECT environment variable.'))
+    parser.add_argument('-m', '--gpu_method', dest='gpu_method',
+            default=None, help=('Set what kind of GPU-based checks to use. ' +
+                                '0=multiple buffers with SVM pointers, ' +
+                                '1=multiple buffers (copied canaries) per kernel, ' +
+                                '2=single buffer per kernel'))
+    parser.add_argument('-p', '--perf_stat', dest='perf_stat',
+            default=None, help=('Boolean flags to log perf statistics. ' +
+                                '1=kernel enqueue time. ' +
+                                '2=checker time. ' +
+                                '4=memory overhead.'))
+    parser.add_argument('--backtrace', default=False, action='store_true',
+            help='Print backtraces with errors.')
+    parser.add_argument('--no_api_check', default=False, action='store_true',
+            help='Disable API checking.')
+    parser.add_argument('--use_gdb', default=False, action='store_true',
+            help='Use GDB to debug programs invoked by this script.')
+    parser.add_argument('--use_pdb', default=False, action='store_true',
+            help='Use PDB to debug this script.')
+    parser.add_argument('-b', '--benchmark', default=None,
+            help='Run a benchmark. See clarmor-benchmarks for a list.')
+    parser.add_argument('-g', '--group', default=None,
+            help=('Name of benchmark group to run. See clarmor-benchmarks.'))
+
+# Try to set the LD_PRELOAD for our wrapper library.
+# If the library does not exist, print out the approprirate error.
+def ret_ldpreload_or_exit( lib, args ):
+    lib = "%s.so.1.0" %( lib )
+    path = os.path.join( args["detector_path"], "lib", lib )
+    if not check_path_exists( path ):
+        logging.error("Please make sure you make %s", lib)
+        logging.error("Use 'make')")
+        sys.exit(2)
+    if LD_PRELOAD:
+        return "%s:%s" %( LD_PRELOAD, path )
+    else:
+        return path
+
+#------------------------------------------------------------------------------#
+# Main mechanisms for running buffer overflow detector.
+
+# This runs your actual command with an optional prefix.
+# that prefix can include the desire to run with GDB, to have LD_PRELOAD
+# entries, and other things.
+def run_cmd( args, cmd, prefix = None ):
+    logging.info( " Running cmd %s ", cmd )
+
+    # If you want to run GDB *and* the LD_PRELOAD, we want to LD_PRELOAD the
+    # application, but not GDB. So we'll need to switch things around below.
+    switch_ldpreload=False
+    if use_gdb and (cmd.find("LD_PRELOAD") != -1):
+        switch_ldpreload=True
+        cmd = cmd.replace("LD_PRELOAD='" + LD_PRELOAD + "'", "")
+
+    # If you want to also set a manual prefix, put it in the right location
+    if prefix != None:
+        if use_gdb and (prefix.find("LD_PRELOAD") != -1):
+            switch_ldpreload=True
+            prefix = prefix.replace("LD_PRELOAD='" + LD_PRELOAD + "'", "")
+
+    if use_gdb:
+        if switch_ldpreload:
+            to_add = "gdb --init-eval-command='set environment LD_PRELOAD="
+            to_add += (LD_PRELOAD + "'")
+            cmd = to_add + " --args " + cmd
+        else:
+            cmd ="gdb --args " + cmd
+
+    if prefix != None:
+        cmd = prefix + " " + cmd
+
+    # Run the actual command here.
+    print args["prefix"] + "Final command line to run: %s\n" % cmd
+    return os.system( cmd )
+
+def run_detect_overflow(args, parser):
+    benchDir=None
+
+    #--------------------------------------------------------------------------#
+    # Parse whether this is a benchmark or not.
+    # Use parameters from benchmark file if available
+    # However, if we pass a command line with --run, it overrides the
+    # benchmark file.
+    if args["benchmark"] == None and args["cmd_line"] == None:
+        print "\n\nError, no program to run. Please use the --run argument"
+        print "Alternately, pass a benchmark or group of benchmarks."
+        print "\n\n"
+        parser.print_help()
+        sys.exit(-1)
+    elif args["benchmark"] != None and args["cmd_line"] == None:
+        benchmarkName=args["benchmark"]
+
+        # Verify that the clarmor-benchmarks file was set up correctly.
+        # Do we have a command? Do we have a benchmark directory?
+        if benchmarkName not in benchmarks.benchCMD:
+            print "Command for %s not found in clarmor-benchmarks" % benchmarkName
+            sys.exit(-1)
+        if benchmarkName not in benchmarks.benchCD:
+            print "Directory for %s not found in clarmor-benchmarks" % benchmarkName
+            sys.exit(-1)
+
+        # Set up the benchmark variables that we will use below.
+        if benchmarkName in benchmarks.benchCMD:
+            benchDir=benchmarks.benchCD[benchmarkName]
+            args["cmd_line"] = os.path.join(benchDir,
+                    benchmarks.benchCMD[benchmarkName])
+            # Some benchmarks have their own prefix, e.g. to set environment
+            # variables. We store those in a "global" prefix to carry them
+            # to the piont where we run things.
+            if benchmarkName in benchmarks.benchPrefix:
+                global global_prefix
+                global_prefix = benchmarks.benchPrefix[benchmarkName]
+    else:
+        # If we pass --run
+        benchDir = args["working_dir"]
+
+    if benchDir != None:
+        os.chdir(benchDir)
+
+    #--------------------------------------------------------------------------#
+    # Validate the arguments. If they don't exist, we have a problem.
+    if args["cmd_line"] == None:
+        parser.print_help()
+        logging.critical( "\n Please specify the bench mark to run." )
+        sys.exit(2)
+
+    #--------------------------------------------------------------------------#
+
+    # Some of our benchmarks need to know how many compute units are available
+    # on the GPU, or they will deadlock. This logic is used to fill in that
+    # information automatically.
+    if "USE_NUM_ACTIVE_CUS" in args["cmd_line"]:
+        print args["prefix"] + "Gathering the number of active compute units for this application..."
+        cmd = bin_dir+"/clarmor-info"
+        p = subprocess.Popen(cmd, stdout = subprocess.PIPE,
+                                stderr = subprocess.PIPE,
+                                stdin = subprocess.PIPE)
+        out, err = p.communicate("-g -n")
+        num_cus = int(out)
+        if num_cus == 0:
+            num_cus = 1
+        args["cmd_line"] = args["cmd_line"].replace("USE_NUM_ACTIVE_CUS", str(num_cus))
+
+
+    #--------------------------------------------------------------------------#
+    # Now we have our final command line. Add any LD_PRELOAD prefix to it.
+    cmd = args["cmd_line"]
+
+    bad_command_line = 0
+    # To use the buffer overflow detector, we must LD_PRELOAD it. This will let
+    # our OpenCL wrapper catch the appropriate calls.
+    global LD_PRELOAD
+    save_LD_PRELOAD = LD_PRELOAD
+    LD_PRELOAD = ret_ldpreload_or_exit( "libclbufferwrapper", args )
+    prefix = "LD_PRELOAD='%s' " % ( LD_PRELOAD )
+    # To allow us to run an application in the working directory, put it into
+    # the PATH temporarily.
+    global PATH
+    save_PATH = PATH
+    prefix += "PATH='%s:%s' " % (args["working_dir"], PATH)
+    if global_prefix:
+        prefix += global_prefix
+
+    if args["logfile_location"] == "{working_directory}/buffer_overflow_detector.out":
+        args["logfile_location"] = args["working_dir"] + "/buffer_overflow_detector.out"
+    if not args["logfile_location"]:
+        args["logfile_location"] = args["working_dir"] + "/buffer_overflow_detector.out"
+    if args["logging"]:
+        string_to_add = " CLARMOR_LOG_LOCATION=" + args["logfile_location"] + " "
+        prefix += string_to_add
+
+    if args["prefix"] != None:
+        string_to_add = " CLARMOR_LOG_PREFIX=\"" + args["prefix"] + "\" "
+        prefix += string_to_add
+
+    if args["device_select"]:
+        if (int(args["device_select"]) < 0):
+            print "ERROR. --device_select must be >= 0."
+            bad_command_line = 1
+        string_to_add = " CLARMOR_DEVICE_SELECT=" + str(args["device_select"]) + " "
+        prefix += string_to_add
+
+    if args["gpu_method"]:
+        if (int(args["gpu_method"]) < 0):
+            print "ERROR. --gpu_method must be >= 0."
+            bad_command_line = 1
+        string_to_add = " CLARMOR_ALTERNATE_GPU_DETECTION=" + str(args["gpu_method"]) + " "
+        prefix += string_to_add
+
+    if args["perf_stat"]:
+        if (int(args["perf_stat"]) < 0):
+            print "ERROR. --perf_stat must be >= 0."
+            bad_command_line = 1
+        string_to_add = " CLARMOR_PERFSTAT_MODE=" + str(args["perf_stat"]) + " "
+        prefix += string_to_add
+
+    if args["backtrace"]:
+        prefix += " CLARMOR_PRINT_BACKTRACE=1 "
+
+    if args["no_api_check"]:
+        prefix += " CLARMOR_DISABLE_API_CHECK=1 "
+
+    if args["exit_on_overflow"] == 1:
+        prefix += " CLARMOR_EXIT_ON_OVERFLOW=1 "
+
+    if args["error_exitcode"]:
+        string_to_add = " CLARMOR_ERROR_EXITCODE=" + str(args["error_exitcode"]) + " "
+        prefix += string_to_add
+
+    # If you want to NOT use the wrapper (e.g. for testing), use this line:
+    #prefix = global_prefix
+
+    #--------------------------------------------------------------------------#
+    # Run the actual program or benchmark.
+    if bad_command_line == 0:
+        logging.info("Running Buffer Overflow Detector")
+        start_time, start_resources = time.time(), resource_usage(RUSAGE_CHILDREN)
+
+        error_code = run_cmd( args, cmd, prefix )
+        print_and_exit_on_cmd_error(cmd, error_code)
+
+        end_resources, end_time = resource_usage(RUSAGE_CHILDREN), time.time()
+
+    #--------------------------------------------------------------------------#
+
+    os.chdir(current_dir)
+
+    #--------------------------------------------------------------------------#
+    # End of buffer overflow detector run.
+    if bad_command_line == 1:
+        sys.exit(-1)
+    print args["prefix"] + "Done!"
+
+    # Reset LD_PRELOAD so that it doesn't continue to grow forever
+    LD_PRELOAD = save_LD_PRELOAD
+    # Reset PATH so that it doesn't continue to grow forever
+    PATH = save_PATH
+
+    real_time = end_time - start_time
+    system_time = end_resources.ru_stime - start_resources.ru_stime
+    user_time = end_resources.ru_utime - start_resources.ru_utime
+    return real_time, system_time, user_time
+
+#------------------------------------------------------------------------------#
+# Main function
+def main():
+    global use_pdb
+    global use_gdb
+    # Attempt to parse the arguments and put the results into args[]
+    parser = argparse.ArgumentParser(description="Parse arguments.",
+            formatter_class=CombineFormatters, add_help=False)
+    add_arguments( parser )
+    args = vars( parser.parse_args() )
+
+    if args["help"]:
+        parser.print_help()
+        sys.exit( 0 )
+
+    # Check the command line arguments to see if we want to use either of the
+    # debuggers. If using PDB, we will break right now. If we want to GDB
+    # the end-user's application, we will do that later when trying to run it.
+    use_pdb=args["use_pdb"]
+    use_gdb=args["use_gdb"]
+    if use_pdb:
+        import pdb
+        pdb.set_trace()
+
+    # If we want to run a benchmark group, then we must first check to see if
+    # the group exists, then we try to run all of the benchmarks in that group
+    # back to back.
+
+    time_file = None
+    mem_in_file = None
+    mem_out_file = None
+    if args["time_file"] != None:
+        time_file = open("%s/%s" % (args["working_dir"], args["time_file"]), "w")
+
+    if args["group"] != None:
+        if args["perf_stat"] != None and int(args["perf_stat"]) & 4:
+            try:
+                mem_out_file = open("%s/%s" % (args["working_dir"], "debug_mem_overhead.csv"), 'w')
+                mem_out_file.write("bench_name, total_user_mem, total_overhead_mem, high_user_mem, high_overhead_mem\n")
+            except IOError:
+                mem_out_file = None
+
+        group = args["group"]
+        if not hasattr(benchmarks, group):
+            print ("Benchmark group '%s' not found" % group)
+            sys.exit(2)
+
+        Group = eval("benchmarks." + group)
+        print Group
+        Group = Group.split()
+        for benchmark in Group:
+            print "\n\n" + args["prefix"] + "********* Running Benchmark: %s *********" % benchmark
+            sys.stdout.flush()
+            # Detector function can modify args, so make fresh copy every time
+            args["benchmark"]=benchmark
+
+            benchDir=benchmarks.benchCD[benchmark]
+            cmd = "rm -f "+ "%s/%s" % (benchDir, "debug_mem_overhead.csv")
+            try:
+                os.system(cmd)
+            except IOError:
+                pass
+
+            real_t, sys_t, usr_t = run_detect_overflow(args.copy(), parser)
+            sys.stdout.flush()
+            # For benchmarking purposes, we print out the amount of time this
+            # application took (wall clock time from unix 'time').
+            if time_file != None:
+                outstr = "%s, %f, %f, %f\n" % (benchmark, real_t, sys_t, usr_t)
+                time_file.write(outstr)
+                print 'wrote to %s' % args['time_file']
+                print outstr
+
+            try:
+                mem_in_file = open("%s/%s" % (benchDir, "debug_mem_overhead.csv"), 'r')
+                memstr = benchmark
+                if mem_out_file != None:
+                    for line in mem_in_file:
+                        memstr += ", "+line
+                mem_out_file.write(memstr)
+                mem_in_file.close()
+            except IOError:
+                mem_in_file = None
+
+            sys.stdout.flush()
+    else:
+        real_t, sys_t, usr_t = run_detect_overflow(args, parser)
+        if args["benchmark"] != None:
+            if args["perf_stat"] != None and int(args["perf_stat"]) & 4:
+                try:
+                    mem_out_file = open("%s/%s" % (args["working_dir"], "debug_mem_overhead.csv"), 'w')
+                    mem_out_file.write("bench_name, total_user_mem, total_overhead_mem, high_user_mem, high_overhead_mem\n")
+                except IOError:
+                    mem_out_file = None
+
+            if time_file != None:
+                outstr = "%s, %f, %f, %f\n" % (args["benchmark"], real_t, sys_t, usr_t)
+                print outstr
+                time_file.write(outstr)
+
+            benchDir=benchmarks.benchCD[args["benchmark"]]
+            try:
+                mem_in_file = open("%s/%s" % (benchDir, "debug_mem_overhead.csv"), 'r')
+                memstr = args["benchmark"]
+                if mem_out_file != None:
+                    for line in mem_in_file:
+                        memstr += ", "+line
+                mem_out_file.write(memstr)
+                mem_in_file.close()
+            except IOError:
+                mem_in_file = None
+        else:
+            if time_file != None:
+                outstr = "%s, %f, %f, %f\n" % (args["cmd_line"], real_t, sys_t, usr_t)
+                print outstr
+                time_file.write(outstr)
+
+
+    if time_file != None:
+        time_file.close()
+    if mem_out_file != None:
+        mem_out_file.close()
+
+if __name__ == "__main__":
+    main()
