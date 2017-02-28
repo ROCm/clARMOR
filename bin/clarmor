@@ -250,13 +250,28 @@ def run_detect_overflow(args, parser):
     if "USE_NUM_ACTIVE_CUS" in args["cmd_line"]:
         print args["prefix"] + "Gathering the number of active compute units for this application..."
         cmd = bin_dir+"/clarmor-info"
-        p = subprocess.Popen(cmd, stdout = subprocess.PIPE,
-                                stderr = subprocess.PIPE,
-                                stdin = subprocess.PIPE)
-        out, err = p.communicate("-g -n")
+        try:
+            p = subprocess.Popen([cmd,"-g","-n"], stdout = subprocess.PIPE,
+                                    stderr = subprocess.PIPE,
+                                    stdin = subprocess.PIPE)
+            out, err = p.communicate()
+        except OSError as e:
+            if int(e.errno) == 2:
+                print args["prefix"] + "Unable to find clarmor-info, which is required to run this test."
+                print args["prefix"] + "Please make sure it is available in the same directory as clARMOR."
+                print args["prefix"] + "If you downloaded clARMOR from source, please make sure to build it with 'make'"
+            else:
+                print args["prefix"] + "Generic OSError: ",e.errno
+                print args["prefix"] + "Generic OSError: ",e.strerror
+                print args["prefix"] + "Generic OSError: ",e.filename
+            sys.exit(-1)
+        except:
+            print args["prefix"] + "Generic Error: ",sys.exc_info()[0]
+            sys.exit(-1)
         num_cus = int(out)
         if num_cus == 0:
             num_cus = 1
+        print args["prefix"] + "...Found CUs to be: " + str(num_cus)
         args["cmd_line"] = args["cmd_line"].replace("USE_NUM_ACTIVE_CUS", str(num_cus))
 
 
