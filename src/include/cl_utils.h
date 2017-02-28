@@ -29,6 +29,7 @@
 #define _CL_UTILS_H_
 
 #include "cl_interceptor.h"
+#include "detector_defines.h"
 
 /*!
  * Takes in a cl_context and creates a user event within that context.

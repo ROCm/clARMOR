@@ -69,8 +69,12 @@ void verify_on_gpu_single_buffer(cl_command_queue cmd_queue,
     num_events++;
 
     cl_event finish;
+#ifdef CL_VERSION_1_2
     cl_int cl_err = clEnqueueMarkerWithWaitList(cmd_queue, num_events, evt_list,
             &finish);
+#else
+    cl_int cl_err = clEnqueueMarker(cmd_queue, &finish);
+#endif
     check_cl_error(__FILE__, __LINE__, cl_err);
     cl_err = clReleaseEvent(evt_list[0]);
     check_cl_error(__FILE__, __LINE__, cl_err);

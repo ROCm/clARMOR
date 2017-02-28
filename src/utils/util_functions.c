@@ -458,9 +458,11 @@ unsigned getImageDataSize(const cl_image_format *format)
         case CL_UNORM_SHORT_555:
             byteChannel = 2;
             break;
+#ifdef CL_VERSION_1_2
         case CL_UNORM_INT24:
             byteChannel = 3;
             break;
+#endif
         case CL_SIGNED_INT32:
         case CL_UNSIGNED_INT32:
         case CL_FLOAT:
@@ -482,7 +484,9 @@ unsigned getImageDataSize(const cl_image_format *format)
             break;
         case CL_INTENSITY:
         case CL_LUMINANCE:
+#ifdef CL_VERSION_1_2
         case CL_DEPTH:
+#endif
             numChannels = 1;
             break;
         case CL_RG:
@@ -512,9 +516,11 @@ unsigned getImageDataSize(const cl_image_format *format)
 #endif
             numChannels = 4;
             break;
+#ifdef CL_VERSION_1_2
         case CL_DEPTH_STENCIL:
             numChannels = 1;
             break;
+#endif
         default:
             numChannels = 0;
     }

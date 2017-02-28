@@ -75,10 +75,24 @@ void poisonFillImageCanaries(cl_command_queue cmdQueue, cl_memobj *img, uint32_t
     writeEvents = malloc(sizeof(cl_event)*numWriteEvents);
 
     //largest size for a color
-    uint32_t len = 16;
+    const uint32_t len = 16;
     void *poison_ptr;
     poison_ptr = malloc(len);
     memset(poison_ptr, POISON_FILL, len);
+
+#ifndef CL_VERSION_1_2
+    // Without OpenCL 1.2 support for clEnqueueFillImage(), we fall back to
+    // synchronously filling in the image using clEnqueueWriteBufferRect.
+    // We do this synchronously because we need to alloc and dealloc the
+    // host-side buffer that we will copy out of.
+    // This is slower, but it only affects older systems.
+    if (numEvts > 0)
+    {
+        cl_err = clWaitForEvents(numEvts, evt);
+        check_cl_error(__FILE__, __LINE__, cl_err);
+    }
+    char * poison_data;
+#endif
 
     uint32_t evt_i = 0;
     for(k=0; k < k_dat; k++)
@@ -93,14 +107,26 @@ void poisonFillImageCanaries(cl_command_queue cmdQueue, cl_memobj *img, uint32_t
                 region[0] = IMAGE_POISON_WIDTH;
                 region[1] = 1;
                 region[2] = 1;
+#ifdef CL_VERSION_1_2
                 cl_err = clEnqueueFillImage(cmdQueue, img->handle, poison_ptr, origin, region,
                                             numEvts, evt, &writeEvents[evt_i]);
                 check_cl_error(__FILE__, __LINE__, cl_err);
+#else
+                poison_data = malloc(len * IMAGE_POISON_WIDTH);
+                memset(poison_data, POISON_FILL, len * IMAGE_POISON_WIDTH);
+                cl_err = clEnqueueWriteImage(cmdQueue, img->handle,
+                        CL_BLOCKING, origin, region,
+                        img->image_desc.image_row_pitch,
+                        img->image_desc.image_slice_pitch,
+                        poison_data, 0, NULL, &writeEvents[evt_i]);
+                check_cl_error(__FILE__, __LINE__, cl_err);
+                free(poison_data);
+#endif
                 evt_i++;
             }
         }
 
-        if(j_lim > 1)
+        if(j_lim > 1 && i_lim > 0)
         {
             origin[0] = 0;
             origin[1] = j_dat;
@@ -108,14 +134,26 @@ void poisonFillImageCanaries(cl_command_queue cmdQueue, cl_memobj *img, uint32_t
             region[0] = i_lim;
             region[1] = IMAGE_POISON_HEIGHT;
             region[2] = 1;
+#ifdef CL_VERSION_1_2
             cl_err = clEnqueueFillImage(cmdQueue, img->handle, poison_ptr, origin, region,
                                         numEvts, evt, &writeEvents[evt_i]);
             check_cl_error(__FILE__, __LINE__, cl_err);
+#else
+            poison_data = malloc(len * i_lim * IMAGE_POISON_HEIGHT);
+            memset(poison_data, POISON_FILL, len * i_lim * IMAGE_POISON_HEIGHT);
+            cl_err = clEnqueueWriteImage(cmdQueue, img->handle,
+                    CL_BLOCKING, origin, region,
+                    img->image_desc.image_row_pitch,
+                    img->image_desc.image_slice_pitch,
+                    poison_data, 0, NULL, &writeEvents[evt_i]);
+            check_cl_error(__FILE__, __LINE__, cl_err);
+            free(poison_data);
+#endif
             evt_i++;
         }
     }
 
-    if(k_lim > 1)
+    if(k_lim > 1 && j_lim > 0 && i_lim > 0)
     {
         origin[0] = 0;
         origin[1] = 0;
@@ -123,14 +161,32 @@ void poisonFillImageCanaries(cl_command_queue cmdQueue, cl_memobj *img, uint32_t
         region[0] = i_lim;
         region[1] = j_lim;
         region[2] = IMAGE_POISON_DEPTH;
+#ifdef CL_VERSION_1_2
         cl_err = clEnqueueFillImage(cmdQueue, img->handle, poison_ptr, origin, region,
                                     numEvts, evt, &writeEvents[evt_i]);
         check_cl_error(__FILE__, __LINE__, cl_err);
+#else
+        poison_data = malloc(len * i_lim * j_lim * IMAGE_POISON_DEPTH);
+        memset(poison_data, POISON_FILL, len * i_lim * j_lim * IMAGE_POISON_DEPTH);
+        cl_err = clEnqueueWriteImage(cmdQueue, img->handle,
+                CL_BLOCKING, origin, region,
+                img->image_desc.image_row_pitch,
+                img->image_desc.image_slice_pitch,
+                poison_data, 0, NULL, &writeEvents[evt_i]);
+        check_cl_error(__FILE__, __LINE__, cl_err);
+        free(poison_data);
+#endif
         evt_i++;
     }
 
     cl_event finishWrites;
+#ifdef CL_VERSION_1_2
     cl_err = clEnqueueMarkerWithWaitList(cmdQueue, numWriteEvents, writeEvents, &finishWrites);
+#else
+    (void)numWriteEvents;
+    (void)writeEvents;
+    cl_err = clEnqueueMarker(cmdQueue, &finishWrites);
+#endif
     check_cl_error(__FILE__, __LINE__, cl_err);
 
     if(retEvt)
@@ -173,8 +229,18 @@ void mendCanaryRegion(cl_command_queue cmdQueue, void * const buffer, cl_bool bl
             poisonFillImageCanaries(fillQueue, m1, numEvts, waits, &finish);
         else
         {
+#ifdef CL_VERSION_1_2
             cl_int cl_err = clEnqueueFillBuffer(fillQueue, m1->handle, &poisonFill_8b, sizeof(uint8_t), m1->size - POISON_FILL_LENGTH, POISON_FILL_LENGTH, numEvts, waits, &finish);
             check_cl_error(__FILE__, __LINE__, cl_err);
+#else
+            char * poison_data = malloc(POISON_FILL_LENGTH);
+            memset(poison_data, poisonFill_8b, POISON_FILL_LENGTH);
+            cl_int cl_err = clEnqueueWriteBuffer(fillQueue, m1->handle,
+                    CL_BLOCKING, m1->size - POISON_FILL_LENGTH,
+                    POISON_FILL_LENGTH, poison_data, numEvts, waits, &finish);
+            check_cl_error(__FILE__, __LINE__, cl_err);
+            free(poison_data);
+#endif
         }
     }
 #ifdef CL_VERSION_2_0

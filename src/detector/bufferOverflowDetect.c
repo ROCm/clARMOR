@@ -437,6 +437,7 @@ cl_kernel createPoisonedKernel(cl_command_queue command_queue,
 
                 if(old_buffer_info->is_image)
                 {
+#ifdef CL_VERSION_1_2
                     cl_image_desc desc;
                     desc.image_type = old_buffer_info->image_desc.image_type;
                     desc.image_width = old_buffer_info->image_desc.image_width;
@@ -449,6 +450,28 @@ cl_kernel createPoisonedKernel(cl_command_queue command_queue,
                     desc.num_samples = old_buffer_info->image_desc.num_samples;
                     desc.buffer = NULL;
                     new_buffer = clCreateImage(new_ctx, flags, &old_buffer_info->image_format, &desc, NULL, &cl_err);
+#else
+                    if (old_buffer_info->image_desc.image_type == CL_MEM_OBJECT_IMAGE3D)
+                    {
+                        new_buffer = clCreateImage3D(new_ctx, flags,
+                                &old_buffer_info->image_format,
+                                old_buffer_info->image_desc.image_width,
+                                old_buffer_info->image_desc.image_height,
+                                old_buffer_info->image_desc.image_depth,
+                                old_buffer_info->image_desc.image_row_pitch,
+                                old_buffer_info->image_desc.image_slice_pitch,
+                                old_buffer_info->host_ptr, &cl_err);
+                    }
+                    else
+                    {
+                        new_buffer = clCreateImage2D(new_ctx, flags,
+                                &old_buffer_info->image_format,
+                                old_buffer_info->image_desc.image_width,
+                                old_buffer_info->image_desc.image_height,
+                                old_buffer_info->image_desc.image_row_pitch,
+                                old_buffer_info->host_ptr, &cl_err);
+                    }
+#endif // CL_VERSION_1_2
                 }
                 else
                     new_buffer = clCreateBuffer(new_ctx, flags, old_buffer_info->size, NULL, &cl_err);

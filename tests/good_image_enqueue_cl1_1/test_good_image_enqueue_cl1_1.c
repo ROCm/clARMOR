@@ -100,7 +100,6 @@ static void run_2d_test(const cl_device_id device, const cl_context context,
     printf("\nImage2D Test...\n");
 
 
-    float fill = 29;
     char *host_ptr;
     host_ptr = calloc(sizeof(float), buffer_size);
     size_t origin[3] = {0, 0, 0};
@@ -110,8 +109,11 @@ static void run_2d_test(const cl_device_id device, const cl_context context,
     check_cl_error(__FILE__, __LINE__, cl_err);
     cl_err = clEnqueueWriteImage(cmd_queue, good_image, CL_TRUE, origin, region, 0, 0, host_ptr, 0, NULL, NULL);
     check_cl_error(__FILE__, __LINE__, cl_err);
+#ifdef CL_VERSION_1_2
+    float fill = 29;
     cl_err = clEnqueueFillImage(cmd_queue, good_image, &fill, origin, region, 0, NULL, NULL);
     check_cl_error(__FILE__, __LINE__, cl_err);
+#endif
     cl_err = clEnqueueCopyImage(cmd_queue, good_image, good_image2, origin, origin, region, 0, NULL, NULL);
     check_cl_error(__FILE__, __LINE__, cl_err);
     cl_err = clEnqueueCopyImageToBuffer(cmd_queue, good_image, good_buffer, origin, region, 0, 0, NULL, NULL);

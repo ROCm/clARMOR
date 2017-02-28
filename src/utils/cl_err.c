@@ -61,6 +61,7 @@ const char *cluErrorString(const cl_int err)
         case CL_EXEC_STATUS_ERROR_FOR_EVENTS_IN_WAIT_LIST:
             return "CL_EXEC_STATUS_ERROR_FOR_EVENTS_IN_WAIT_LIST";
 #endif
+#ifdef CL_VERSION_1_2
         case CL_COMPILE_PROGRAM_FAILURE:
             return "CL_COMPILE_PROGRAM_FAILURE";
         case CL_LINKER_NOT_AVAILABLE:
@@ -71,6 +72,7 @@ const char *cluErrorString(const cl_int err)
             return "CL_DEVICE_PARTITION_FAILED";
         case CL_KERNEL_ARG_INFO_NOT_AVAILABLE:
             return "CL_KERNEL_ARG_INFO_NOT_AVAILABLE";
+#endif
         case CL_INVALID_VALUE:
             return "CL_INVALID_VALUE";
         case CL_INVALID_DEVICE_TYPE:

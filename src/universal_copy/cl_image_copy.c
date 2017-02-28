@@ -82,6 +82,7 @@ static void copy_image_between_contexts(cl_command_queue command_queue,
     cl_mem_flags host_flag = (from_info->flags | CL_MEM_USE_HOST_PTR) &
         ~CL_MEM_ALLOC_HOST_PTR & ~CL_MEM_COPY_HOST_PTR;
 
+#ifdef CL_VERSION_1_2
     cl_image_desc desc;
     desc.image_type = CL_MEM_OBJECT_IMAGE3D;
     desc.image_width = region[0];
@@ -96,6 +97,11 @@ static void copy_image_between_contexts(cl_command_queue command_queue,
 
     cl_mem temp_buff1 = clCreateImage(from_info->context, host_flag,
             &from_info->image_format, &desc, temp_host_ptr, &cl_err);
+#else
+    cl_mem temp_buff1 = clCreateImage3D(from_info->context, host_flag,
+            &from_info->image_format, region[0], region[1], region[2],
+            0, 0, temp_host_ptr, &cl_err);
+#endif
     check_cl_error(__FILE__, __LINE__, cl_err);
     size_t tmp_origin[] = {0, 0, 0};
 
@@ -113,8 +119,14 @@ static void copy_image_between_contexts(cl_command_queue command_queue,
                 src_origin, tmp_origin, region, 0, 0, &jump1);
     }
 
+#ifdef CL_VERSION_1_2
     cl_mem temp_buff2 = clCreateImage(to_info->context, host_flag,
             &from_info->image_format, &desc, temp_host_ptr, &cl_err);
+#else
+    cl_mem temp_buff2 = clCreateImage3D(to_info->context, host_flag,
+            &from_info->image_format, region[0], region[1], region[2],
+            0, 0, temp_host_ptr, &cl_err);
+#endif
     check_cl_error(__FILE__, __LINE__, cl_err);
 
     cl_err = clWaitForEvents(1, &jump1);

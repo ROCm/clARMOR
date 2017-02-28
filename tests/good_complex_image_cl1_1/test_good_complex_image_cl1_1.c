@@ -35,7 +35,7 @@ const char *kernel_source = "\n"\
 "    }\n"\
 "}\n";
 const char *kernel_source1 = "\n"\
-"__kernel void test(__read_write image2d_t image, uint width, uint height) {\n"\
+"__kernel void test(__write_only image2d_t image, uint width, uint height) {\n"\
 "    uint i = get_global_id(0);\n"\
 "    uint x = i % width;\n"\
 "    uint y = i / width;\n"\
@@ -46,7 +46,7 @@ const char *kernel_source1 = "\n"\
 "    }\n"\
 "}\n";
 const char *kernel_source2 = "\n"\
-"__kernel void test(__read_write image2d_t image, uint width, uint height) {\n"\
+"__kernel void test(__write_only image2d_t image, uint width, uint height) {\n"\
 "    uint i = get_global_id(0);\n"\
 "    uint x = i % width;\n"\
 "    uint y = i / width;\n"\
@@ -57,7 +57,7 @@ const char *kernel_source2 = "\n"\
 "    }\n"\
 "}\n";
 const char *kernel_source3 = "\n"\
-"__kernel void test(__read_write image2d_t image, uint width, uint height) {\n"\
+"__kernel void test(__write_only image2d_t image, uint width, uint height) {\n"\
 "    uint i = get_global_id(0);\n"\
 "    uint x = i % width;\n"\
 "    uint y = i / width;\n"\
@@ -68,7 +68,7 @@ const char *kernel_source3 = "\n"\
 "    }\n"\
 "}\n";
 const char *kernel_source4 = "\n"\
-"__kernel void test(__read_write image3d_t image, uint width, uint height, uint depth) {\n"\
+"__kernel void test(__write_only image3d_t image, uint width, uint height, uint depth) {\n"\
 "    uint i = get_global_id(0);\n"\
 "    uint x = i % width;\n"\
 "    uint y = (i / width) % height;\n"\
@@ -80,7 +80,7 @@ const char *kernel_source4 = "\n"\
 "    }\n"\
 "}\n";
 const char *kernel_source5 = "\n"\
-"__kernel void test(__read_write image3d_t image, uint width, uint height, uint depth) {\n"\
+"__kernel void test(__write_only image3d_t image, uint width, uint height, uint depth) {\n"\
 "    uint i = get_global_id(0);\n"\
 "    uint x = i % width;\n"\
 "    uint y = (i / width) % height;\n"\
@@ -92,7 +92,7 @@ const char *kernel_source5 = "\n"\
 "    }\n"\
 "}\n";
 const char *kernel_source6 = "\n"\
-"__kernel void test(__read_write image3d_t image, uint width, uint height, uint depth) {\n"\
+"__kernel void test(__write_only image3d_t image, uint width, uint height, uint depth) {\n"\
 "    uint i = get_global_id(0);\n"\
 "    uint x = i % width;\n"\
 "    uint y = (i / width) % height;\n"\
@@ -392,6 +392,8 @@ int main(int argc, char** argv)
         format.image_channel_order = formats_2d[i].image_channel_order;
         format.image_channel_data_type = formats_2d[i].image_channel_data_type;
         dataSize = get_image_data_size(&format);
+        if (dataSize == 0)
+            continue;
 
         width = (buffer_size / dataSize) / reduce2d;
         height = reduce2d;
@@ -452,6 +454,8 @@ int main(int argc, char** argv)
         format.image_channel_order = formats_3d[i].image_channel_order;
         format.image_channel_data_type = formats_3d[i].image_channel_data_type;
         dataSize = get_image_data_size(&format);
+        if (dataSize == 0)
+            continue;
 
         width = (buffer_size / dataSize) / reduce3dhw;
         height = reduce3dhw / 64;

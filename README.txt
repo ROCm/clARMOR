@@ -39,32 +39,6 @@ Debugging information about this buffer overflow is then printed to the screen
 and, optionally, to a log file. The tool will then either continue running in
 order to try to find more problems, or, optionally, will exit with an error.
 
-This tool is only useful for finding buffer overflows in buffers created using
-OpenCL APIs and caused by OpenCL APIs or OpenCL kernels. It does not work for
-fine-grained system shared virtual memory, since those regions are allocated
-with traditional calls to malloc. It does not attempt to find buffer overflows
-from host-side functions that may write into OpenCL buffer regions. For
-instance, mapping a buffer and then writing outside of the mapped region
-will not necessarily be detected. If it is detected, it may be mis-attributed.
-
-Because this tool runs the application and searches for actual overflows caused
-during the program's execution, the ability of this tool to find buffer
-overflows depends on the inputs to the program. If the application's input
-does not cause a buffer overflow, this tool will not necessarily find nor
-report the problem.
-
-In addition, because of the manner in which the canaries are checked (the
-checks are performed after the real kernel has completed), this tool offers no
-security guarantees. An OpenCL buffer overflow that allows an attacker to take
-control of the application may not be observed, since a dedicated attacker
-could prevent the canary checker from working.
-
-Nevertheless, this tool has been used to find buffer overflows in real OpenCL
-applications, and it is useful as a debugging and development mechanism.
-It has been carefully designed to attempt to reduce the runtime overheads it
-causes. It will detect overflows in cl_mem buffers, coarse-grained SVM, and
-memory buffers for n-dimensional images.
-
 Our tests put its average performance overheads in the 10s of percents, though
 the exact slowdown caused by clARMOR will depend on your application, its
 inputs, the number of buffers, the size of the kernels, and many other factors.
@@ -88,13 +62,9 @@ OpenCL 1.2:
  3) Nvidia TITAN X (Pascal) GPU running on 64-bit Ubuntu 14.04.5 with the
     CUDA SDK v8 and Nvidia drivers v367.48.
 
-
-Currently, this tool does *not* detect the following types of overflows:
- 1) Buffer overflows that overflow in a negative direction. In other words,
-    writing bytes before the beginning of a buffer is not detected as an error.
- 2) Buffer overflows in the __private, __local, or __constant memory spaces.
- 3) Buffer overflows caused by reads (since these do not disrupt the canary
-    regions).
+OpenCL 1.1:
+ 1) Nvidia GeForce GTX 980 GPU running on 64-bit Ubuntu 14.04.3 with the
+    CUDA SDK v7.0 and Nvidia drivers v352.63.
 
 
 
@@ -144,6 +114,10 @@ To run Cppcheck against the detector and all the test codes, run:
 
 To run pylint against all of the Python files, execute:
     make pylint
+
+clARMOR can also be built in debug mode to help find problems in the
+detector itself by running:
+    DEBUG=1 make
 
 Finally, to clean up any builds and remove any temporary files, run:
     make clean
@@ -376,15 +350,19 @@ Alternately, to run all of the benchmarks in the AMD APP SDK group, use:
     ./bin/clarmor --group AMDAPP
 
 
+
 --------------------------------------------------------------------------------
 Software Architecture
 --------------------------------------------------------------------------------
 Work in progress...
 
+
+
 --------------------------------------------------------------------------------
 Coding Standards
 --------------------------------------------------------------------------------
 Work in progress...
+
 
 
 --------------------------------------------------------------------------------
@@ -440,7 +418,9 @@ The build-time tests are:
 
 'make cpu_test' will run the same tests as the normal make test, but will
     ensure that they run on the CPU. This is useful for testing on systems
-    that do not have a GPU.
+    that do not have a GPU. This requires an OpenCL runtime that allows kernels
+    to run on the CPU. If CPU-side tests are not supported, this does not run.
+
 
 With regards to the benchmark tests:
 It is also possible to automatically run the buffer overflow detector across
@@ -450,3 +430,41 @@ By default, the benchmark build process should patch all of these benchmarks to
 no longer have any buffer overflows. However, running the tool across all of
 these benchmarks still helps to verify that there are no bugs in the tool that
 cause things to crash or find false positives.
+
+
+
+--------------------------------------------------------------------------------
+clARMOR Limitations
+--------------------------------------------------------------------------------
+clARMOR is useful for finding write-based buffer overflows in buffers created
+using OpenCL APIs and caused by OpenCL APIs or OpenCL kernels. It does not work
+for fine-grained system shared virtual memory, since those regions are allocated
+with traditional calls to malloc. It does not attempt to find buffer overflows
+from host-side functions that may write into OpenCL buffer regions. For
+instance, mapping a buffer and then writing outside of the mapped region
+will not necessarily be detected. If it is detected, it may be mis-attributed.
+
+Because this tool runs the application and searches for actual overflows caused
+during the program's execution, the ability of this tool to find buffer
+overflows depends on the inputs to the program. If the application's input
+does not cause a buffer overflow, this tool will not necessarily find nor
+report the problem.
+
+In addition, because of the manner in which the canaries are checked (the
+checks are performed after the real kernel has completed), this tool offers no
+security guarantees. An OpenCL buffer overflow that allows an attacker to take
+control of the application may not be observed, since a dedicated attacker
+could prevent the canary checker from working.
+
+Nevertheless, this tool has been used to find buffer overflows in real OpenCL
+applications, and it is useful as a debugging and development mechanism.
+It has been carefully designed to attempt to reduce the runtime overheads it
+causes. It will detect overflows in cl_mem buffers, coarse-grained SVM, and
+memory buffers for n-dimensional images.
+
+Currently, this tool does *not* detect the following types of overflows:
+ 1) Buffer overflows that overflow in a negative direction. In other words,
+    writing bytes before the beginning of a buffer is not detected as an error.
+ 2) Buffer overflows in the __private, __local, or __constant memory spaces.
+ 3) Buffer overflows caused by reads (since these do not disrupt the canary
+    regions).

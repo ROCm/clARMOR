@@ -77,7 +77,6 @@ int main(int argc, char** argv)
             (long long unsigned)bytes_written,
             (long long unsigned)buffer_size);
 
-    char fill = '5';
     char *host_ptr;
     host_ptr = calloc(1, buffer_size);
 
@@ -85,8 +84,15 @@ int main(int argc, char** argv)
     check_cl_error(__FILE__, __LINE__, cl_err);
     cl_err = clEnqueueWriteBuffer(cmd_queue, bad_buffer, CL_TRUE, 0, buffer_size, host_ptr, 0, NULL, NULL);
     check_cl_error(__FILE__, __LINE__, cl_err);
+#ifdef CL_VERSION_1_2
+    char fill = '5';
     cl_err = clEnqueueFillBuffer(cmd_queue, bad_buffer, &fill, sizeof(char), 0, buffer_size, 0, NULL, NULL);
     check_cl_error(__FILE__, __LINE__, cl_err);
+#else
+    // Run another test again to make sure we see the same number of errors
+    cl_err = clEnqueueWriteBuffer(cmd_queue, bad_buffer, CL_TRUE, 0, buffer_size, host_ptr, 0, NULL, NULL);
+    check_cl_error(__FILE__, __LINE__, cl_err);
+#endif
     cl_err = clEnqueueCopyBuffer(cmd_queue, good_buffer2, bad_buffer, 0, 0, buffer_size, 0, NULL, NULL);
     check_cl_error(__FILE__, __LINE__, cl_err);
 

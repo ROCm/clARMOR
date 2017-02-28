@@ -9,51 +9,30 @@ and is optionally logged to an output file.
 The details of how this tool works can be found in the ./docs/ directory, and
 a deeper introduction can be found in the main README.txt file.
 
-This tool is useful for finding write-based buffer overflows in buffers created
-using OpenCL APIs and caused by OpenCL APIs or OpenCL kernels. It does not
-attempt to find buffer overflows from host-side functions that may write into
-OpenCL buffer regions. For instance, mapping a buffer and then writing outside
-of the mapped region will not necessarily be detected.
-If this is detected, it may be mis-attributed.
-
-In addition, because of the manner in which the canaries are checked (the
-checks are performed after the real kernel has completed), this tool offers no
-security guarantees. An OpenCL buffer overflow that allows an attacker to take
-control of the application may not be observed, since a dedicated attacker
-could prevent the canary checker from working.
-
-Nevertheless, this tool has been used to find buffer overflows in real OpenCL
-applications, and it is useful as a debugging and development mechanism.
-It has been carefully designed to attempt to reduce the runtime overheads it
-causes. It will detect overflows in cl\_mem buffers, coarse-grained SVM, and
-memory buffers for n-dimensional images.
-
-Currently, this tool does *not* detect the following types of overflows:
-1. Buffer overflows that overflow in a negative direction. In other words,
-writing bytes before the beginning of a buffer is not detected as an error.
-2. Buffer overflows in the \_\_private, \_\_local, or \_\_constant memory spaces.
-3. Buffer overflows caused by reads (since these do not disrupt the canary
-regions).
-
-
 Setting up and building clARMOR
 --------------------------------------------------------------------------------
 
 clARMOR requires a number of utilities in order to properly run. Information
 about these prerequisites can be found in the prereqs/ directory. In particular,
 the file prereqs/README.txt discusses information about how to set up a system
-to run this tool.
+to run this tool. At this time, clARMOR only runs on Linux.
+
+A simplified list of software required to run clARMOR:
+
+* A working OpenCL 1.1+ installation
+* GCC >= 4.7 or LLVM >= 3.3
+* Python and Python argparse
+
+Additional software that is useful to have installed when working with clARMOR:
+
+* gdb
+* Clang Static Analyzer (scan-build)
+* cppcheck
+* pylint
 
 Currently, this tool is designed to detect buffer overflows caused by OpenCL
 kernels that run on GPUs or CPUs. It has been tested most extensively using the
 AMD APP SDK OpenCL runtime implementation and AMD Catalyst GPU drivers.
-It is designed to run only on Linux. All of these things should be set up
-separately from this tool.
-
-This tool requires Python and Python-Argparse. To fully run the test system,
-Clang's scan-build tool should be installed, as should Cppcheck and pylint.
-
-This tool has been tested using both GCC (v >= 4.7) and clang (v >= 3.3)
 
 To build the clARMOR using your default C and C++ compilers, execute the
 following from the main directory:
@@ -68,7 +47,8 @@ CXX environment variables. For example:
 (Note that the above means that you can also use 'scan-build make' to run
 LLVM's static analyzer on this tool.)
 
-To test the tool against its included functional GPU tests, execute:
+To test the tool against its included functional GPU tests, execute:i
+
     make test
 
 To test the tool against its included functional tests, but to run those tests
@@ -87,6 +67,11 @@ To run Cppcheck against the detector and all the test codes, run:
 To run pylint against all of the Python files, execute:
 
     make pylint
+
+clARMOR can also be built in debug mode to help find problems in the
+detector itself by running:
+
+    DEBUG=1 make
 
 Finally, to clean up any builds and remove any temporary files, run:
 
@@ -116,7 +101,7 @@ In the above example command line, the following two parameters were used:
         you wish to test in the overflow detector. {working directory} is the
         the directory where the the program should be run from.
         The run script will temporarily change directories to this working dir,
-        and will also temporarily add it to the PATH variable.
+        and will also temporarily add it to the PATH environment variable.
 
     --run (or -r):
         This parameter is the command line used to run the application you wish
@@ -168,11 +153,6 @@ Other important functions that can be controlled when using the runscript:
         for these API calls before they run.
         This flag turns off that API checking.
 
-    --detector_path (or -d):
-        This should be the root directory of the clARMOR installation you are using.
-        This should be automatically set as a path relative to the location of the
-        run script, but if it is incorrect, you can set it with this parameter.
-
 The following parameter can be used to help debug broken applications and
 problems in the detector itself:
 
@@ -180,10 +160,6 @@ problems in the detector itself:
         This will run the application (and the detector as well) within GDB.
         This will allow users to run the application within the debugger while
         also searching for buffer overflows.
-
-    --use_pdb:
-        This will run the clarmor script within PDB, in order to
-        help debug any problems in it.
 
 Testing clARMOR
 --------------------------------------------------------------------------------
@@ -195,22 +171,54 @@ This script will all of the tests below, back to back, and report the results
 to the screen. If any of the tests fail, the script will return a non-zero
 value. These tests are split into two categories, which the automated test
 script will run, depending on command-line flags.
+
 1. Build-time tests --- This uses the '-b' option
 2. Tests against a benchmark group --- This uses the '-g {group}' option
 
 The simplest way to run tests is:
 
-    ./tests/automated_test.sh -b
+    tests/automated_test.sh -b
 
 The build-time tests are:
+
 * `make check` will run cppcheck, a static code analyzer, over all of the tools
 and tests that are included in the package.
 * `make pylint` will run pylint over all of the Python files in the project.
-* `scan-build make` can be used to verify that the Clang static analyzer does
+* `scan-build make` can be used to verify that the Clang Static Analyzer does
 not find any problems in the tool. Shipping versions should come back
 clean in contemporary versions of scan-build at the time they ship.
 * `make test` will run a series of programs from the tests/ subdirectory
 (which are further describes in tests/README.txt).
 * `make cpu\_test` will run the same tests as the normal make test, but will
 ensure that they run on the CPU. This is useful for testing on systems
-that do not have a GPU.
+that do not have a GPU. This requires an OpenCL runtime that allows kernels to
+run on the CPU. If CPU-side tests are not supported, this does not run.
+
+clARMOR Limitations
+--------------------------------------------------------------------------------
+clARMOR is useful for finding write-based buffer overflows in buffers created
+using OpenCL APIs and caused by OpenCL APIs or OpenCL kernels. It does not
+attempt to find buffer overflows from host-side functions that may write into
+OpenCL buffer regions. For instance, mapping a buffer and then writing outside
+of the mapped region will not necessarily be detected.
+If this is detected, it may be mis-attributed.
+
+In addition, because of the manner in which the canaries are checked (the
+checks are performed after the real kernel has completed), this tool offers no
+security guarantees. An OpenCL buffer overflow that allows an attacker to take
+control of the application may not be observed, since a dedicated attacker
+could prevent the canary checker from working.
+
+Nevertheless, this tool has been used to find buffer overflows in real OpenCL
+applications, and it is useful as a debugging and development mechanism.
+It has been carefully designed to attempt to reduce the runtime overheads it
+causes. It will detect overflows in cl\_mem buffers, coarse-grained SVM, and
+memory buffers for n-dimensional images.
+
+Currently, this tool does *not* detect the following types of overflows:
+
+1. Buffer overflows that overflow in a negative direction. In other words,
+writing bytes before the beginning of a buffer is not detected as an error.
+2. Buffer overflows in the \_\_private, \_\_local, or \_\_constant memory spaces.
+3. Buffer overflows caused by reads (since these do not disrupt the canary
+regions).

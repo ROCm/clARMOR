@@ -418,11 +418,11 @@ void printDupeWarning(const cl_kernel kern, const uint32_t * const dupe)
         // else we've hit a duplicate argument.
         char *origArgName = NULL;
         char *cloneArgName = NULL;
-        size_t size_ret = 0;
 
         // Get original argument's name
         //det_fprintf(stderr, "Dupe[%d] = %d\n", i, dupe[i]);
 #ifdef CL_VERSION_1_2
+        size_t size_ret = 0;
         cl_err = clGetKernelArgInfo(kern, dupe[i], CL_KERNEL_ARG_NAME,
                 0, NULL, &size_ret);
         if (cl_err != CL_KERNEL_ARG_INFO_NOT_AVAILABLE)

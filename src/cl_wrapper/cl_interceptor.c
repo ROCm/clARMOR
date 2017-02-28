@@ -302,9 +302,11 @@ clGetDeviceInfo(cl_device_id device,
             case CL_DEVICE_IMAGE3D_MAX_DEPTH:
                 *p_val -= IMAGE_POISON_DEPTH;
                 break;
+#ifdef CL_VERSION_1_2
             case CL_DEVICE_IMAGE_MAX_BUFFER_SIZE:
                 *p_val -= IMAGE_POISON_WIDTH;
                 break;
+#endif
             case CL_DEVICE_MAX_MEM_ALLOC_SIZE:
                 //largest canary space is from slice duplication for depth
                 cl_err = GetDeviceInfo(device, CL_DEVICE_IMAGE3D_MAX_WIDTH,
@@ -730,20 +732,22 @@ CL_API_ENTRY cl_mem CL_API_CALL
         if(ret)
         {
             cl_memobj *superBuff = cl_mem_find(get_cl_mem_alloc(), buffer);
-            cl_mem_flags passDownFlags, ptrFlags, gpuFlags, hostFlags;
+            cl_mem_flags passDownFlags, ptrFlags, gpuFlags;
             ptrFlags = CL_MEM_USE_HOST_PTR | CL_MEM_ALLOC_HOST_PTR | CL_MEM_COPY_HOST_PTR;
             gpuFlags = CL_MEM_READ_ONLY | CL_MEM_WRITE_ONLY | CL_MEM_READ_WRITE;
-            hostFlags = CL_MEM_HOST_READ_ONLY | CL_MEM_HOST_WRITE_ONLY | CL_MEM_HOST_NO_ACCESS;
 
             passDownFlags = superBuff->flags & ptrFlags;
             if(flags & gpuFlags)
                 passDownFlags |= flags & gpuFlags;
             else
                 passDownFlags |= superBuff->flags & gpuFlags;
+#ifdef CL_VERSION_1_2
+            cl_mem_flags hostFlags = CL_MEM_HOST_READ_ONLY | CL_MEM_HOST_WRITE_ONLY | CL_MEM_HOST_NO_ACCESS;
             if(flags & hostFlags)
                 passDownFlags |= flags & hostFlags;
             else
                 passDownFlags |= superBuff->flags & hostFlags;
+#endif
 
             cl_memobj *temp = (cl_memobj*)calloc(sizeof(cl_memobj), 1);
             temp->handle = ret;

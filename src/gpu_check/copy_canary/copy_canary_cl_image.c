@@ -114,17 +114,25 @@ static cl_event perform_cl_image_checks(cl_context kern_ctx,
     // If we are also fixing any of the corrupted canary bits in the original
     // buffer, then combine those events with waiting for the kernel to check
     // the copied canaries.
-    cl_event mend_finish, finish;
+    cl_event finish;
+#ifdef CL_VERSION_1_2
+    cl_event mend_finish;
     cl_err = clEnqueueMarkerWithWaitList(cmd_queue, num_images, mend_events,
             &mend_finish);
     check_cl_error(__FILE__, __LINE__, cl_err);
     cl_event evt_list[] = {mend_finish, kern_end};
     cl_err = clEnqueueMarkerWithWaitList(cmd_queue, 2, evt_list, &finish);
+#else
+    (void)mend_events;
+    cl_err = clEnqueueMarker(cmd_queue, &finish);
+#endif
     check_cl_error(__FILE__, __LINE__, cl_err);
 
     // When the kernel finishes checking this, it will release the buf
     clReleaseMemObject(canary_ends_buf);
+#ifdef CL_VERSION_1_2
     clReleaseEvent(mend_finish);
+#endif
     clReleaseEvent(kern_end);
     return finish;
 }

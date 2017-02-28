@@ -152,8 +152,13 @@ void copy_image_canaries(cl_command_queue cmdQueue, cl_memobj *img, cl_mem dst_b
         cl_image_to_buffer_copy(cmdQueue, img->handle, dst_buff, origin, region, segment, 1, evt, &events[k_dat*(j_dat + 1)]);
     }
 
+#ifdef CL_VERSION_1_2
     cl_err = clEnqueueMarkerWithWaitList(cmdQueue, numEvents, events, copyFinish);
     check_cl_error(__FILE__, __LINE__, cl_err);
+#else
+    cl_err = clEnqueueMarker(cmdQueue, copyFinish);
+    check_cl_error(__FILE__, __LINE__, cl_err);
+#endif
 
     free(events);
 }
@@ -235,12 +240,24 @@ cl_mem create_result_buffer(cl_context kern_ctx,
     cl_mem result;
     // Create buffer to hold the results of the buffer overflow checks.
     // Fill it with INT_MAX to initialize it.
-    int fill = INT_MAX;
     result = clCreateBuffer(kern_ctx, 0, sizeof(int)*num_buffers, 0, &cl_err);
     check_cl_error(__FILE__, __LINE__, cl_err);
+#ifdef CL_VERSION_1_2
+    int fill = INT_MAX;
     cl_err = clEnqueueFillBuffer(cmd_queue, result, &fill, sizeof(int), 0,
             sizeof(int)*num_buffers, 0, 0, ret_evt);
     check_cl_error(__FILE__, __LINE__, cl_err);
+#else
+    int * fill_buf = malloc(sizeof(int)*num_buffers);
+    for (uint32_t i = 0; i < num_buffers && i < UINT_MAX; i++)
+        fill_buf[i] = INT_MAX;
+    // Must do a blocking write here so that we can appropriately free fill_buf
+    // This will be slower, but this is only slow on old OpenCL 1.1 systems.
+    cl_err = clEnqueueWriteBuffer(cmd_queue, result, CL_BLOCKING, 0,
+            sizeof(int)*num_buffers, fill_buf, 0, NULL, ret_evt);
+    check_cl_error(__FILE__, __LINE__, cl_err);
+    free(fill_buf);
+#endif
     return result;
 }
 

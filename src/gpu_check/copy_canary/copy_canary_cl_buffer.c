@@ -222,14 +222,20 @@ static cl_event perform_cl_buffer_checks(cl_context kern_ctx,
         add_to_kern_runtime((times[3] - times[2]) / 1000);
     }
 
-    cl_event mend_finish, finish;
+    cl_event finish;
     if(!get_error_envvar())
     {
+#ifdef CL_VERSION_1_2
+        cl_event mend_finish;
         cl_err = clEnqueueMarkerWithWaitList(cmd_queue, total_buffs,
                 mend_events, &mend_finish);
         check_cl_error(__FILE__, __LINE__, cl_err);
         cl_event evt_list[] = {mend_finish, kern_end};
         cl_err = clEnqueueMarkerWithWaitList(cmd_queue, 2, evt_list, &finish);
+#else
+        (void)mend_events;
+        cl_err = clEnqueueMarker(cmd_queue, &finish);
+#endif
         check_cl_error(__FILE__, __LINE__, cl_err);
     }
     else

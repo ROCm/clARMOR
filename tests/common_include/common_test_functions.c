@@ -148,8 +148,10 @@ void check_opts(const int argc, char** argv, const char *description,
                     *dev_type = CL_DEVICE_TYPE_CPU;
                 else if (!strcmp(optarg, "accelerator"))
                     *dev_type = CL_DEVICE_TYPE_ACCELERATOR;
+#ifdef CL_VERSION_1_2
                 else if (!strcmp(optarg, "custom"))
                     *dev_type = CL_DEVICE_TYPE_CUSTOM;
+#endif
                 else
                 {
                     fprintf(stderr, "Unknown device type: %s\n", optarg);
@@ -483,9 +485,11 @@ unsigned int get_image_data_size(const cl_image_format * const format)
             byteChannel = 2;
             numChannels = 1; //CL_RGB or CL_RGBx, 4 channel x,5,5,5
             break;
+#ifdef CL_VERSION_1_2
         case CL_UNORM_INT24:
             byteChannel = 3;
             break;
+#endif
         case CL_SIGNED_INT32:
         case CL_UNSIGNED_INT32:
         case CL_FLOAT:
@@ -508,7 +512,9 @@ unsigned int get_image_data_size(const cl_image_format * const format)
             break;
         case CL_INTENSITY:
         case CL_LUMINANCE:
+#ifdef CL_VERSION_1_2
         case CL_DEPTH:
+#endif
             numChannels = 1;
             break;
         case CL_RG:
@@ -538,9 +544,11 @@ unsigned int get_image_data_size(const cl_image_format * const format)
 #endif
             numChannels = 4;
             break;
+#ifdef CL_VERSION_1_2
         case CL_DEPTH_STENCIL:
             numChannels = 1;
             break;
+#endif
         default:
             numChannels = 0;
     }
