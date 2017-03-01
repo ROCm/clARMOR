@@ -1,0 +1,15 @@
+language: cpp
+sudo: required
+dist: trusty
+compiler:
+  - clang
+  - gcc
+before_install:
+  - sudo apt-get update -qq
+  - sudo apt-get install -y python-argparse cppcheck clang
+script:
+  - travis_retry ./prereqs/support_files/get_amd_app_sdk.sh -d $(pwd)
+  - export AMDAPPSDKROOT=$(pwd)/AMDAPP/
+  - export OPENCL_VENDOR_PATH=${AMDAPPSDKROOT}/etc/OpenCL/vendors
+  - export LD_LIBRARY_PATH=${AMDAPPSDKROOT}/lib/x86_64/sdk:${AMDAPPSDKROOT}/lib/x86_64:${LD_LIBRARY_PATH}
+  - ./tests/automated_test.sh -b -t -p
