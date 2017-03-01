@@ -320,8 +320,11 @@ int main(int argc, char** argv)
     flags = CL_MEM_READ_WRITE;
 
     cl_image_format format;
-    uint32_t i, j;
-    uint32_t shortWidth, shortHeight, shortDepth;
+    uint32_t i = 0;
+    uint32_t j = 0;
+    uint32_t shortWidth = 0;
+    uint32_t shortHeight = 0;
+    uint32_t shortDepth = 0;
     shortWidth = 0;
     shortHeight = 0;
     shortDepth = 0;

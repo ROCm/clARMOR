@@ -314,8 +314,9 @@ int main(int argc, char** argv)
     cl_mem_flags flags;
 
     cl_image_format format;
-    uint32_t i, j;
-    unsigned dataSize;
+    uint32_t i = 0;
+    uint32_t j = 0;
+    unsigned dataSize = 0;
 
     printf("\n\nHost Pointer Image2D Test...\n");
 
