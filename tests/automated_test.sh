@@ -1,5 +1,5 @@
 #!/bin/bash
-# Copyright (c) 2016 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright (c) 2016-2017 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -34,21 +34,29 @@
 #
 # When the "-b" parameter is set, this script will:
 # Run all of our automated build-time tests. In particular:
-# cppcheck, pylint, scan-build, and 'make test'.
+# cppcheck, pylint, and scan-build.
+#
+# When the "-t" parameter is set, thsi script will:
+# Run our 'make test' functional tests with various settings (e.g. checking
+# the result of 'make test' when running the checker kernels on the CPU,
+# GPU, various heuristics to pick between them, etc.)
+#
 # Because these may use different compiler chains, we allow the "-c" flag to
 # set either GCC or LLVM. Alternately, setting the CC and CXX command-line
 # variables also allows you to control which build system is used.
 
 print_usage()
 {
-    echo -e "Usage: $0 [-h] [-g GROUP_TO_BENCHMARK] [-b [-c {gcc/llvm}]]" 1>&2
+    echo -e "Usage: $0 [-h] [-g GROUP_TO_BENCHMARK] [-b] [-t] [-c {gcc/llvm}] [-p]" 1>&2
     echo -e "   -h will print this help message and exit." 1>&2
     echo -e "   -g is the required name of the benchmark group to test." 1>&2
-    echo -e "   -b will add in a series of build tests irrespective of the requested group." 1>&2
-    echo -e "   -c When using the -b option, this flag lets you pick 'gcc' or 'llvm' as your build system." 1>&2
+    echo -e "   -b will add in a series of build-time tests irrespective of the requested group." 1>&2
+    echo -e "   -t will perform a series of functional tests (i.e. 'make test' with various settings)." 1>&2
+    echo -e "   -c When using the -b or -t options, this flag lets you pick 'gcc' or 'llvm' as your build system." 1>&2
     echo -e "       The default is whatever the default CC and CXX are on your system." 1>&2
     echo -e "       If both this flag and CC/CXX are unset, we default to the apps 'cc' and 'c++'" 1>&2
-    echo -e "You should use at least one of these options to test something."
+    echo -e "   -p If there are any errors during the process, print the entire error log to the screen." 1>&2
+    echo -e "You should use at least one of the -g, -b, or -t options to test something."
 }
 
 print_help_and_exit()
@@ -106,11 +114,13 @@ build_info_check()
 has_ever_failed=0
 
 build_tests=0
+functional_tests=0
 group_tests=0
+print_errors=0
 unset group
 compiler_to_use="nothing"
 
-while getopts "hg:vbc:" option;
+while getopts "hg:vbc:pt" option;
 do
     case "${option}" in
         h)
@@ -126,15 +136,21 @@ do
             group_tests=1
             group=${OPTARG}
             ;;
+        p)
+            print_errors=1
+            ;;
+        t)
+            functional_tests=1
+            ;;
         *)
             print_error_and_exit
             ;;
     esac
 done
 
-if [ $build_tests -eq 0 ] && [ $group_tests -eq 0 ]
+if [ $build_tests -eq 0 ] && [ $group_tests -eq 0 ] && [ $functional_tests -eq 0 ]
 then
-    echo -e "\n\nERROR: Must pass -b and/or -g command-line option."
+    echo -e "\n\nERROR: Must pass -b, -g, and/or -t command-line option."
     echo -e "Right now, you are running *no* tests.\n\n"
     print_error_and_exit
 fi
@@ -142,7 +158,7 @@ fi
 BASE_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
 # This section runs the build tests if you pass -b
-if [ $build_tests -ne 0 ]
+if [ $build_tests -ne 0 ] || [ $functional_tests -ne 0 ]
 then
     if [ "${compiler_to_use}" == "gcc" ] || [ "${compiler_to_use}" == "GCC" ]
     then
@@ -169,7 +185,10 @@ then
     fi
     export CC
     export CXX
+fi
 
+if [ $build_tests -ne 0 ]
+then
     print_date=`date`
     echo ""
     echo -e "Starting basic 'make' at $print_date ..."
@@ -182,7 +201,13 @@ then
     then
         print_failure $ret_val
         has_ever_failed=$ret_val
-        echo -e "   Check out ${BASE_DIR}/auto_test_make.out to find out what happened."
+        if [ $print_errors -eq 0 ]
+        then
+            echo -e "   Check out ${BASE_DIR}/auto_test_make.out to find out what happened."
+        else
+            echo -e "   Printing out error log from ${BASE_DIR}/auto_test_make.out."
+            cat ${BASE_DIR}/auto_test_make.out
+        fi
         echo -e "Stopping test since things won't successfully build."
         exit -1
     else
@@ -202,7 +227,13 @@ then
     then
         print_failure $ret_val
         has_ever_failed=$ret_val
-        echo -e "   Check out ${BASE_DIR}/auto_test_check.out to find out what happened."
+        if [ $print_errors -eq 0 ]
+        then
+            echo -e "   Check out ${BASE_DIR}/auto_test_check.out to find out what happened."
+        else
+            echo -e "   Printing out error log from ${BASE_DIR}/auto_test_check.out."
+            cat ${BASE_DIR}/auto_test_check.out
+        fi
     else
         print_success
     fi
@@ -220,7 +251,13 @@ then
     then
         print_failure $ret_val
         has_ever_failed=$ret_val
-        echo -e "   Check out ${BASE_DIR}/auto_test_pylint.out to find out what happened."
+        if [ $print_errors -eq 0 ]
+        then
+            echo -e "   Check out ${BASE_DIR}/auto_test_pylint.out to find out what happened."
+        else
+            echo -e "   Printing out error log from ${BASE_DIR}/auto_test_pylint.out."
+            cat ${BASE_DIR}/auto_test_pylint.out
+        fi
     else
         print_success
     fi
@@ -242,7 +279,13 @@ then
     then
         print_failure $ret_val
         has_ever_failed=$ret_val
-        echo -e "   Check out ${BASE_DIR}/auto_test_scan-build.out to find out what happened."
+        if [ $print_errors -eq 0 ]
+        then
+            echo -e "   Check out ${BASE_DIR}/auto_test_scan-build.out to find out what happened."
+        else
+            echo -e "   Printing out error log from ${BASE_DIR}/auto_test_scan-build.out."
+            cat ${BASE_DIR}/auto_test_scan-build.out
+        fi
     else
         print_success
     fi
@@ -275,9 +318,40 @@ then
     then
         print_failure $ret_val
         has_ever_failed=$ret_val
-        echo -e "   Check out ${BASE_DIR}/auto_test_scan-build_advanced.out to find out what happened."
+        if [ $print_errors -eq 0 ]
+        then
+            echo -e "   Check out ${BASE_DIR}/auto_test_scan-build_advanced.out to find out what happened."
+        else
+            echo -e "   Printing out error log from ${BASE_DIR}/auto_test_scan-build_advanced.out."
+            cat ${BASE_DIR}/auto_test_scan-build_advanced.out
+        fi
     else
         print_success
+    fi
+    echo ""
+fi
+
+if [ $functional_tests -ne 0 ]
+then
+    echo ""
+    echo "Starting functional tests by building clARMOR."
+    cd ${BASE_DIR}/../
+    make -j `nproc` &> ${BASE_DIR}/auto_test_make_test.out
+    ret_val=$?
+    if [ $ret_val -ne 0 ]
+    then
+        print_failure $ret_val
+        has_ever_failed=$ret_val
+        echo -e "   Tried to build clARMOR and it failed."
+        if [ $print_errors -eq 0 ]
+        then
+            echo -e "   Check out ${BASE_DIR}/auto_test_make_test.out to find out what happened."
+        else
+            echo -e "   Printing out error log from ${BASE_DIR}/auto_test_make_test.out."
+            cat ${BASE_DIR}/auto_test_make_test.out
+        fi
+        echo -e "Stopping test since clARMOR won't successfully build."
+        exit -1
     fi
     echo ""
 
@@ -301,7 +375,13 @@ then
         then
             print_failure $ret_val
             has_ever_failed=$ret_val
-            echo -e "   Check out ${BASE_DIR}/auto_test_make_test.out to find out what happened."
+            if [ $print_errors -eq 0 ]
+            then
+                echo -e "   Check out ${BASE_DIR}/auto_test_make_test.out to find out what happened."
+            else
+                echo -e "   Printing out error log from ${BASE_DIR}/auto_test_make_test.out."
+                cat ${BASE_DIR}/auto_test_make_test.out
+            fi
         else
             print_success
         fi
@@ -328,7 +408,13 @@ then
         then
             print_failure $ret_val
             has_ever_failed=$ret_val
-            echo -e "   Check out ${BASE_DIR}/auto_test_make_cpu_test.out to find out what happened."
+            if [ $print_errors -eq 0 ]
+            then
+                echo -e "   Check out ${BASE_DIR}/auto_test_make_cpu_test.out to find out what happened."
+            else
+                echo -e "   Printing out error log from ${BASE_DIR}/auto_test_make_cpu_test.out."
+                cat ${BASE_DIR}/auto_test_make_cpu_test.out
+            fi
         else
             print_success
         fi
@@ -355,7 +441,13 @@ then
         then
             print_failure $ret_val
             has_ever_failed=$ret_val
-            echo -e "   Check out ${BASE_DIR}/auto_test_make_test_device-1.out to find out what happened."
+            if [ $print_errors -eq 0 ]
+            then
+                echo -e "   Check out ${BASE_DIR}/auto_test_make_test_device-1.out to find out what happened."
+            else
+                echo -e "   Printing out error log from ${BASE_DIR}/auto_test_make_test_device-1.out."
+                cat ${BASE_DIR}/auto_test_make_test_device-1.out
+            fi
         else
             print_success
         fi
@@ -382,7 +474,13 @@ then
         then
             print_failure $ret_val
             has_ever_failed=$ret_val
-            echo -e "   Check out ${BASE_DIR}/auto_test_make_test_device-1_gpudetect-1.out to find out what happened."
+            if [ $print_errors -eq 0 ]
+            then
+                echo -e "   Check out ${BASE_DIR}/auto_test_make_test_device-1_gpudetect-1.out to find out what happened."
+            else
+                echo -e "   Printing out error log from ${BASE_DIR}/auto_test_make_test_device-1_gpudetect-1.out."
+                cat ${BASE_DIR}/auto_test_make_test_device-1_gpudetect-1.out
+            fi
         else
             print_success
         fi
@@ -409,7 +507,13 @@ then
         then
             print_failure $ret_val
             has_ever_failed=$ret_val
-            echo -e "   Check out ${BASE_DIR}/auto_test_make_test_device-1_gpudetect-2.out to find out what happened."
+            if [ $print_errors -eq 0 ]
+            then
+                echo -e "   Check out ${BASE_DIR}/auto_test_make_test_device-1_gpudetect-2.out to find out what happened."
+            else
+                echo -e "   Printing out error log from ${BASE_DIR}/auto_test_make_test_device-1_gpudetect-2.out."
+                cat ${BASE_DIR}/auto_test_make_teset_device-1_gpudetect-2.out
+            fi
         else
             print_success
         fi
@@ -436,7 +540,13 @@ then
         then
             print_failure $ret_val
             has_ever_failed=$ret_val
-            echo -e "   Check out ${BASE_DIR}/auto_test_make_test_device-2.out to find out what happened."
+            if [ $print_errors -eq 0 ]
+            then
+                echo -e "   Check out ${BASE_DIR}/auto_test_make_test_device-2.out to find out what happened."
+            else
+                echo -e "   Printing out error log from ${BASE_DIR}/auto_test_make_test_device-2.out."
+                cat ${BASE_DIR}/auto_test_make_test_device-2.out
+            fi
         else
             print_success
         fi
@@ -459,7 +569,13 @@ then
     then
         print_failure $ret_val
         has_ever_failed=$ret_val
-        echo -e "   Check out ${BASE_DIR}/auto_test_benchmarks.out to find out what happened."
+        if [ $print_errors -eq 0 ]
+        then
+            echo -e "   Check out ${BASE_DIR}/auto_test_benchmarks.out to find out what happened."
+        else
+            echo -e "   Printing out error log from ${BASE_DIR}/auto_test_benchmarks.out."
+            cat ${BASE_DIR}/auto_test_benchmarks.out
+        fi
     else
         print_success
     fi
