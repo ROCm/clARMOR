@@ -253,7 +253,7 @@ void verify_images(kernel_info *kern_info, uint32_t num_images,
         total_to_wait += number_of_image_reads(j_dat, k_dat);
     }
 
-    cl_event * image_read_events = malloc(total_to_wait * sizeof(cl_event));
+    cl_event * image_read_events = calloc(total_to_wait, sizeof(cl_event));
 
     for (uint32_t i = 0; i < num_images; i++)
     {
