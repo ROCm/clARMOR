@@ -60,7 +60,7 @@ clean:
 	$(MAKE) --directory=$(INFO_CHECK_DIR) clean
 
 check:
-	cppcheck --force --enable=warning,style,performance,portability,information,missingInclude --error-exitcode=-1 --std=c11 --std=c++11 --suppress=*:*cl_ext.h $(SOURCE_DIR) $(TEST_DIR) $(INCLUDE_FLAGS) -q -j `nproc`
+	cppcheck --force --enable=warning,style,performance,portability,information,missingInclude --error-exitcode=-1 --std=c11 --std=c++11 $(SOURCE_DIR) $(TEST_DIR) $(INCLUDE_FLAGS) -q -j `nproc` -i check_app_sdk.c
 
 pylint:
 	cd $(BIN_DIR); $(foreach file, $(shell ls $(BIN_DIR)/*.py |xargs -n 1 basename), pylint -E $(file);) \
