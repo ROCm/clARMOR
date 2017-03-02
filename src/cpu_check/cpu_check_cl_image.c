@@ -32,10 +32,6 @@
 
 #include "cpu_check_cl_image.h"
 
-// We are using cl_ext.h to check if we are using the AMD APP SDK v2.9.1
-// in a bugfix below.
-#include "CL/cl_ext.h"
-
 static void copy_end_of_row(cl_context kern_ctx, cl_command_queue cmd_queue,
         cl_memobj *img, char *canary, uint32_t i_dat, uint32_t j_dat,
         uint32_t i_lim, uint32_t j, uint32_t k, size_t data_size,
@@ -267,15 +263,16 @@ void verify_images(kernel_info *kern_info, uint32_t num_images,
                 image_read_events + total_evts_per_img[i]);
     }
 
-#if defined(CL_DEVICE_BOARD_NAME_AMD) && !defined(CL_DEVICE_AVAILABLE_ASYNC_QUEUES_AMD)
-    // BUGFIX -- Workaround.
-    // The AMD APP SDK v2.9.1 crashes here if you use clWaitForEvents.
-    // v3.0 fixes this, but the above define check catches versions
-    // older than 3.0 and falls back to this path.
-    cl_err = clFinish(cmd_queue);
-#else
-    cl_err = clWaitForEvents(total_to_wait, image_read_events);
-#endif
+    if (is_app_sdk_2_9())
+    {
+        // BUGFIX -- Workaround.
+        // The AMD APP SDK v2.9.1 crashes here if you use clWaitForEvents.
+        // v3.0 fixes this, but the above define check catches versions
+        // older than 3.0 and falls back to this path.
+        cl_err = clFinish(cmd_queue);
+    }
+    else
+        cl_err = clWaitForEvents(total_to_wait, image_read_events);
     check_cl_error(__FILE__, __LINE__, cl_err);
 
     for (uint32_t i = 0; i < num_images; i++)

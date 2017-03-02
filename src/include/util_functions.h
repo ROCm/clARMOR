@@ -234,6 +234,12 @@ int det_fprintf(FILE * stream, const char * format, ...);
  */
 int det_vfprintf(FILE * stream, const char * format, va_list arg );
 
+/*!
+ * Tell whether we are using the AMD APP SDK from before 2.9 or not.
+ *
+ */
+int is_app_sdk_2_9(void);
+
 
 #ifdef __cplusplus
 }
