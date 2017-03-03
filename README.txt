@@ -130,6 +130,7 @@ Running clARMOR
 
 clARMOR is primarily run using 'bin/clarmor'.
 Executing this tool with the '-h' or '--help' will explain its arguments.
+The '-v' or '--version' will describe describe the clARMOR version number.
 
 The simplest description of how to use the buffer overflow detector is to run:
     bin/clarmor -w {working directory} -r "{command line}"

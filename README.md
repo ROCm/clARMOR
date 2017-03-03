@@ -175,27 +175,33 @@ The simplest way to run all of the tests for clARMOR is to use the script at:
 
 This script will all of the tests below, back to back, and report the results
 to the screen. If any of the tests fail, the script will return a non-zero
-value. These tests are split into two categories, which the automated test
+value. These tests are split into three categories, which the automated test
 script will run, depending on command-line flags.
 
 1. Build-time tests --- This uses the '-b' option
-2. Tests against a benchmark group --- This uses the '-g {group}' option
+2. Functional tests --- This uses the '-t' option
+3. Tests against a benchmark group --- This uses the '-g {group}' option
 
 The simplest way to run tests is:
 
-    tests/automated_test.sh -b
+    tests/automated_test.sh -b -t
 
-The build-time tests are:
+The build-time tests ('-b' option) are:
 
+* `make` will ensure that clARMOR properly builds using the compilers defined
+in the CC and CXX environment variables
 * `make check` will run cppcheck, a static code analyzer, over all of the tools
 and tests that are included in the package.
 * `make pylint` will run pylint over all of the Python files in the project.
 * `scan-build make` can be used to verify that the Clang Static Analyzer does
 not find any problems in the tool. Shipping versions should come back
 clean in contemporary versions of scan-build at the time they ship.
+
+The functional tests ('-t' option) are:
 * `make test` will run a series of programs from the tests/ subdirectory
-(which are further describes in tests/README.txt).
-* `make cpu\_test` will run the same tests as the normal make test, but will
+(which are further describes in tests/README.txt). If GPU devices are not
+supported by the OpenCL runtime, this test does not run.
+* `make cpu_test` will run the same tests as the normal make test, but will
 ensure that they run on the CPU. This is useful for testing on systems
 that do not have a GPU. This requires an OpenCL runtime that allows kernels to
 run on the CPU. If CPU-side tests are not supported, this does not run.

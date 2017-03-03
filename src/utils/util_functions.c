@@ -64,7 +64,6 @@ static int get_env_util( char **env_, const char *env_var_nm_ )
     var_len = (env_root != NULL) ? strlen(env_root) : 0;
     if ( var_len == 0 )
         return 0;
-    // Need the +1 to hold the terminating null byte.
     int num_bytes = asprintf(env_, "%s", env_root);
     CHECK_ASPRINTF_RET(num_bytes);
     if (*env_ == NULL)
@@ -594,3 +593,16 @@ int det_vfprintf(FILE * stream, const char * format, va_list arg )
     return ret;
 }
 
+char *get_clarmor_version(void)
+{
+    char *version = NULL;
+    int num_bytes = asprintf(&version, "%s", CLARMOR_VERSION);
+    CHECK_ASPRINTF_RET(num_bytes);
+    if (version == NULL)
+    {
+        det_fprintf(stderr, "%s (%d) error: asprintf failed\n",
+                __func__, __LINE__);
+        return NULL;
+    }
+    return version;
+}

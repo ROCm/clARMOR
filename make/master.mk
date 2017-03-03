@@ -24,6 +24,8 @@
 
 HERE := $(dir $(lastword $(MAKEFILE_LIST)))
 
+CLARMOR_VERSION=$(shell git -C "$(HERE)" describe --dirty --long --match [0-9]*)
+
 ifeq ($(CC),cc)
 CC=gcc
 endif
@@ -111,13 +113,13 @@ CONLY_WARN=-Wold-style-definition
 
 # use the following line for normal operation, or use the second line following this one for debugging/profiling
 ifndef DEBUG
-C_AND_CXX_FLAGS=-g3 -ggdb -pthread -fPIC -DBASE_FILE_NAME=\"$(<F)\" -DLINUX $(WERROR_FLAG) $(WARN_FLAGS) $(INCLUDE_FLAGS) -O3 -march=native -DNDEBUG
+C_AND_CXX_FLAGS=-g3 -ggdb -pthread -fPIC -DBASE_FILE_NAME=\"$(<F)\" -DCLARMOR_VERSION=\"$(CLARMOR_VERSION)\" -DLINUX $(WERROR_FLAG) $(WARN_FLAGS) $(INCLUDE_FLAGS) -O3 -march=native -DNDEBUG
 else
-C_AND_CXX_FLAGS=-g3 -ggdb -pthread -fPIC -fno-omit-frame-pointer -DBASE_FILE_NAME=\"$(<F)\" -DLINUX $(WARN_FLAGS) $(INCLUDE_FLAGS) -O0 -DDEBUG
+C_AND_CXX_FLAGS=-g3 -ggdb -pthread -fPIC -fno-omit-frame-pointer -DBASE_FILE_NAME=\"$(<F)\" -DCLARMOR_VERSION=\"$(CLARMOR_VERSION)\" -DLINUX $(WARN_FLAGS) $(INCLUDE_FLAGS) -O0 -DDEBUG
 endif
 
 CFLAGS=$(C_AND_CXX_FLAGS) -std=gnu11 $(CONLY_WARN)
-CXXFLAGS=$(C_AND_CXX_FLAGS) -std=c++11 -DBASE_FILE_NAME=\"$(<F)\" -I$(HERE).. -fno-strict-aliasing -Wformat -Werror=format-security -fwrapv
+CXXFLAGS=$(C_AND_CXX_FLAGS) -std=c++11 -I$(HERE).. -fno-strict-aliasing -Wformat -Werror=format-security -fwrapv
 LDFLAGS=-Wl,--as-needed -lstdc++ -L$(OCL_LIB_DIR) -lOpenCL
 # Use either of the following two in LDFLAGS in order to build this tool with
 # memory corruption protection. Use only one at at a time.
