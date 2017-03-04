@@ -34,7 +34,6 @@ static void run_2d_test(const cl_device_id device, const cl_context context,
     uint64_t width, uint64_t height)
 {
     cl_int cl_err;
-    uint64_t buffer_size = width * height;
     size_t num_work_items[2];
 
     printf("\nRunning 2D Image Test...\n");
@@ -60,7 +59,7 @@ static void run_2d_test(const cl_device_id device, const cl_context context,
         printf("Reducing height to: %llu\n",
                 (long long unsigned)height);
     }
-    buffer_size = height * width;
+    uint64_t buffer_size = (uint64_t)height * width;
     printf("Using an image of size (H x W = size): %llu x %llu = %llu\n",
         (long long unsigned)height, (long long unsigned)width,
         (long long unsigned)buffer_size);
@@ -100,7 +99,7 @@ static void run_2d_test(const cl_device_id device, const cl_context context,
     printf("\nImage2D Test...\n");
 
 
-    char *host_ptr;
+    float *host_ptr;
     host_ptr = calloc(sizeof(float), buffer_size);
     size_t origin[3] = {0, 0, 0};
     size_t region[3] = {width, height, 1};
@@ -127,6 +126,7 @@ static void run_2d_test(const cl_device_id device, const cl_context context,
 
 
     clFinish(cmd_queue);
+    free(host_ptr);
     printf("Done.\n");
     clReleaseMemObject(good_buffer);
     clReleaseMemObject(bad_image);

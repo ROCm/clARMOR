@@ -271,7 +271,7 @@ then
     make clean &> /dev/null
     mv -f ${BASE_DIR}/../*.out ${BASE_DIR} &> /dev/null
     cd ${BASE_DIR}/../
-    scan-build --status-bugs make -j `nproc` &> ${BASE_DIR}/auto_test_scan-build.out
+    scan-build --status-bugs make -j `nproc` build_all_and_test &> ${BASE_DIR}/auto_test_scan-build.out
     ret_val=$?
     print_date=`date`
     echo -e "Finished at $print_date:"
@@ -310,7 +310,7 @@ then
     done
     SCAN_OPTIONS="--use-cc=${CC} --use-c++=${CXX} -maxloop 512 --status-bugs ${ENABLE_THESE_CHECKS}"
     cd ${BASE_DIR}/../
-    scan-build ${SCAN_OPTIONS} make -j `nproc` &> ${BASE_DIR}/auto_test_scan-build_advanced.out
+    scan-build ${SCAN_OPTIONS} make -j `nproc` build_all_and_test &> ${BASE_DIR}/auto_test_scan-build_advanced.out
     ret_val=$?
     print_date=`date`
     echo -e "Finished at $print_date:"

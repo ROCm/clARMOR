@@ -33,7 +33,7 @@ cpu_test:
 	$(THIS_DIR)/run_tests.sh cpu_test
 
 build_test:
-	$(THIS_DIR)/run_tests.sh build_test
+	+$(THIS_DIR)/run_tests.sh build_test
 
 .PHONY: all
 clean:

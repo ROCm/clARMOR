@@ -43,6 +43,9 @@ cpu_test: all
 build_test:
 	$(MAKE) --directory=$(TEST_DIR) build_test
 
+.PHONY: build_all_and_test
+build_all_and_test: all build_test
+
 .PHONY: clean
 clean:
 	$(RM) -f *.o *.d *.so* *.a *~ *.pyc

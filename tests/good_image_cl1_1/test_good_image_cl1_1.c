@@ -54,7 +54,6 @@ static void run_2d_test(const cl_device_id device, const cl_context context,
     uint64_t width, uint64_t height)
 {
     cl_int cl_err;
-    uint64_t buffer_size = width * height;
     size_t num_work_items[2];
     cl_kernel test_kernel = setup_kernel(program, "test_2d");
 
@@ -81,7 +80,7 @@ static void run_2d_test(const cl_device_id device, const cl_context context,
         printf("Reducing height to: %llu\n",
                 (long long unsigned)height);
     }
-    buffer_size = height * width;
+    uint64_t buffer_size = (uint64_t)height * width;
     printf("Using an image of size (H x W = size): %llu x %llu = %llu\n",
         (long long unsigned)height, (long long unsigned)width,
         (long long unsigned)buffer_size);
@@ -132,7 +131,6 @@ static void run_3d_test(const cl_device_id device, const cl_context context,
     uint64_t width, uint64_t height, uint64_t depth)
 {
     cl_int cl_err;
-    uint64_t buffer_size = width * height * depth;
     size_t num_work_items[3];
     cl_kernel test_kernel = setup_kernel(program, "test_3d");
 
@@ -167,7 +165,7 @@ static void run_3d_test(const cl_device_id device, const cl_context context,
         printf("Reducing depth to: %llu\n",
                 (long long unsigned)depth);
     }
-    buffer_size = height * width * depth;
+    uint64_t buffer_size = (uint64_t)height * width * depth;
     printf("Using an image of size (H x W x D = size): ");
     printf("%llu x %llu x %llu = %llu\n",
         (long long unsigned)height, (long long unsigned)width,

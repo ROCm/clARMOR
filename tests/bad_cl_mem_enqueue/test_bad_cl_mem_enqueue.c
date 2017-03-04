@@ -98,6 +98,7 @@ int main(int argc, char** argv)
 
 
     clFinish(cmd_queue);
+    free(host_ptr);
     printf("Done Running Bad cl_mem API Test.\n");
     return 0;
 }

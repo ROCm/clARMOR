@@ -94,6 +94,7 @@ int main(int argc, char** argv)
 
 
     clFinish(cmd_queue);
+    free(host_ptr);
     printf("Done Running Good cl_mem API Test.\n");
     return 0;
 }
