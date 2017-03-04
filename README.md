@@ -11,9 +11,9 @@ a deeper introduction can be found in the main README.txt file.
 
 Build Status
 --------------------------------------------------------------------------------
-| Build branch | master |
-|-----|-----|
-| GCC+Clang, Linux, AMD64 | [![Build Status](https://travis-ci.org/GPUOpen-ProfessionalCompute-Tools/clARMOR.svg?branch=master)](https://travis-ci.org/GPUOpen-ProfessionalCompute-Tools/clARMOR) |
+| Build branch | master | develop |
+|-----|-----|-----|
+| GCC+Clang, Linux, AMD64 | [![Build Status](https://travis-ci.org/GPUOpen-ProfessionalCompute-Tools/clARMOR.svg?branch=master)](https://travis-ci.org/GPUOpen-ProfessionalCompute-Tools/clARMOR/branches) | [![Build Status](https://travis-ci.org/GPUOpen-ProfessionalCompute-Tools/clARMOR.svg?branch=develop)](https://travis-ci.org/GPUOpen-ProfessionalCompute-Tools/clARMOR/branches) |
 
 Setting up and building clARMOR
 --------------------------------------------------------------------------------
