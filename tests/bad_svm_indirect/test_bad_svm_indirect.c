@@ -81,7 +81,7 @@ int main(int argc, char** argv)
 
     // Allocate upper-level buffers.
     // The base_buffer will hold a collection of pointers to other buffers.
-    void *base_buffer = clSVMAlloc(context, CL_MEM_READ_WRITE,
+    void **base_buffer = clSVMAlloc(context, CL_MEM_READ_WRITE,
         sizeof(void*) * num_sets, 0);
     if (base_buffer == NULL)
     {
@@ -108,13 +108,12 @@ int main(int argc, char** argv)
 
     // Allocate a sub-buffer into each of these base buffer entries.
     unsigned int i;
-    void **temp_buf = (void**)base_buffer;
     cl_uint *temp_len = (cl_uint *)base_lengths;
     for (i = 0; i < num_sets; i++)
     {
-        temp_buf[i] = clSVMAlloc(context, CL_MEM_READ_WRITE,
+        base_buffer[i] = clSVMAlloc(context, CL_MEM_READ_WRITE,
                 sizeof(cl_uint) * buffer_size, 0);
-        if (temp_buf[i] == NULL)
+        if (base_buffer[i] == NULL)
         {
             fprintf(stderr, "clSVMAlloc %u near %s:%d failed.\n", i, __FILE__,
                     __LINE__);

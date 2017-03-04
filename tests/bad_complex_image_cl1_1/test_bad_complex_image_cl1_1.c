@@ -356,12 +356,6 @@ int main(int argc, char** argv)
                 shortHeight = 10;
                 shortDepth = 0;
                 break;
-            case 2:
-                printf("\nThird Dimension Overflow...\n");
-                shortWidth = 0;
-                shortHeight = 0;
-                shortDepth = 10;
-                break;
         }
 
         for(i = 0; i < num_entries; i++)

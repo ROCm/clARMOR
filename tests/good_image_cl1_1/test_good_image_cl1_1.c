@@ -160,7 +160,7 @@ static void run_3d_test(const cl_device_id device, const cl_context context,
     }
     if (max_depth < (depth * 2))
     {
-        height = max_depth/2;
+        depth = max_depth/2;
         printf("    Requested image depth is too large. ");
         printf("Reducing depth to: %llu\n",
                 (long long unsigned)depth);

@@ -337,9 +337,10 @@ int main(int argc, char** argv)
 
     format.image_channel_order =  formats_2d[0].image_channel_order;
     format.image_channel_data_type = formats_2d[0].image_channel_data_type;
-    {
-        dataSize = get_image_data_size(&format);
 
+    dataSize = get_image_data_size(&format);
+    if (dataSize != 0)
+    {
         width = (buffer_size / dataSize) / reduce2d;
         height = reduce2d;
 
