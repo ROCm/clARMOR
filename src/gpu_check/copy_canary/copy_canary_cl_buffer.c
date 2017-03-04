@@ -75,6 +75,12 @@ static void *create_svm_copies(cl_context kern_ctx, cl_command_queue cmd_queue,
         exit(-1);
     }
     m1 = cl_svm_mem_find(get_cl_svm_mem_alloc(), svm_canary_copies);
+    if (m1 == NULL)
+    {
+        det_fprintf(stderr, "failure to find cl_svm_memobj at %s:%d.\n", __FILE__,
+                __LINE__);
+        exit(-1);
+    }
     m1->detector_internal_buffer = 1;
 
     for(uint32_t i = 0; i < num_svm; i++)
@@ -115,22 +121,23 @@ static void ** create_svm_ptr_copies(cl_context kern_ctx,
         void **ret_clmem, const cl_event *evt, cl_event *events)
 {
     void **ret_poison_ptrs = NULL;
+    if (num_svm <= 0)
+    {
+        if (ret_clmem != NULL)
+            *ret_clmem = NULL;
+        return NULL;
+    }
+
 #ifdef CL_VERSION_2_0
     cl_int cl_err;
     if (ret_clmem == NULL)
         return NULL;
 
-    if (num_svm > 0)
-    {
-        ret_poison_ptrs = calloc(sizeof(void*), num_svm);
-        *ret_clmem = clCreateBuffer(kern_ctx, 0, sizeof(void*)*num_svm, 0,
-                &cl_err);
-        check_cl_error(__FILE__, __LINE__, cl_err);
-    }
-    else
-    {
-        *ret_clmem = calloc(sizeof(void*), 1);
-    }
+    ret_poison_ptrs = calloc(sizeof(void*), num_svm);
+    cl_mem temp_ptr = clCreateBuffer(kern_ctx, 0, sizeof(void*)*num_svm, 0,
+            &cl_err);
+    *ret_clmem = (void*)temp_ptr;
+    check_cl_error(__FILE__, __LINE__, cl_err);
 
     for(uint32_t i = 0; i < num_svm; i++)
     {

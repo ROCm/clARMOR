@@ -48,7 +48,7 @@ uint64_t get_image_canary_size(cl_mem_object_type image_type,
         size_t data_size, uint32_t i_lim, uint32_t j_lim, uint32_t j_dat,
         uint32_t k_dat)
 {
-    uint64_t transfer_len = k_dat * j_dat * IMAGE_POISON_WIDTH;
+    uint64_t transfer_len = (uint64_t)k_dat * j_dat * IMAGE_POISON_WIDTH;
 
     //total size required for canary array
     switch(image_type)
@@ -56,9 +56,11 @@ uint64_t get_image_canary_size(cl_mem_object_type image_type,
         case CL_MEM_OBJECT_IMAGE2D_ARRAY:
         case CL_MEM_OBJECT_IMAGE3D:
             transfer_len += IMAGE_POISON_DEPTH * j_lim * i_lim;
+            // fall through
         case CL_MEM_OBJECT_IMAGE1D_ARRAY:
         case CL_MEM_OBJECT_IMAGE2D:
             transfer_len += k_dat * IMAGE_POISON_HEIGHT * i_lim;
+            // fall through
         case CL_MEM_OBJECT_IMAGE1D:
         case CL_MEM_OBJECT_IMAGE1D_BUFFER:
             break;

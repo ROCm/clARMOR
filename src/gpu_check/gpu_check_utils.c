@@ -457,8 +457,7 @@ static void check_if_same_kernel(cl_kernel *kernel_ptr, cl_context context,
                 clReleaseKernel(kernel);
                 kernel = NULL;
             }
-            if (kernelName != NULL)
-                free(kernelName);
+            free(kernelName);
         }
     }
 }

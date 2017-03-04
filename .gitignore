@@ -101,3 +101,6 @@ celerybeat-schedule
 .venv
 venv/
 ENV/
+
+#Coverity Scan
+cov-int

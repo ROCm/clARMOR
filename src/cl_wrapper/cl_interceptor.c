@@ -1549,7 +1549,7 @@ clSetKernelArgSVMPointer(
             // such, it silently accepts NULL values here and then fails to
             // properly run the kernel later. This action is a fixup that
             // will stop this problem from happening for applications that
-            // coreclty check the return value of clSetKernelArgSVMPointer().
+            // correctly check the return value of clSetKernelArgSVMPointer().
             return CL_INVALID_ARG_VALUE;
         }
 
@@ -1615,8 +1615,9 @@ clSetKernelArgSVMPointer(
             // Doing this weird memory copy because arg_value comes in as a const.
             // We want to put it into a non-const value.
             // As such, we will just copy the pointer by value using memcpy.
-            arg_temp->value = calloc(sizeof(void*), 1);
-            memcpy(arg_temp->value, &arg_value, sizeof(void*));
+            void **value_ptr = calloc(sizeof(void*), 1);
+            memcpy(value_ptr, &arg_value, sizeof(void*));
+            arg_temp->value = (void*)value_ptr;
 
             // The regular non-SVM buffer should always be NULL, since we are
             // setting this kernel argument with the SetSVMPointer function.

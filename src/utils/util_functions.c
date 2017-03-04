@@ -1,5 +1,5 @@
 /********************************************************************************
- * Copyright (c) 2016 Advanced Micro Devices, Inc. All rights reserved.
+ * Copyright (c) 2016-2017 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -59,6 +59,7 @@ static int get_env_util( char **env_, const char *env_var_nm_ )
         det_fprintf(stderr, "%s (%d) error: ", __func__, __LINE__);
         det_fprintf(stderr, "trying to find environment variable, ");
         det_fprintf(stderr, "but variable is NULL.\n");
+        return -1;
     }
     env_root = getenv(env_var_nm_);
     var_len = (env_root != NULL) ? strlen(env_root) : 0;
@@ -310,6 +311,8 @@ char* get_backtrace_human_readable(void* bt, char* bt_symbol)
             "addr2line %p -i -s -p -C -e %.*s | sed 's/ .inlined by. //'",
             bt, p, bt_symbol);
     CHECK_ASPRINTF_RET(num_bytes);
+    if (syscom == NULL)
+        return NULL;
 
     // Before we call the command line, we need to remove any LD_PRELOAD
     char *save_environ = NULL;
@@ -543,7 +546,11 @@ int det_printf(const char * format, ...)
 
     va_start(args, format);
     err = vprintf(format, args);
-    if(err < 0) return err;
+    if(err < 0)
+    {
+        va_end(args);
+        return err;
+    }
     ret += err;
     va_end(args);
 
@@ -566,7 +573,11 @@ int det_fprintf(FILE * stream, const char * format, ...)
 
     va_start(args, format);
     err = vfprintf(stream, format, args);
-    if(err < 0) return err;
+    if(err < 0)
+    {
+        va_end(args);
+        return err;
+    }
     ret += err;
     va_end(args);
 

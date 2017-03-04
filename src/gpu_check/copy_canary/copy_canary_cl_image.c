@@ -33,6 +33,9 @@
 static uint32_t find_canary_ends(void **image_ptrs, uint32_t num_images,
         uint32_t *canary_ends)
 {
+    if (num_images == 0)
+        return 0;
+
     for(uint32_t i = 0; i < num_images; i++)
     {
         cl_memobj *img = cl_mem_find(get_cl_mem_alloc(), image_ptrs[i]);
