@@ -116,10 +116,10 @@ def add_arguments(parser):
     parser.add_argument('-t', '--time_file', dest='time_file',
             default=None, help='Record application runtime to named file in CSV format.')
     parser.add_argument('-c', '--device_select', dest='device_select',
-            default=None, help=('force check onto specific device ' +
-                                '1=DEVICE_GPU' +
-                                '2=DEVICE_CPU' +
-                                'if unset, clARMOR will choose' +
+            default=None, help=('force check onto specific device. ' +
+                                '1=DEVICE_GPU. ' +
+                                '2=DEVICE_CPU. ' +
+                                'if unset, clARMOR will choose. ' +
                                 'Sets the CLARMOR_DEVICE_SELECT environment variable.'))
     parser.add_argument('-m', '--gpu_method', dest='gpu_method',
             default=None, help=('Set what kind of GPU-based checks to use. ' +

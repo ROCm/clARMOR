@@ -31,6 +31,35 @@
 
 #include "check_utils.h"
 
+
+// When cleaning up an image's canaries, we need to temporarily allocate the
+// data that we will copy onto its old canaries. Because our image fill
+// commands can run asynchronously, we need to have a callback function
+// that will free these temporary allocations only after the canaries have
+// been filled. Thus the struct and callback function you see below.
+typedef struct clean_these_ptrs {
+    void *first;
+    void *second;
+    void *third;
+} clean_these_ptrs_t;
+
+static void free_temp_canaries(cl_event event, cl_int status, void* to_free)
+{
+    (void)event;
+    (void)status;
+    clean_these_ptrs_t *clean_me = (clean_these_ptrs_t*)to_free;
+    if (clean_me != NULL)
+    {
+        if (clean_me->first != NULL)
+            free(clean_me->first);
+        if (clean_me->second != NULL)
+            free(clean_me->second);
+        if (clean_me->third != NULL)
+            free(clean_me->third);
+        free(clean_me);
+    }
+}
+
 /*
  * refresh the poison canaries for an image
  *
@@ -76,25 +105,38 @@ void poisonFillImageCanaries(cl_command_queue cmdQueue, cl_memobj *img, uint32_t
 
     //largest size for a color
     const uint32_t len = 16;
-    void *poison_ptr;
-    poison_ptr = malloc(len);
-    memset(poison_ptr, POISON_FILL, len);
 
-#ifndef CL_VERSION_1_2
-    // Without OpenCL 1.2 support for clEnqueueFillImage(), we fall back to
-    // synchronously filling in the image using clEnqueueWriteBufferRect.
-    // We do this synchronously because we need to alloc and dealloc the
-    // host-side buffer that we will copy out of.
-    // This is slower, but it only affects older systems.
     if (numEvts > 0)
     {
         cl_err = clWaitForEvents(numEvts, evt);
         check_cl_error(__FILE__, __LINE__, cl_err);
     }
-    char * poison_data;
-#endif
 
     uint32_t evt_i = 0;
+
+    void *first_poison = NULL;
+    void *second_poison = NULL;
+    void *third_poison = NULL;
+
+    // End of each row
+    first_poison = malloc(len * IMAGE_POISON_WIDTH);
+    memset(first_poison, POISON_FILL, len * IMAGE_POISON_WIDTH);
+
+    // Each full-row canary in a 2d plane
+    if(j_lim > 1 && i_lim > 0)
+    {
+        second_poison = malloc(len * i_lim * IMAGE_POISON_HEIGHT);
+        memset(second_poison, POISON_FILL, len * i_lim * IMAGE_POISON_HEIGHT);
+    }
+
+    // Each full-plane canary for a 3d image
+    if(k_lim > 1 && j_lim > 0 && i_lim > 0)
+    {
+        third_poison = malloc(len * i_lim * j_lim * IMAGE_POISON_DEPTH);
+        memset(third_poison, POISON_FILL, len * i_lim * j_lim * IMAGE_POISON_DEPTH);
+    }
+
+
     for(k=0; k < k_dat; k++)
     {
         if(i_lim > 1)
@@ -107,21 +149,12 @@ void poisonFillImageCanaries(cl_command_queue cmdQueue, cl_memobj *img, uint32_t
                 region[0] = IMAGE_POISON_WIDTH;
                 region[1] = 1;
                 region[2] = 1;
-#ifdef CL_VERSION_1_2
-                cl_err = clEnqueueFillImage(cmdQueue, img->handle, poison_ptr, origin, region,
-                                            numEvts, evt, &writeEvents[evt_i]);
-                check_cl_error(__FILE__, __LINE__, cl_err);
-#else
-                poison_data = malloc(len * IMAGE_POISON_WIDTH);
-                memset(poison_data, POISON_FILL, len * IMAGE_POISON_WIDTH);
                 cl_err = clEnqueueWriteImage(cmdQueue, img->handle,
-                        CL_BLOCKING, origin, region,
+                        CL_NON_BLOCKING, origin, region,
                         img->image_desc.image_row_pitch,
                         img->image_desc.image_slice_pitch,
-                        poison_data, 0, NULL, &writeEvents[evt_i]);
+                        first_poison, 0, NULL, &writeEvents[evt_i]);
                 check_cl_error(__FILE__, __LINE__, cl_err);
-                free(poison_data);
-#endif
                 evt_i++;
             }
         }
@@ -134,21 +167,12 @@ void poisonFillImageCanaries(cl_command_queue cmdQueue, cl_memobj *img, uint32_t
             region[0] = i_lim;
             region[1] = IMAGE_POISON_HEIGHT;
             region[2] = 1;
-#ifdef CL_VERSION_1_2
-            cl_err = clEnqueueFillImage(cmdQueue, img->handle, poison_ptr, origin, region,
-                                        numEvts, evt, &writeEvents[evt_i]);
-            check_cl_error(__FILE__, __LINE__, cl_err);
-#else
-            poison_data = malloc(len * i_lim * IMAGE_POISON_HEIGHT);
-            memset(poison_data, POISON_FILL, len * i_lim * IMAGE_POISON_HEIGHT);
             cl_err = clEnqueueWriteImage(cmdQueue, img->handle,
-                    CL_BLOCKING, origin, region,
+                    CL_NON_BLOCKING, origin, region,
                     img->image_desc.image_row_pitch,
                     img->image_desc.image_slice_pitch,
-                    poison_data, 0, NULL, &writeEvents[evt_i]);
+                    second_poison, 0, NULL, &writeEvents[evt_i]);
             check_cl_error(__FILE__, __LINE__, cl_err);
-            free(poison_data);
-#endif
             evt_i++;
         }
     }
@@ -161,21 +185,12 @@ void poisonFillImageCanaries(cl_command_queue cmdQueue, cl_memobj *img, uint32_t
         region[0] = i_lim;
         region[1] = j_lim;
         region[2] = IMAGE_POISON_DEPTH;
-#ifdef CL_VERSION_1_2
-        cl_err = clEnqueueFillImage(cmdQueue, img->handle, poison_ptr, origin, region,
-                                    numEvts, evt, &writeEvents[evt_i]);
-        check_cl_error(__FILE__, __LINE__, cl_err);
-#else
-        poison_data = malloc(len * i_lim * j_lim * IMAGE_POISON_DEPTH);
-        memset(poison_data, POISON_FILL, len * i_lim * j_lim * IMAGE_POISON_DEPTH);
         cl_err = clEnqueueWriteImage(cmdQueue, img->handle,
-                CL_BLOCKING, origin, region,
+                CL_NON_BLOCKING, origin, region,
                 img->image_desc.image_row_pitch,
                 img->image_desc.image_slice_pitch,
-                poison_data, 0, NULL, &writeEvents[evt_i]);
+                third_poison, 0, NULL, &writeEvents[evt_i]);
         check_cl_error(__FILE__, __LINE__, cl_err);
-        free(poison_data);
-#endif
         evt_i++;
     }
 
@@ -189,13 +204,21 @@ void poisonFillImageCanaries(cl_command_queue cmdQueue, cl_memobj *img, uint32_t
 #endif
     check_cl_error(__FILE__, __LINE__, cl_err);
 
+    clean_these_ptrs_t *clean_me = malloc(sizeof(clean_these_ptrs_t));
+    clean_me->first = first_poison;
+    clean_me->second = second_poison;
+    clean_me->third = third_poison;
+
+    cl_err = clSetEventCallback(finishWrites, CL_COMPLETE,
+            free_temp_canaries, clean_me);
+    check_cl_error(__FILE__, __LINE__, cl_err);
+
+
     if(retEvt)
         *retEvt = finishWrites;
 
     if(writeEvents)
         free(writeEvents);
-
-    free(poison_ptr);
 }
 
 /*

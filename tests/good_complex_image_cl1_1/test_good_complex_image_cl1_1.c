@@ -440,6 +440,16 @@ int main(int argc, char** argv)
         check_cl_error(__FILE__, __LINE__, cl_err);
 
         clFinish(cmd_queue);
+
+        // Run this a second time, because we've seen regressions where the
+        // action of "refresh the canary region after running the check"
+        // will actually corrupt certain pixel types. Running a second test
+        // on the same buffer will then find those corrupted canaries
+        cl_err = clEnqueueNDRangeKernel(cmd_queue, test_kernel, 1, NULL,
+                &work_items_to_use, NULL, 0, NULL, NULL);
+        check_cl_error(__FILE__, __LINE__, cl_err);
+
+        clFinish(cmd_queue);
         clReleaseMemObject(good_buffer);
     }
 
@@ -499,6 +509,12 @@ int main(int argc, char** argv)
 
         work_items_to_use = buffer_size / dataSize;//getNumWorkItems(buffer_size);
 
+        cl_err = clEnqueueNDRangeKernel(cmd_queue, test_kernel, 1, NULL,
+                &work_items_to_use, NULL, 0, NULL, NULL);
+        check_cl_error(__FILE__, __LINE__, cl_err);
+        clFinish(cmd_queue);
+
+        // See above for why we're running this a second time.
         cl_err = clEnqueueNDRangeKernel(cmd_queue, test_kernel, 1, NULL,
                 &work_items_to_use, NULL, 0, NULL, NULL);
         check_cl_error(__FILE__, __LINE__, cl_err);

@@ -40,7 +40,7 @@ cpu_test: all
 	$(MAKE) --directory=$(TEST_DIR) cpu_test
 
 .PHONY: build_test
-build_test:
+build_test: all
 	$(MAKE) --directory=$(TEST_DIR) build_test
 
 .PHONY: build_all_and_test
