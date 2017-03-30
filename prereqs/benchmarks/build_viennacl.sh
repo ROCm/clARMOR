@@ -22,15 +22,15 @@
 
 # This script will download ViennaCL 1.7.1 from the NA cluster head node
 # and build it into the ~/benchmarks/ViennaCL-1.7.1 directory.
-# The apps can be run with clarmor.py --group=VIENNACL
+# The apps can be run with clarmor --group=VIENNACL
 
 # Licensing Information:
 # ViennaCL is distributed under an MIT license. See: ViennaCL-1.7.1/LICENSE
 
 BASE_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-source ${BASE_DIR}/setup_bench_install.sh
 
 if [ ! -f ~/benchmarks/ViennaCL-1.7.1/build/examples/benchmarks/dense_blas-bench-opencl ]; then
+    source ${BASE_DIR}/setup_bench_install.sh
     if [ ! -f ~/benchmarks/ViennaCL-1.7.1.tar.gz ];
     then
         cd ~/benchmarks/

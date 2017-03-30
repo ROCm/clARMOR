@@ -24,7 +24,7 @@
 # the ~/benchmarks/AMDAPP/ folder so that we can make some
 # performance-enhancing modifications (mostly putting data in the right
 # side of the PCIe bus).
-# The apps can be run with clarmor.py --group=AMDAPP
+# The apps can be run with clarmor --group=AMDAPP
 
 # Licensing Information:
 # The benchmarks in the AMD APP SDK are made available under the AMD Software

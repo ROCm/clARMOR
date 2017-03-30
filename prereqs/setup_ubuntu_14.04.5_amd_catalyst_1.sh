@@ -1,5 +1,5 @@
 #!/bin/bash
-# Copyright (c) 2016 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright (c) 2016-2017 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -19,9 +19,10 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
-
-# The following is a step-by-step guide for installing the appropriate
-# tools and software for using clARMOR on a fresh Ubuntu 14.04.4 install.
+# The following script will set up a fresh Ubuntu 14.04.5 LTS installation
+# with the AMD Catalyst drivers and the AMD APP SDK 3.0. This will allow
+# OpenCL 2.0 applications to be run over SSH connections, etc. and enable
+# clARMOR.
 
 # Note that there's very likely some overkill on the installs here. This is
 # based off a more comprehensive set of installation directions for a larger
@@ -29,11 +30,10 @@
 # A lot of the X11 libraries are needed for benchmarks like Phoronix, however.
 
 #==============================================================================
-#Install Ubuntu 14.04.4 LTS
+#Install Ubuntu 14.04.5 LTS
 #==============================================================================
-#Use USB thumb drive with Ubuntu 14.04.4 LTS installed to boot
-#After booted, select install Ubuntu
-
+# Use USB thumb drive with Ubuntu 14.04.5 LTS installed to boot
+# After booted, select install Ubuntu, put it on your local hard disk, then:
 
 #!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 # It's highly recommended that when you perform the installation, you set up
@@ -57,26 +57,15 @@ if [ $user_exists -ne 0 ]; then
     exit -1
 fi
 
-# Check to see if the AMD APP SDK installer is available.
-# If not, give an error and quit, because we want the user to download it.
-# If it's around, we will install it later, which will require manual
-# interaction with the user.
-#==============================================================================
 BASE_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-if [ ! -f $BASE_DIR/AMD-APP-SDKInstaller-v3.0.130.136-GA-linux64.tar.bz2 ]; then
-    echo -e "Unable to find the AMD APP SDK installation files, AMD-APP-SDKInstaller-v3.0.130.136-GA-linux64.tar.bz2"
-    echo -e "Downloading the AMD APP SDK requires agreeing to a license."
-    echo -e "As such, we cannot automatically download it for you."
-    echo -e "Please go to http://developer.amd.com/tools-and-sdks/opencl-zone/amd-accelerated-parallel-processing-app-sdk/"
-    echo -e "   Download the file and put it into $BASE_DIR"
-    exit -1
-fi
+INSTALLER_DIR=${BASE_DIR}/install_files/
+mkdir -p ${INSTALLER_DIR}
 
 #Do basic post-install stuff
 #==============================================================================
 sudo apt-get update
 sudo apt-get -y upgrade
-sudo apt-get -y install openssh-server nfs-common sysstat memstat pbzip2 screen
+sudo apt-get -y install git openssh-server
 
 #Add a group that all users will share with the guiuser that you should have
 # added during the installation.
@@ -106,26 +95,55 @@ sudo sh -c "echo autologin-user=guiuser >> /etc/lightdm/lightdm.conf"
 #==============================================================================
 sudo apt-get update
 sudo apt-get -y upgrade
-sudo apt-get -y install dh-modaliases execstack dpkg-dev debhelper dkms lib32gcc1 libqtgui4 linux-headers-generic dh-make cdbs build-essential cscope cscope-el diffstat diffutils elfutils g++ gdb less m4 make makedev mercurial patch patchutils perl protobuf-compiler python python-dev scons tcpdump tcsh vim wget xemacs21 zlib1g zlib1g-dev libprotobuf8 libprotobuf-dev libperl-dev dwarfdump libdw-dev libgtk2.0-dev environment-modules gawk libtext-lorem-perl
-sudo apt-get -y install --install-recommends xserver-xorg-core-lts-vivid xserver-xorg-lts-vivid xserver-xorg-video-all-lts-vivid xserver-xorg-input-all-lts-vivid libwayland-egl1-mesa-lts-vivid libgl1-mesa-glx-lts-vivid libglapi-mesa-lts-vivid libgles1-mesa-lts-vivid libegl1-mesa-lts-vivid xserver-xorg-dev-lts-vivid mesa-common-dev-lts-vivid libxatracker-dev-lts-vivid libgles2-mesa-dev-lts-vivid libgles1-mesa-dev-lts-vivid libgl1-mesa-dev-lts-vivid libgbm-dev-lts-vivid libegl1-mesa-dev-lts-vivid freeglut3 freeglut3-dev libglew-dev
+# Need these for the Catalyst driver
+sudo apt-get -y install dh-modaliases execstack dpkg-dev debhelper dkms
+# General development stuff
+sudo apt-get -y install lib32gcc1 build-essential g++ gdb m4 make patch patchutils perl python vim emacs wget libperl-dev libtext-lorem-perl
+
+# Must install the 14.04.4 kernel (Wily -- 4.2) because the version that comes
+# with 14.04.5 (4.4) does not support fglrx so we won't get a working graphics
+# stack when we install it below.
+sudo apt-get -y install linux-generic-lts-wily
+sudo update-grub
+sudo sed -i.bak 's/GRUB_DEFAULT=0/GRUB_DEFAULT="1>Ubuntu, with Linux 4.2.0-42-generic"/' /etc/default/grub
+sudo update-grub
+sudo update-grub
+
+# Install an older version of X11, since the version that comes with 14.04.5 does not
+# support the fglrx graphics stack
+sudo apt-get -y install --install-recommends libqtgui4 xserver-xorg-core-lts-vivid xserver-xorg-lts-vivid xserver-xorg-video-all-lts-vivid xserver-xorg-input-all-lts-vivid libwayland-egl1-mesa-lts-vivid libgl1-mesa-glx-lts-vivid libglapi-mesa-lts-vivid libgles1-mesa-lts-vivid libegl1-mesa-lts-vivid xserver-xorg-dev-lts-vivid mesa-common-dev-lts-vivid libxatracker-dev-lts-vivid libgles2-mesa-dev-lts-vivid libgles1-mesa-dev-lts-vivid libgl1-mesa-dev-lts-vivid libgbm-dev-lts-vivid libegl1-mesa-dev-lts-vivid
+# Need libglew etc. for some Phoronix benchmarks which use the GUI
+sudo apt-get -y install freeglut3 freeglut3-dev libglew-dev
 sudo ln -s /usr/lib/x86_64-linux-gnu/libglut.so.3 /usr/lib/x86_64-linux-gnu/libglut.so
-sudo apt-get -y remove kerneloops bluetooth modemmanager
 
 #Install the AMD APP SDK - This MUST be done before installing the driver
 #==============================================================================
-cd $BASE_DIR
-echo -e "Untarring the AMD APP SDK"
-tar -xf AMD-APP-SDKInstaller-v3.0.130.136-GA-linux64.tar.bz2
-sudo ./AMD-APP-SDK-v3.0.130.136-GA-linux64.sh --nox11 -- -a -s
-sudo ln -s /opt/AMDAPPSDK-3.0 /opt/AMDAPP
-sudo sed -i 's/x86_64\//x86_64\/:\$LD_LIBRARY_PATH/' /etc/profile.d/AMDAPPSDK.sh
-sudo sed -i 's/export LD_LIBRARY_PATH/#export LD_LIBRARY_PATH/' /etc/profile.d/AMDAPPSDK.sh
-sudo sh -c "echo export LD_LIBRARY_PATH=/usr/lib/:\\\$LD_LIBRARY_PATH >> /etc/profile.d/AMDAPPSDK.sh"
-sudo ln -s /opt/AMDAPP/lib/x86_64/sdk/libamdocl64.so  /opt/AMDAPP/lib/x86_64/libamdocl64.so
-sudo ln -fs /opt/AMDAPP/lib/x86_64/sdk/libOpenCL.so /opt/AMDAPP/lib/x86_64/libOpenCL.so
-sudo ln -s /opt/AMDAPP/lib/x86_64/sdk/libOpenCL.so.1 /opt/AMDAPP/lib/x86_64/libOpenCL.so.1
+cd ${INSTALLER_DIR}
+sudo ${BASE_DIR}/support_files/get_amd_app_sdk.sh -i -d $(pwd)
+
+#Set up the second-half script to run after the upcoming reboot.
+#We must reboot before installing the Catalyst drivers because we need to be
+#running the correct kernel version before it tries to build and install the
+#modules.
+#===============================================================================
+sudo sh -c "echo #!/bin/bash > /etc/init.d/catal_setup"
+sudo sh -c "echo echo Preparing to complete system setup. >> /etc/init.d/catal_setup"
+sudo sh -c "echo echo This will require you to give your sudoers password. >> /etc/init.d/catal_setup"
+sudo sh -c "echo echo Please wait while the install completes. >> /etc/init.d/catal_setup"
+sudo sh -c "echo echo You will need to interact with the Catalyst tool to install your graphics drivers. >> /etc/init.d/catal_setup"
+sudo sh -c "echo echo Later, this script will reboot the system when everything is done. >> /etc/init.d/catal_setup"
+sudo sh -c "echo sudo ${BASE_DIR}/setup_ubuntu_14.04.5_amd_catalyst_2.sh >> /etc/init.d/catal_setup"
+sudo sh -c "echo sudo rm -f /etc/init.d/catal_setup >> /etc/init.d/catal_setup"
+sudo chmod 755 /etc/init.d/catal_setup
+
+sudo sh -c "echo [Desktop Entry] > /etc/xdg/autostart/catal_setup.desktop"
+sudo sh -c "echo Name=catal_setup >> /etc/xdg/autostart/catal_setup.desktop"
+sudo sh -c "echo Terminal=true >> /etc/xdg/autostart/catal_setup.desktop"
+sudo sh -c "echo Exec=/etc/init.d/catal_setup >> /etc/xdg/autostart/catal_setup.desktop"
+sudo sh -c "echo Type=Application >> /etc/xdg/autostart/catal_setup.desktop"
+sudo sh -c "echo Categories=Utility\; >> /etc/xdg/autostart/catal_setup.desktop"
 
 #Reboot at this point
-#==============================================================================
+#===============================================================================
 sudo reboot
-#==============================================================================
+#===============================================================================

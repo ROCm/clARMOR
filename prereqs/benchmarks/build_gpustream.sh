@@ -22,7 +22,7 @@
 
 # This script will download a working version of the GPU-STREAM benchmark
 # from GitHub and build it into the ~/benchmarks/GPU-STREAM directory.
-# The apps can be run with clarmor.py --group=GPUSTREAM
+# The apps can be run with clarmor --group=GPUSTREAM
 
 # Licensing Information:
 # GPU-STREAM is available under a permissive license that allows its use
@@ -37,11 +37,11 @@
 # https://github.com/UoB-HPC/GPU-STREAM/blob/master/LICENSE
 
 BASE_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-source ${BASE_DIR}/setup_bench_install.sh
 
 # Test to see if the first guy has been build, not all of them
 # testing all benchmarks would be a big pain to write..
 if [ ! -f ~/benchmarks/GPU-STREAM/gpu-stream-ocl ]; then
+    source ${BASE_DIR}/setup_bench_install.sh
     if [ ! -d ~/benchmarks/GPU-STREAM ]; then
         echo -e "\n\nAbout to log into GitHub to get GPU-STREAM:"
         git clone https://github.com/UoB-HPC/GPU-STREAM.git

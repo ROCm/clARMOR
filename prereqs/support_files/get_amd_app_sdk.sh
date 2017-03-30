@@ -19,7 +19,8 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
-# This script will get the AMD APP SDK v3.0 and put it into the 
+# This script will get the AMD APP SDK and untar it into a target directory.
+# It will also, optionally, install it system-wide.
 BASE_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
 print_help_header()
@@ -35,13 +36,14 @@ print_help_header()
 
 print_usage()
 {
-    echo -e "Usage: $0 [-h] [-d TARGET_DIRECTORY] [-v {2/3}]" 1>&2
+    echo -e "Usage: $0 [-h] [-d TARGET_DIRECTORY] [-v {2/3}] [-i]" 1>&2
     echo -e "   -h will print this help message and exit." 1>&2
     echo -e "   -d allows you to set the target directory that ./AMDAPP/ will be put into" 1>&2
     echo -e "          By default, this is the directory this script is in." 1>&2
     echo -e "   -v sets the version of the AMD APP SDK to download, 3 or 2." 1>&2
     echo -e "          By default, this is 3." 1>&2
     echo -e "          v3 supports OpenCL 2.0 on AMD GPUs, v2 only supports OpenCL 1.2." 1>&2
+    echo -e "   -i additionally does a full install of the APP SDK into /opt/AMDAPP/." 1>&2
 }
 
 print_help_footer()
@@ -97,7 +99,7 @@ do
     esac
 done
 
-mkdir ${target_dir}
+mkdir -p ${target_dir}
 if [ $? -ne 0 ]
 then
     echo -e "Cannot create installation directory ${target_dir}"
@@ -149,7 +151,14 @@ fi
 # And complete what we need to do in order to "install" it.
 if [ $do_installation -eq 1 ]
 then
-    bash AMD-APP-SDK*.sh --nox11 -- -a -s
+    bash AMD-APP-SDK*.sh --nox11 --noexec --keep -- -a -s
+    if [ $amdapp_version -eq 300 ]; then
+        pushd ./AMDAPPSDK-3.0
+    else
+        pushd ./2.9.599.381/
+    fi
+    ./install.sh -s 1 -a 1
+    popd
     if [ $? -ne 0 ]
     then
         echo -e "Failed to install APP SDK from shell script."

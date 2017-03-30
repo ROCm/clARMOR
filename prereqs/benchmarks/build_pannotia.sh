@@ -22,7 +22,7 @@
 
 # This script will download a version of the Pannotia benchmark suite
 # from GitHub and build it into the ~/benchmarks/pannotia directory.
-# The apps can be run with clarmor.py --group=PANNOTIA
+# The apps can be run with clarmor --group=PANNOTIA
 
 # Licensing Information:
 # Pannotia was written by AMD Research and the copyright is owned by AMD.
@@ -31,11 +31,11 @@
 # https://github.com/pannotia/pannotia/blob/master/license
 
 BASE_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-source ${BASE_DIR}/setup_bench_install.sh
 
 # Test to see if the first guy has been build, not all of them
 # testing all benchmarks would be a big pain to write..
 if [ ! -f ~/benchmarks/pannotia/graph_app/bc/bc ]; then
+    source ${BASE_DIR}/setup_bench_install.sh
     if [ ! -d ~/benchmarks/pannotia ]; then
         echo -e "\n\nAbout to log into GitHub to get Pannotia:"
         git clone https://github.com/jlgreathouse/pannotia.git

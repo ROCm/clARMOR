@@ -22,7 +22,7 @@
 
 # This script will build version 2.5 of the Parboil benchmark suite and put it
 # into the ~/benchmarks/parboil directory.
-# The apps can be run with clarmor.py --group=PARBOIL
+# The apps can be run with clarmor --group=PARBOIL
 
 # Licensing Information:
 # Parboil is available under the Illinois Open Source License (a.k.a. the NCSA
@@ -31,9 +31,9 @@
 # and: parboil/LICENSE
 
 BASE_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-source ${BASE_DIR}/setup_bench_install.sh
 
 if [ ! -d ~/benchmarks/parboil ]; then
+    source ${BASE_DIR}/setup_bench_install.sh
     if [ ! -f ~/benchmarks/pb2.5driver.tgz ]; then
         echo -e "Error. Could not find ~/benchmarks/pb2.5driver.tgz"
         echo -e "Downloading Parboil requires manually agreeing to a license."

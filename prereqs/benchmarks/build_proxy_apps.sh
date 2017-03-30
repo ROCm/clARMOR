@@ -22,7 +22,7 @@
 
 # This script will make a local copy (git clone) of a series of exascale
 # proxy applications, from AMD and from the Univ. of Bristol.
-# They apps can be run with clarmor.py --group=PROXYAPPS
+# They apps can be run with clarmor --group=PROXYAPPS
 
 # Licensing Information:
 #  - CoMD uses a 3-clause BSD license. See CoMD/LICENSE.md
@@ -32,13 +32,22 @@
 #  - XSBench uses an MIT license. See XSBench/LICENSE
 
 BASE_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-source ${BASE_DIR}/setup_bench_install.sh
 
 if [ ! -d ~/benchmarks/proxyapps ]; then
     mkdir -p ~/benchmarks/proxyapps
 fi
 
 cd ~/benchmarks/proxyapps
+
+if [ ! -d ~/benchmarks/proxyapps/ComputeApps/ ] ||\
+    [ ! -f ~/benchmarks/proxyapps/CoMD/CoMD-ocl ] ||\
+    [ ! -f ~/benchmarks/proxyapps/LULESH/lulesh ] ||\
+    [ ! -f ~/benchmarks/proxyapps/XSBench/src/XSBench ] ||\
+    [ ! -f ~/benchmarks/proxyapps/SNAP-OpenCL/src/snap ] ||\
+    [ ! -f ~/benchmarks/proxyapps/SNAP_MPI_OpenCL/src/snap ];
+    then
+    source ${BASE_DIR}/setup_bench_install.sh
+fi
 
 if [ ! -d ~/benchmarks/proxyapps/ComputeApps/ ]; then
     cd ~/benchmarks/proxyapps/

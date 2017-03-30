@@ -22,6 +22,8 @@
 
 # This script will make a local copy of all of the benchmarks.
 
+BASE_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+
 if [ ! -d ~/benchmarks/ ]; then
     mkdir -p ~/benchmarks/
 fi
@@ -46,18 +48,6 @@ fi
 
 #---------------- Stuff that we cannot automatically download -----------------
 cd ~/benchmarks/
-echo -e "Checking if the AMD APP SDK files exist."
-if [ ! -f ~/benchmarks/AMD-APP-SDKInstaller-v3.0.130.136-GA-linux64.tar.bz2 ]; then
-    echo -e "Error. Could not find ~/benchmarks/AMD-APP-SDKInstaller-v3.0.130.136-GA-linux64.tar.bz2"
-    echo -e "Downloading the AMD APP SDK requires manually agreeing to a license."
-    echo -e "As such, we cannot automatically download it for you."
-    echo -e "Please download the AMD APP SDK from:"
-    echo -e "     http://developer.amd.com/tools-and-sdks/opencl-zone/amd-accelerated-parallel-processing-app-sdk/"
-    echo -e "Then put it into ~/benchmarks/"
-    echo -e "You should do this even if you are using an OpenCL runtime from someone else."
-    echo -e "The AMD APP SDK includes benchmarks that we automatically test against."
-    exit -1
-fi
 
 echo -e "Checking if Parboil files exist."
 if [ ! -f ~/benchmarks/pb2.5driver.tgz ]; then
@@ -100,20 +90,31 @@ if [ ! -f ~/benchmarks/SNU_NPB-1.0.3.tar.gz ]; then
     echo -e "Then put it into ~/benchmarks/"
     exit -1
 fi
+#------------------------------------------------------------------------------
 
-echo -e "Checking if ACML exists, which we need for LINPACK."
-if { [ ! -f ~/benchmarks/libraries/acml-6.1.0.31-gfortran64.tgz ] && [ ! -f ~/benchmarks/LINPACK/acml/acml-6.1.0.31-gfortran64.tgz ] && [ ! -f ~/benchmarks/acml-6.1.0.31-gfortran64.tgz ]; }; then
-    echo -e "Error. Could not find acml-6.1.0.31-gfortran64.tgz in"
-    echo -e "~/benchmarks/, ~/benchmarks/libraries/, or ~/benchmarks/LINPACK/acml/"
-    echo -e "Downloading ACML requires agreeing to a license."
-    echo -e "As such, we cannot automatically download it for you."
-    echo -e "Please go to the following site to download the file:"
-    echo -e "    http://developer.amd.com/tools-and-sdks/archive/compute/amd-core-math-library-acml/acml-downloads-resources/"
-    echo -e "Then put it into ~/benchmarks/libraries/"
-    exit -1
+#-------------------------------- AMD APP SDK ---------------------------------
+if [ ! -d ~/benchmarks/AMDAPP/AMDAPP_install ]; then
+    ${BASE_DIR}/../support_files/get_amd_app_sdk.sh -d ~/benchmarks/AMDAPP_install
+    if [ $? -ne 0 ]; then
+        echo -e "Failed to download the AMD APP SDK."
+        exit -1
+    fi
+    mkdir -p ~/benchmarks/AMDAPP/
+    mv ~/benchmarks/AMDAPP_install/AMDAPP ~/benchmarks/AMDAPP/AMDAPP_install
+    rm -rf ~/benchmarks/AMDAPP_install/
 fi
-if [ -f ~/benchmarks/libraries/acml-6.1.0.31-gfortran64.tgz ]; then
-    mv ~/benchmarks//libraries/acml-6.1.0.31-gfortran64.tgz ~/benchmarks/LINPACK/acml/
+#------------------------------------------------------------------------------
+
+#----------------------------------- ACML -------------------------------------
+if [ ! -f ~/benchmarks/libraries/acml-6.1.0.31-gfortran64.tgz ]; then
+    mkdir -p ~/benchmarks/libraries/
+    ${BASE_DIR}/../support_files/get_acml.sh -d ~/benchmarks/libraries/
+    if [ -f ~/benchmarks/libraries/acml-6.1.0.31-gfortran64.tgz ]; then
+        cp ~/benchmarks/libraries/acml-6.1.0.31-gfortran64.tgz ~/benchmarks/LINPACK/acml/
+    else
+        echo -e "Failed to download ACML."
+        exit -1
+    fi
 fi
 #------------------------------------------------------------------------------
 
@@ -162,7 +163,7 @@ fi
 #------------------------------------------------------------------------------
 
 #---------------------------------- RODINIA -----------------------------------
-if [ ! -f !/benchmarks/rodinia_3.1.tar.bz2 ]; then
+if [ ! -f ~/benchmarks/rodinia_3.1.tar.bz2 ]; then
     cd ~/benchmarks/
     echo -e "\n\nAbout to download Rodinia 3.1 from virginia.edu"
     wget http://www.cs.virginia.edu/~kw5na/lava/Rodinia/Packages/Current/rodinia_3.1.tar.bz2

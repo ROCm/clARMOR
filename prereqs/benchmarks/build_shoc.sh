@@ -22,15 +22,15 @@
 
 # This script will download the SHOC benchmark suite from GitHub and build it
 # into the ~/benchmarks/shoc directory.
-# The apps can be run with clarmor.py --group=SHOC
+# The apps can be run with clarmor --group=SHOC
 
 # Licensing Information:
 # SHOC is distributed under a 3-clause BSD license. See shoc/LICENSE.txt
 
 BASE_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-source ${BASE_DIR}/setup_bench_install.sh
 
 if [ ! -f ~/benchmarks/shoc/Makefile ]; then
+    source ${BASE_DIR}/setup_bench_install.sh
     if [ ! -d ~/benchmarks/shoc ]; then
         echo -e "\n\nAbout to log into GitHub to get SHOC:"
         git clone https://github.com/vetter/shoc.git

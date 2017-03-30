@@ -22,7 +22,7 @@
 
 # This script will download the Phoronix Test Suite benchmarks from the web and
 # build them into the ~/benchmarks/phoronix directory.
-# The apps can be run with clarmor.py --group=PHORONIX
+# The apps can be run with clarmor --group=PHORONIX
 
 # Licensing Information:
 #  - JuliaGPU uses an MIT license. See: JuliaGPU-v1.2pts/LICENSE.txt
@@ -31,10 +31,17 @@
 #  - SmallPT-GPU uses an MIT license. See: SmallptGPU-v1.6pts/LICENSE.txt
 
 BASE_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-source ${BASE_DIR}/setup_bench_install.sh
 
 if [ ! -d ~/benchmarks/phoronix ]; then
     mkdir -p ~/benchmarks/phoronix
+fi
+
+if [ ! -d ~/benchmarks/phoronix/JuliaGPU-v1.2pts ] ||\
+    [ ! -d ~/benchmarks/phoronix/MandelGPU-v1.3pts ] ||\
+    [ ! -d ~/benchmarks/phoronix/SmallptGPU-v1.6pts ] ||\
+    [ ! -d ~/benchmarks/phoronix/mandelbulbGPU-v1.0pts ];
+    then
+    source ${BASE_DIR}/setup_bench_install.sh
 fi
 
 cd ~/benchmarks/phoronix

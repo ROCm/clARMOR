@@ -638,7 +638,7 @@ benchCMD["aes_hm"]="aes_cl12 -i ../../../../data/aes/detector_input.txt -k ../..
 benchPrefix["aes_hm"]="LD_LIBRARY_PATH=/opt/AMDAPP/lib/x86_64/:$LD_LIBRARY_PATH "
 #
 benchCD["fir_hm"]=os.path.join(path_to_benchmark,"Hetero-Mark/build/src/opencl12/fir_cl12")
-benchCMD["fir_hm"]="fir_cl12 -d 20000000"
+benchCMD["fir_hm"]="fir_cl12 -d 2000000"
 benchPrefix["fir_hm"]="LD_LIBRARY_PATH=/opt/AMDAPP/lib/x86_64/:$LD_LIBRARY_PATH "
 #
 benchCD["hmm_hm"]=os.path.join(path_to_benchmark,"Hetero-Mark/build/src/opencl12/hmm_cl12")
@@ -668,7 +668,7 @@ benchCD["aes_hm_cl2"]=os.path.join(path_to_benchmark,"Hetero-Mark/build/src/open
 benchCMD["aes_hm_cl2"]="aes_cl20 -i ../../../../data/aes/detector_small_input.txt -k ../../../../data/aes/key.txt"
 #
 benchCD["fir_hm_cl2"]=os.path.join(path_to_benchmark,"Hetero-Mark/build/src/opencl20/fir_cl20")
-benchCMD["fir_hm_cl2"]="fir_cl20 -d 20000000"
+benchCMD["fir_hm_cl2"]="fir_cl20 -d 2000000"
 #
 benchCD["hmm_hm_cl2"]=os.path.join(path_to_benchmark,"Hetero-Mark/build/src/opencl20/hmm_cl20")
 benchCMD["hmm_hm_cl2"]="hmm_cl20 -s 256"

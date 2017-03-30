@@ -22,15 +22,15 @@
 
 # This script will download FinanceBench from GitHub and build it into the
 # ~/benchmarks/FinanceBench directory.
-# The apps can be run with clarmor.py --group=FINANCEBENCH
+# The apps can be run with clarmor --group=FINANCEBENCH
 
 # Licensing Information:
 # FinanceBench uses a 3-clause BSD license. See FinanceBench/LICENSE
 
 BASE_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-source ${BASE_DIR}/setup_bench_install.sh
 
 if [ ! -f ~/benchmarks/FinanceBench/done_building ]; then
+    source ${BASE_DIR}/setup_bench_install.sh
     if [ ! -d ~/benchmarks/FinanceBench/ ]; then
         echo -e "\n\nAbout to log into GitHub to get FinanceBench" 
         git clone https://github.com/cavazos-lab/FinanceBench.git

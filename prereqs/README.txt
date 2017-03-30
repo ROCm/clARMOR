@@ -1,4 +1,4 @@
-# Copyright (c) 2016 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright (c) 2016-2017 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -34,16 +34,18 @@ of licensing restirctions. However, the script will handle all building and
 preparing of the benchmarks for you.
 
 
+In addition, there are a number of scripts available to help set up OpenCL
+on fresh installations of your operating system. For example:
+setup_ubuntu_14.04.5_amd_catalyst.sh will set up the AMD FirePro (Catalyst)
+drivers on a fresh installation of Ubuntu 14.04.5 LTS, download anc configure
+the AMD APP SDK, and allow OpenCL applications and clARMOR to run after the
+next reboot.
 
-The ubuntu_fresh_install files will set up a fresh install of an Ubuntu
-14.04.4 LTS with all the appropriate things needed to build and run all
-of the bencmarks that are discussed above.
+After running the setup scripts, the benchmarks should be able to cleanly
+install and run.
 
-These files will require a number of reboots, so they are split into
-multiple numbered steps that should be run one after another.
-
-Early in this file there is an important note for getting OpenCL to work with
-Ubuntu 14.04.4 while connecting over SSH.
+Early in the Ubuntu 14.04.5/Catalyst setup file there is an important note
+for getting OpenCL to work with Ubuntu 14.04.5 while connecting over SSH.
 It is reproduced here to make sure you read it.
 #!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 # It's highly recommended that when you perform the installation, you set up

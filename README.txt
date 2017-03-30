@@ -302,11 +302,11 @@ This will install a series of benchmarks into your home directory at:
 ~/benchmarks/
 
 Note that some of the benchmarks this script tries to build cannot be
-automatically downloaded from the internet. Parboil, the SNU OpenCL versions
-of the NAS Parallel Benchmarks, and the AMD Core Math Libraries require
-manual intervention to download. The download-and-build script will not
-make forward progress until these files are in the correct locations. It will
-spit out a warning and tell you what to download and wheere to put it.
+automatically downloaded from the internet. Parboil, and the SNU OpenCL
+versions of the NAS Parallel Benchmarks require manual intervention to
+download. The download-and-build script will not make forward progress
+until these files are in the correct locations. It will spit out a
+warning and tell you what to download and wheere to put it.
 
 
 After the benchmarks have finished building, they will be contained in

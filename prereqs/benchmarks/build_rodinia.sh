@@ -22,16 +22,16 @@
 
 # This script will download Rodinia 3.1 and build it into the
 # ~/benchmarks/rodinia_3.1/ directory.
-# The apps can be run with clarmor.py --group=RODINIA
+# The apps can be run with clarmor --group=RODINIA
 
 # Licensing Information:
 # Rodinia is made available under a 3-clause BSD license.
 # See rodinia_3.1/LICENSE
 
 BASE_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-source ${BASE_DIR}/setup_bench_install.sh
 
 if [ ! -d ~/benchmarks/rodinia_3.1 ]; then
+    source ${BASE_DIR}/setup_bench_install.sh
     if [ ! -f ~/benchmarks/rodinia_3.1.tar.bz2 ];
     then
         cd ~/benchmarks/

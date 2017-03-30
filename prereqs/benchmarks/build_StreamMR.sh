@@ -22,19 +22,19 @@
 
 # This script will download the StreamMR OpenCL Map Reduce framework from
 # GitHub and build it into the  ~/benchmarks/StreamMR directory.
-# The apps can be run with clarmor.py --group=STREAMMR
+# The apps can be run with clarmor --group=STREAMMR
 
 # Licensing Information:
 # StreamMR is made available under the LGPL v2.1. See StreamMR/LICENSE
 
 BASE_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-source ${BASE_DIR}/setup_bench_install.sh
 
 if [ ! -f ~/benchmarks/StreamMR/KMeans ] || \
     [ ! -f ~/benchmarks/StreamMR/MatrixMul ] || \
     [ ! -f ~/benchmarks/StreamMR/StringMatch ] || \
     [ ! -f ~/benchmarks/StreamMR/WordCount ];
 then
+    source ${BASE_DIR}/setup_bench_install.sh
     if [ ! -d ~/benchmarks/StreamMR ]; then
         echo -e "\n\nAbout to log into GitHub to get StreamMR:"
         git clone https://github.com/jlgreathouse/StreamMR.git

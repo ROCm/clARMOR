@@ -22,16 +22,16 @@
 
 # This script will download a version of Hetero-Mark from GitHub
 # and build it into the ~/benchmarks/Hetero-Mark/ directory
-# The apps can be run with clarmor.py --group=HETERO-MARK
+# The apps can be run with clarmor --group=HETERO-MARK
 
 # Licensing Information:
 # Hetero-Mark is available under the MIT license.
 # https://github.com/NUCAR-DEV/Hetero-Mark/blob/Develop/LICENSE
 
 BASE_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-source ${BASE_DIR}/setup_bench_install.sh
 
-if [ ! -d ~/benchmarks/Hetero-Mark/build/src/opencl12 ] || ( [ $CL_V2_SUPPORTED -eq 1 ] && [ ! -d ~/benchmarks/Hetero-Mark/build/src/opencl20 ]); then
+source ${BASE_DIR}/setup_bench_install.sh
+if [ ! -d ~/benchmarks/Hetero-Mark/build/src/opencl12 ] || ( [ $CL_V2_SUPPORTED -eq 1 ] && [ ! -d ~/benchmarks/Hetero-Mark/build/src/opencl20 ] ); then
 	if [ ! -d ~/benchmarks/Hetero-Mark ]; then
 		echo -e "\n\nAbout to log into GitHub to get Hetero-Mark:"
 		git clone -b amd_fixes https://github.com/jlgreathouse/Hetero-Mark.git

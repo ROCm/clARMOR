@@ -29,7 +29,7 @@
 # Licensing Information:
 # The AMD APP SDK is made available under the AMD Software Development
 # Kit License Agreement.
-
+BASE_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 AMD_OCL=0
 NV_OCL=0
 INT_OCL=0
@@ -75,33 +75,45 @@ cd ~/benchmarks
 
 CL_V2_SUPPORTED=0
 
+echo -e "Checking if the AMD APP SDK exists in the benchmark directory."
 if [ ! -d ~/benchmarks/AMDAPP/AMDAPP_install ];
 then
+    echo -e "It doesn't exist at ~/benchmarks/AMDAPP/AMDAPP_install"
+    echo -e "Trying to get it automatically..."
     mkdir -p ~/benchmarks/AMDAPP
     cd ~/benchmarks/AMDAPP
-    echo -e "Checking if the AMD APP SDK files exist."
-    if [ ! -f ~/benchmarks/AMD-APP-SDKInstaller-v3.0.130.136-GA-linux64.tar.bz2 ] && [ ! -f ~/benchmarks/AMDAPP/AMD-APP-SDKInstaller-v3.0.130.136-GA-linux64.tar.bz2 ]; then
-        echo -e "Error. Could not find ~/benchmarks/AMD-APP-SDKInstaller-v3.0.130.136-GA-linux64.tar.bz2"
-        echo -e "Downloading the AMD APP SDK requires manually agreeing to a license."
-        echo -e "As such, we cannot automatically download it for you."
-        echo -e "Please download the AMD APP SDK from:"
-        echo -e "     http://developer.amd.com/tools-and-sdks/opencl-zone/amd-accelerated-parallel-processing-app-sdk/"
-        echo -e "Then put it into ~/benchmarks/"
-        echo -e "You should do this even if you are using an OpenCL runtime from someone else."
-        echo -e "The AMD APP SDK includes benchmarks that we automatically test against."
-        exit -1
+    ${BASE_DIR}/../support_files/get_amd_app_sdk.sh -d ~/benchmarks/AMDAPP_install
+    if [ $? -ne 0 ]; then
+        echo -e "Couldn't download it automatically."
+        echo -e "Do we have any local tarballs?"
+        if [ ! -f ~/benchmarks/AMD-APP-SDKInstaller-v3.0.130.136-GA-linux64.tar.bz2 ] && [ ! -f ~/benchmarks/AMDAPP/AMD-APP-SDKInstaller-v3.0.130.136-GA-linux64.tar.bz2 ]; then
+            echo -e "Failed to download the AMD APP SDK and files are unavailable."
+            echo -e "Could not find ~/benchmarks/AMD-APP-SDKInstaller-v3.0.130.136-GA-linux64.tar.bz2"
+            echo -e "Downloading the AMD APP SDK requires manually agreeing to a license."
+            echo -e "We tried to get around this, but it failed."
+            echo -e "Please download the AMD APP SDK from:"
+            echo -e "     http://developer.amd.com/tools-and-sdks/opencl-zone/amd-accelerated-parallel-processing-app-sdk/"
+            echo -e "Then put it into ~/benchmarks/"
+            echo -e "You should do this even if you are using an OpenCL runtime from someone else."
+            echo -e "The AMD APP SDK includes benchmarks that we automatically test against."
+            exit -1
+        else
+            echo -e "Moving AMD APP SDK installer to ~/benchmarks/AMDAPP/ and untarring it."
+            cp ~/benchmarks/AMD-APP-SDKInstaller-v3.0.130.136-GA-linux64.tar.bz2 ~/benchmarks/AMDAPP/
+            tar -xf AMD-APP-SDKInstaller-v3.0.130.136-GA-linux64.tar.bz2
+
+            echo -e "Running AMD APP SDK local installer..."
+            ./AMD-APP-SDK-v3.0.130.136-GA-linux64.sh --noexec --nox11 --target $(pwd)/AMDAPP_install/
+            if [ $? -ne 0 ]; then
+                echo -e "Failed to properly install the AMD APP SDK. Quitting."
+                exit -1
+            fi
+        fi
     fi
-
-    echo -e "Moving AMD APP SDK installer to ~/benchmarks/AMDAPP/ and untarring it."
-    cp ~/benchmarks/AMD-APP-SDKInstaller-v3.0.130.136-GA-linux64.tar.bz2 ~/benchmarks/AMDAPP/
-    tar -xf AMD-APP-SDKInstaller-v3.0.130.136-GA-linux64.tar.bz2
-
-    echo -e "Running AMD APP SDK local installer..."
-    ./AMD-APP-SDK-v3.0.130.136-GA-linux64.sh --noexec --nox11 --target $(pwd)/AMDAPP_install/
-	if [ $? -ne 0 ]; then
-		echo -e "Failed to properly install the AMD APP SDK. Quitting."
-		exit -1
-	fi
+    echo -e "Got it from the internet. Moving it into position."
+    mkdir -p ~/benchmarks/AMDAPP/
+    mv ~/benchmarks/AMDAPP_install/AMDAPP ~/benchmarks/AMDAPP/AMDAPP_install
+    rm -rf ~/benchmarks/AMDAPP_install/
 fi
 
 # Note that this only finds the OpenCL version of the first available OpenCL device.

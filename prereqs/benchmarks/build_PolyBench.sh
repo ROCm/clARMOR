@@ -22,13 +22,12 @@
 
 # This script will download PolyBench-ACC from GitHub and build it into the
 # ~/benchmarks/PolyBench-ACC/ directory.
-# The apps can be run with clarmor.py --group=POLYBENCH
+# The apps can be run with clarmor --group=POLYBENCH
 
 # Licensing Information:
 # PolyBench/ACC uses a 3-clause BSD license. See PolyBench-ACC/LICENSE
 
 BASE_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-source ${BASE_DIR}/setup_bench_install.sh
 
 MAKE_CMD="make CFLAGS=-DLARGE_DATASET"
 
@@ -36,6 +35,7 @@ MAKE_CMD="make CFLAGS=-DLARGE_DATASET"
 USE_DOUBLE=1
 
 if [ ! -f ~/benchmarks/PolyBench-ACC/detector_done_building ]; then
+    source ${BASE_DIR}/setup_bench_install.sh
     if [ ! -d ~/benchmarks/PolyBench-ACC/ ]; then
         echo -e "\n\nAbout to log into GitHub to get PolyBench-ACC"
         git clone https://github.com/cavazos-lab/PolyBench-ACC.git

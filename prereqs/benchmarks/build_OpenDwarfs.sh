@@ -22,17 +22,17 @@
 
 # This script will download a version of the OpenDwarfs benchmark suite
 # from GitHub and build it into the ~/benchmarks/OpenDwarfs directory.
-# The apps can be run with clarmor.py --group=OPENDWARFS
+# The apps can be run with clarmor --group=OPENDWARFS
 
 # License Information:
 # OpenDwarfs is made available under the LGPL v2.1.
 # See https://github.com/vtsynergy/OpenDwarfs/blob/master/LICENSE
 
 BASE_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-source ${BASE_DIR}/setup_bench_install.sh
 
 if [ ! -d ~/benchmarks/OpenDwarfs/build ];
 then
+    source ${BASE_DIR}/setup_bench_install.sh
     if [ ! -d ~/benchmarks/OpenDwarfs ]; then
         echo -e "\n\nAbout to log into GitHub to get OpenDwarfs:"
         git clone https://github.com/vtsynergy/OpenDwarfs.git

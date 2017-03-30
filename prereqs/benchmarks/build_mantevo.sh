@@ -21,7 +21,7 @@
 
 
 # This script will download and buildthe CloverLeaf and TeaLeaf Mantevo apps.
-# They can be run with clarmor.py --group=MANTEVO
+# They can be run with clarmor --group=MANTEVO
 
 # Licensing Information:
 #  - CloverLeaf is available under the GPLv3. See CloverLeaf_OpenCL/clover_leaf.f90
@@ -30,7 +30,6 @@
 #  - TeaLeaf3D is available under the GPLv3. See TeaLeaf3D_OpenCL/tea_leaf.f90
 
 BASE_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-source ${BASE_DIR}/setup_bench_install.sh
 
 if [ ! -d ~/benchmarks/mantevo ]; then
     mkdir -p ~/benchmarks/mantevo
@@ -58,6 +57,15 @@ if [ ! -d ~/benchmarks/mantevo/CloverLeaf3D_OpenCL ]; then
     echo -e "\n\nAbout to log into GitHub to get CloverLeaf3D_OpenCL:"
     git clone https://github.com/UK-MAC/CloverLeaf3D_OpenCL.git
 fi
+
+if [ ! -f ~/benchmarks/mantevo/TeaLeaf_OpenCL/tea_leaf ] ||\
+    [ ! -f ~/benchmarks/mantevo/TeaLeaf3D_OpenCL/tea_leaf ] ||\
+    [ ! -f ~/benchmarks/mantevo/CloverLeaf_OpenCL/clover_leaf ] ||\
+    [ ! -f ~/benchmarks/mantevo/CloverLeaf3D_OpenCL/clover_leaf ];
+    then
+    source ${BASE_DIR}/setup_bench_install.sh
+fi
+
 
 if [ ! -f ~/benchmarks/mantevo/TeaLeaf_OpenCL/tea_leaf ]; then
     cd ~/benchmarks/mantevo/TeaLeaf_OpenCL/

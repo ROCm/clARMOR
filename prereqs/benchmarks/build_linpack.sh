@@ -22,7 +22,7 @@
 
 # This script will download hpl-gpu, a version of HPLINPACK that works on AMD
 # GPUs. It will put everything in it into the ~/benchmarks/LINPACK directory.
-# The apps can be run with clarmor.py --group=LINPACK
+# The apps can be run with clarmor --group=LINPACK
 
 # Licensing Information:
 # hpl-gpu is available under a mix of GPLv3 and 4-clause BSD. See:
@@ -30,13 +30,12 @@
 # CALDGEMM is made available under GPLv3 and LGPL. See:
 #  https://github.com/davidrohr/caldgemm/blob/master/COPYING
 #  and https://github.com/davidrohr/caldgemm/blob/master/COPYING.LESSER
-# ACML is available under the AMD ACML License Agreement. You must
-#  agree to that to download it, so you must download it manually.
+# ACML is available under the AMD ACML License Agreement.
 
 BASE_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-source ${BASE_DIR}/setup_bench_install.sh
 
 if [ ! -f ~/benchmarks/LINPACK/hpl-gpu/bin/Generic/xhpl ]; then
+    source ${BASE_DIR}/setup_bench_install.sh
     if [ ! -d ~/benchmarks/LINPACK/ ]; then
         mkdir -p ~/benchmarks/LINPACK/
     fi
@@ -48,13 +47,16 @@ if [ ! -f ~/benchmarks/LINPACK/hpl-gpu/bin/Generic/xhpl ]; then
         mkdir -p ~/benchmarks/LINPACK/acml/
         cd ~/benchmarks/LINPACK/acml/
 		if [ -f ~/benchmarks/acml-6.1.0.31-gfortran64.tgz ]; then
-			mv ~/benchmarks/acml-6.1.0.31-gfortran64.tgz ~/benchmarks/LINPACK/acml/
+			cp ~/benchmarks/acml-6.1.0.31-gfortran64.tgz ~/benchmarks/LINPACK/acml/
 		fi
         if [ -f ~/benchmarks/libraries/acml-6.1.0.31-gfortran64.tgz ]; then
-            mv ~/benchmarks/libraries/acml-6.1.0.31-gfortran64.tgz ~/benchmarks/LINPACK/acml/
+            cp ~/benchmarks/libraries/acml-6.1.0.31-gfortran64.tgz ~/benchmarks/LINPACK/acml/
         fi
         if [ ! -f ~/benchmarks/LINPACK/acml/acml-6.1.0.31-gfortran64.tgz ]; then
-			echo -e "Error. Could not find acml-6.1.0.31-gfortran64.tgz in"
+            ${BASE_DIR}/../support_files/get_acml.sh ~/benchmarks/LINPACK/acml/
+        fi
+        if [ ! -f ~/benchmarks/LINPACK/acml/acml-6.1.0.31-gfortran64.tgz ]; then
+            echo -e "Error. Could not find acml-6.1.0.31-gfortran64.tgz in"
             echo -e "~/benchmarks/, ~/benchmarks/libraries/, or ~/benchmarks/LINPACK/acml/"
             echo -e "Downloading ACML requires agreeing to a license."
             echo -e "As such, we cannot automatically download it for you."

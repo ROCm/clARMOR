@@ -22,7 +22,7 @@
 
 # This script will build v1.0.3 of the SNU OpenCL port of the NAS Parallel
 # Benchmarks and put them into the ~/benchmarks/SNU_NPB-1.0.3 directory.
-# The apps can be run with clarmor.py --group=NPB_OCL
+# The apps can be run with clarmor --group=NPB_OCL
 
 # Licensing Information:
 # SNU NAS Parallel Benchmarks use a variant of the MIT license, the important
@@ -34,9 +34,9 @@
 # See, for example, SNU_NPB-1.0.3/NPB3.3-OCL/BT/bt.c
 
 BASE_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-source ${BASE_DIR}/setup_bench_install.sh
 
 if [ ! -d ~/benchmarks/SNU_NPB-1.0.3 ]; then
+    source ${BASE_DIR}/setup_bench_install.sh
     if [ ! -f ~/benchmarks/SNU_NPB-1.0.3.tar.gz ]; then
         echo -e "Error. Could not find ~/benchmarks/SNU_NPB-1.0.3.tar.gz"
         echo -e "Downloading this requires entering information on a page."
