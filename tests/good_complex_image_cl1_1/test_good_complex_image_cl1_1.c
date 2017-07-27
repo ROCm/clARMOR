@@ -191,7 +191,7 @@ uint64_t getNumWorkItems(uint64_t buffer_size)
         work_items_to_use = num_entries_in_buf;
     uint64_t bytes_written = (uint64_t)work_items_to_use * sizeof(cl_uint);
 
-    printf("Launching %lu work items to write up to %llu entries.\n",
+    printf("Launching %zu work items to write up to %llu entries.\n",
             work_items_to_use, (long long unsigned)num_entries_in_buf);
     printf("This will write %llu out of %llu bytes in the buffer.\n",
             (long long unsigned)bytes_written,
@@ -365,7 +365,7 @@ int main(int argc, char** argv)
                 break;
         }
 
-        printf("%u:%u dataSize %u\n", 0, 10, dataSize);
+        printf("%d:%d dataSize %u\n", 0, 10, dataSize);
 
         cl_err = clSetKernelArg(test_kernel, 0, sizeof(cl_mem), &good_buffer);
         check_cl_error(__FILE__, __LINE__, cl_err);

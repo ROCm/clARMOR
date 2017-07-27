@@ -141,7 +141,7 @@ int main(int argc, char** argv)
 
     size_t work_items_to_use = num_sets;
 
-    printf("Launching %lu work items.\n", work_items_to_use);
+    printf("Launching %zu work items.\n", work_items_to_use);
     cl_err = clEnqueueNDRangeKernel(cmd_queue, test_kernel, 1, NULL,
         &work_items_to_use, NULL, 0, NULL, NULL);
     check_cl_error(__FILE__, __LINE__, cl_err);

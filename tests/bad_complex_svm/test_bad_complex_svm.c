@@ -123,7 +123,7 @@ void run_device_enqueue_test(const cl_device_id device,
     check_cl_error(__FILE__, __LINE__, cl_err);
 
     uint64_t bytes_written = (uint64_t)work_items_to_use * sizeof(cl_uint);
-    printf("Launching one and then %lu work items to write %llu entries.\n",
+    printf("Launching one and then %zu work items to write %llu entries.\n",
             work_items_to_use, (long long unsigned)num_entries_in_buf);
     printf("This will write %llu out of %llu bytes in the buffer.\n",
             (long long unsigned)bytes_written,
@@ -185,7 +185,7 @@ void run_svm_back_to_back(const cl_context context,
 
     printf("Launching first kernel.\n");
     uint64_t bytes_written = (uint64_t)work_items_to_use * sizeof(cl_uint);
-    printf("Launching %lu work items to write %llu entries.\n",
+    printf("Launching %zu work items to write %llu entries.\n",
             work_items_to_use, (long long unsigned)num_entries_in_buf);
     printf("This will write %llu out of %llu bytes in the buffer.\n",
             (long long unsigned)bytes_written,
@@ -201,7 +201,7 @@ void run_svm_back_to_back(const cl_context context,
     check_cl_error(__FILE__, __LINE__, cl_err);
 
     bytes_written = (uint64_t)work_items_to_use * sizeof(cl_uint);
-    printf("Launching %lu work items to write %llu entries.\n",
+    printf("Launching %zu work items to write %llu entries.\n",
             work_items_to_use, (long long unsigned)num_entries_in_buf);
     printf("This will write %llu out of %llu bytes in the buffer.\n",
             (long long unsigned)bytes_written,
@@ -271,7 +271,7 @@ void run_two_svm_test(const cl_context context,
     check_cl_error(__FILE__, __LINE__, cl_err);
 
     uint64_t bytes_written = (uint64_t)work_items_to_use * sizeof(cl_uint);
-    printf("Launching %lu work items to write %llu entries.\n",
+    printf("Launching %zu work items to write %llu entries.\n",
             work_items_to_use, (long long unsigned)num_entries_in_buf);
     printf("This will write %llu out of %llu bytes in the buffer.\n",
             (long long unsigned)bytes_written,

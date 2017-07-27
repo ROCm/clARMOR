@@ -100,7 +100,7 @@ void run_back_to_back(const cl_context context,
     cl_err = clSetKernelArg(test_kernel, 0, sizeof(cl_mem), &buffer);
     check_cl_error(__FILE__, __LINE__, cl_err);
 
-    printf("Launching %lu work items to write %llu entries in the buffer.\n",
+    printf("Launching %zu work items to write %llu entries in the buffer.\n",
             overflow_work_items, (long long unsigned)num_entries_in_buf);
     printf("This will write %llu out of %llu bytes in the buffer.\n",
             (long long unsigned)bytes_written,
@@ -114,7 +114,7 @@ void run_back_to_back(const cl_context context,
 
     printf("Second kernel.\n");
     bytes_written = (uint64_t)work_items_to_use * sizeof(cl_uint);
-    printf("Launching %lu work items to write %llu entries in the buffer.\n",
+    printf("Launching %zu work items to write %llu entries in the buffer.\n",
             work_items_to_use, (long long unsigned)num_entries_in_buf);
     printf("This will write %llu out of %llu bytes in the buffer.\n",
             (long long unsigned)bytes_written,
@@ -181,7 +181,7 @@ void run_strided_test(const cl_context context,
     cl_err = clSetKernelArg(test_kernel, 2, sizeof(cl_uint), &stride);
     check_cl_error(__FILE__, __LINE__, cl_err);
 
-    printf("Launching %lu work items to write %llu entries in the buffer.\n",
+    printf("Launching %zu work items to write %llu entries in the buffer.\n",
             overflow_work_items, (long long unsigned)num_entries_in_buf);
     printf("This will write %llu out of %llu bytes in the buffer.\n",
             (long long unsigned)bytes_written,
@@ -260,12 +260,12 @@ void run_two_buffer_tests(const cl_context context,
     cl_err = clSetKernelArg(test_kernel_1, 2, sizeof(cl_uint), &work_items_to_use);
     check_cl_error(__FILE__, __LINE__, cl_err);
 
-    printf("Launching %lu work items to write %llu entries in 2nd buffer.\n",
+    printf("Launching %zu work items to write %llu entries in 2nd buffer.\n",
             overflow_work_items, (long long unsigned)num_entries_in_buf);
     printf("This will write %llu out of %llu bytes in the buffer.\n",
             (long long unsigned)bytes_written,
             (long long unsigned)buffer_size);
-    printf("First buffer will only have %lu work items and won't overflow.\n",
+    printf("First buffer will only have %zu work items and won't overflow.\n",
             work_items_to_use);
     cl_err = clEnqueueNDRangeKernel(cmd_queue, test_kernel_1, 1, NULL,
         &overflow_work_items, NULL, 0, NULL, NULL);
@@ -278,7 +278,7 @@ void run_two_buffer_tests(const cl_context context,
     printf("\n\n");
     printf("Running the second two-buffer test.\n");
     printf("Should find errors in both arguments.\n");
-    printf("Launching %lu work items to write %llu entries in both buffers.\n",
+    printf("Launching %zu work items to write %llu entries in both buffers.\n",
             overflow_work_items, (long long unsigned)num_entries_in_buf);
     printf("This will write %llu out of %llu bytes in the buffer.\n",
             (long long unsigned)bytes_written,
@@ -310,7 +310,7 @@ void run_two_buffer_tests(const cl_context context,
     cl_err = clSetKernelArg(test_kernel_2, 2, sizeof(cl_uint), &overflow_work_items);
     check_cl_error(__FILE__, __LINE__, cl_err);
 
-    printf("Launching %lu work items to write %llu entries in the buffer.\n",
+    printf("Launching %zu work items to write %llu entries in the buffer.\n",
             overflow_work_items, (long long unsigned)num_entries_in_buf);
     printf("This will write %llu out of %llu bytes in the buffer.\n",
             (long long unsigned)bytes_written,

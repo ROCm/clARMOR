@@ -125,7 +125,7 @@ static void run_1d_test(const cl_device_id device, const cl_context context,
     // buffer, that is OK. Then we definitely won't have an overflow.
     num_work_items = width;
 
-    printf("Launching %lu work items to write up to %llu pixels.\n",
+    printf("Launching %zu work items to write up to %llu pixels.\n",
             num_work_items, (long long unsigned)buffer_size);
     printf("\nImage2D Test...\n");
     cl_err = clEnqueueNDRangeKernel(cmd_queue, test_kernel, 1, NULL,
@@ -217,7 +217,7 @@ static void run_2d_test(const cl_device_id device, const cl_context context,
     num_work_items[0] = width;
     num_work_items[1] = height;
 
-    printf("Launching %lu x %lu work items to write up to %llu pixels.\n",
+    printf("Launching %zu x %zu work items to write up to %llu pixels.\n",
             num_work_items[0], num_work_items[1],
             (long long unsigned)buffer_size);
     printf("\nImage2D Test...\n");
@@ -323,7 +323,7 @@ static void run_3d_test(const cl_device_id device, const cl_context context,
     num_work_items[1] = height;
     num_work_items[2] = depth;
 
-    printf("Launching %lu x %lu x %lu work items to write to %llu pixels.\n",
+    printf("Launching %zu x %zu x %zu work items to write to %llu pixels.\n",
             num_work_items[0], num_work_items[1], num_work_items[2],
             (long long unsigned)buffer_size);
     printf("\nImage3D Test...\n");

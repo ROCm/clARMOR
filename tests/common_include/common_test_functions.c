@@ -208,7 +208,7 @@ cl_platform_id setup_platform(const uint32_t platform_to_use)
     char *platform_name = calloc(platform_name_len, sizeof(char));
     if (platform_name == NULL)
     {
-        fprintf(stderr, "Unable to calloc(%lu) at %s:%d\n",
+        fprintf(stderr, "Unable to calloc(%zu) at %s:%d\n",
                 platform_name_len, __FILE__, __LINE__);
         exit(-1);
     }
@@ -266,7 +266,7 @@ cl_device_id setup_device(const uint32_t device_to_use,
     char *device_name = calloc(device_name_len, sizeof(char));
     if (device_name == NULL)
     {
-        fprintf(stderr, "Unable to calloc(%lu) at %s:%d\n",
+        fprintf(stderr, "Unable to calloc(%zu) at %s:%d\n",
                 device_name_len, __FILE__, __LINE__);
         exit(-1);
     }
@@ -338,7 +338,7 @@ cl_program setup_program(const cl_context context,
         fprintf(stderr, "Build Failure!\n");
         fprintf(stderr, "Error returned was: %s\n", cluErrorString(old_err));
         fprintf(stderr, "Kernel:\n%s\n", *source);
-        fprintf(stderr, "\nLog (log size: %lu):\n%s\n", log_size, log);
+        fprintf(stderr, "\nLog (log size: %zu):\n%s\n", log_size, log);
         free(log);
         exit(-1);
     }
