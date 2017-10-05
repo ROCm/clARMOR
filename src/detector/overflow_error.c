@@ -214,16 +214,13 @@ void apiOverflowError(char * const func, void * const buffer, const unsigned bad
     if(m1)
     {
         print_and_log_err("%s: Buffer: %p\n", func, buffer);
-        print_and_log_err("   First observed writing %u byte(s) past the end.\n",
-                bad_byte+1);
     }
     else
     {
         // Can't get buffer name for SVM pointer.
         print_and_log_err("%s: SVM pointer: %p\n", func, buffer);
-        print_and_log_err("   First observed writing %u byte(s) past the end.\n",
-                bad_byte+1);
     }
+    print_and_log_err("   API Overflow %u byte(s) past end.\n", bad_byte+1);
 
     char * backtrace_str = NULL;
     if(get_print_backtrace_envvar())
@@ -361,8 +358,12 @@ void overflowError(const kernel_info * const kernInfo,
         else
         {
             print_and_log_err("Kernel: %s, Buffer: %s\n", kernelName, bufferName);
-            print_and_log_err("   First observed writing %u byte(s) past the end.\n",
-                    bad_byte+1);
+
+            int overflow_pos = bad_byte - POISON_FILL_LENGTH;
+            if(overflow_pos >= 0)
+                print_and_log_err("   Write Overflow %u byte(s) past end.\n", overflow_pos+1);
+            else
+                print_and_log_err("   Write Underflow %u byte(s) before start.\n", -overflow_pos);
         }
         // Free before leaving.
         if (bufferName != NULL)
@@ -373,8 +374,12 @@ void overflowError(const kernel_info * const kernInfo,
     {
         // Can't get buffer name for SVM pointer.
         print_and_log_err("Kernel: %s, SVM pointer: %p\n", kernelName, buffer);
-        print_and_log_err("   First observed writing %u byte(s) past the end.\n",
-                bad_byte+1);
+
+        int overflow_pos = bad_byte - POISON_FILL_LENGTH;
+        if(overflow_pos >= 0)
+            print_and_log_err("   Write Overflow %u byte(s) past end.\n", overflow_pos+1);
+        else
+            print_and_log_err("   Write Underflow %u byte(s) before start.\n", -overflow_pos);
     }
 
     if(backtrace_str)

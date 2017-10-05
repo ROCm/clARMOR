@@ -228,17 +228,13 @@ uint8_t apiBufferOverflowCheck(char * const func, cl_mem buffer, size_t offset, 
     cl_memobj *m1 = cl_mem_find(get_cl_mem_alloc(), buffer);
     if(m1)
     {
-        uint64_t tail_length, data_size;
-        if( !m1->has_canary || canaryAccessAllowed() )
-            tail_length = 0;
-        else
-            tail_length = POISON_FILL_LENGTH;
+        uint64_t data_size;
 
-        data_size = m1->size - tail_length;
+        data_size = m1->size;
 
         if(offset + size > data_size)
         {
-            uint64_t bad_byte;
+            int64_t bad_byte;
             if(offset > data_size)
                 bad_byte = offset - data_size;
             else
@@ -261,11 +257,7 @@ uint8_t apiBufferRectOverflowCheck(char * const func, cl_mem buffer, const size_
     cl_memobj *m1 = cl_mem_find(get_cl_mem_alloc(), buffer);
     if(m1)
     {
-        uint64_t tail_length, b_off, b_end;
-        if( !m1->has_canary || canaryAccessAllowed() )
-            tail_length = 0;
-        else
-            tail_length = POISON_FILL_LENGTH;
+        uint64_t b_off, b_end;
 
         b_off = buffer_offset[0];
         b_end = region[0];
@@ -282,11 +274,11 @@ uint8_t apiBufferRectOverflowCheck(char * const func, cl_mem buffer, const size_
 
         b_end += b_off;
 
-        if(b_end > m1->size - tail_length)
+        if(b_end > m1->size)
         {
-            uint64_t bad_byte;
-            if(b_off > m1->size - tail_length)
-                bad_byte = b_off - (m1->size - tail_length);
+            int64_t bad_byte;
+            if(b_off > m1->size)
+                bad_byte = b_off - m1->size;
             else
                 bad_byte = 0;
 

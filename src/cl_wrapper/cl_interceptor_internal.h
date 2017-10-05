@@ -188,6 +188,17 @@ typedef CL_API_ENTRY cl_int
             cl_event *event);
 
 typedef CL_API_ENTRY cl_int
+    (CL_API_CALL * interceptor_clEnqueueSVMMap)(
+            cl_command_queue command_queue,
+            cl_bool blocking_map,
+            cl_map_flags map_flags,
+            void *svm_ptr,
+            size_t size,
+            cl_uint num_events_in_wait_list,
+            const cl_event *event_wait_list,
+            cl_event *event);
+
+typedef CL_API_ENTRY cl_int
     (CL_API_CALL * interceptor_clEnqueueSVMMemcpy)(
             cl_command_queue command_queue,
             cl_bool blocking_copy,
@@ -208,6 +219,15 @@ typedef CL_API_ENTRY cl_int
             cl_uint num_events,
             const cl_event *event_list,
             cl_event *event);
+
+typedef CL_API_ENTRY cl_int
+    (CL_API_CALL * interceptor_clEnqueueSVMUnmap)(
+            cl_command_queue command_queue,
+            void *svm_ptr,
+            cl_uint num_events_in_wait_list,
+            const cl_event *event_wait_list,
+            cl_event *event);
+
 #endif // CL_VERSION_2_0
 
 

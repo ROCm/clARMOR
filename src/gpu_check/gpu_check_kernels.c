@@ -239,8 +239,9 @@ __kernel void locateDiffSVMPtr(uint length,\n\
 #ifdef CL_VERSION_2_0
 "    else\n\
     {\n\
-        __global uint *val_ptr = (__global uint*)C[(tid - endBuffs) / length];\n\
-        ret = compareWithPoison(poison, localBuff, localBuff, (__global uchar*)val_ptr);\n\
+        uint index = tid % (length/2);\n\
+        __global uint *val_ptr = (__global uint*)C[(tid - endBuffs) / (length/2)];\n\
+        ret = compareWithPoison(poison, localBuff, index, (__global uchar*)val_ptr);\n\
     }\n"
     "uint wgRet = work_group_scan_inclusive_min(ret);\n\
     if(lid == get_local_size(0)-1)\n\
