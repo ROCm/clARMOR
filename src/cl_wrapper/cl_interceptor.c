@@ -1347,7 +1347,7 @@ clRetainMemObject(cl_mem memobj )
         if (findme != NULL)
             findme->ref_count++;
         err = RetainMemObject( memobj );
-        if(findme->main_buff)
+        if(findme && findme->main_buff)
             err = RetainMemObject( findme->main_buff );
     }
     else
