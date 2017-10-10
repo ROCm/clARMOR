@@ -425,7 +425,7 @@ static void check_if_same_kernel(cl_kernel *kernel_ptr, cl_context context,
         if(last_ctx != context)
         {
             clReleaseKernel(kernel);
-            kernel = NULL;
+            *kernel_ptr = NULL;
         }
         else
         {
@@ -455,7 +455,7 @@ static void check_if_same_kernel(cl_kernel *kernel_ptr, cl_context context,
             if(strcmp(kernelName, name) != 0)
             {
                 clReleaseKernel(kernel);
-                kernel = NULL;
+                *kernel_ptr = NULL;
             }
             free(kernelName);
         }

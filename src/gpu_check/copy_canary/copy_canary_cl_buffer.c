@@ -234,7 +234,7 @@ static cl_event perform_cl_buffer_checks(cl_context kern_ctx,
 
     cl_event kern_end;
     launchOclKernelStruct ocl_args = setup_ocl_args(cmd_queue, check_kern,
-            1, NULL, global_work, local_work, total_buffs + 1, init_evts,
+            1, NULL, global_work, local_work, 2*total_buffs + 1, init_evts,
             &kern_end);
     cl_int cl_err = runNDRangeKernel( &ocl_args );
     check_cl_error(__FILE__, __LINE__, cl_err);
@@ -310,7 +310,7 @@ void verify_cl_buffer_copy(cl_context kern_ctx, cl_command_queue cmd_queue,
         poison_pointers = create_svm_ptr_copies(kern_ctx, cmd_queue,
                 num_svm, &(buffer_ptrs[num_cl_mem]), &svm_canary_copies,
                 evt, &(events[2*num_cl_mem]));
-        for (uint32_t i = 2*num_cl_mem; i < total_buffs; i++)
+        for (uint32_t i = num_cl_mem; i < total_buffs; i++)
             mend_events[i] = create_complete_user_event(kern_ctx);
     }
     else if (num_svm > 0)
@@ -321,7 +321,7 @@ void verify_cl_buffer_copy(cl_context kern_ctx, cl_command_queue cmd_queue,
     }
 
     cl_mem result = create_result_buffer(kern_ctx, cmd_queue, total_buffs,
-            &events[total_buffs]);
+            &events[2*total_buffs]);
 
     cl_event kern_end = perform_cl_buffer_checks(kern_ctx, cmd_queue,
             num_cl_mem, num_svm, total_buffs, clmem_canary_copies,
@@ -329,10 +329,11 @@ void verify_cl_buffer_copy(cl_context kern_ctx, cl_command_queue cmd_queue,
 
     for (uint32_t i = 0; i < total_buffs; i++)
     {
-        clReleaseEvent(events[i]);
+        clReleaseEvent(events[2*i]);
+        clReleaseEvent(events[2*i+1]);
         clReleaseEvent(mend_events[i]);
     }
-    clReleaseEvent(events[total_buffs]);
+    clReleaseEvent(events[2*total_buffs]);
     free(events);
     free(mend_events);
 

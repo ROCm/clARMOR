@@ -229,8 +229,6 @@ memory buffers for n-dimensional images.
 
 Currently, this tool does *not* detect the following types of overflows:
 
-1. Buffer overflows that overflow in a negative direction. In other words,
-writing bytes before the beginning of a buffer is not detected as an error.
-2. Buffer overflows in the \_\_private, \_\_local, or \_\_constant memory spaces.
-3. Buffer overflows caused by reads (since these do not disrupt the canary
+1. Buffer overflows in the \_\_private, \_\_local, or \_\_constant memory spaces.
+2. Buffer overflows caused by reads (since these do not disrupt the canary
 regions).
