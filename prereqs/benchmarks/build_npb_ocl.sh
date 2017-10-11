@@ -66,7 +66,7 @@ if [ ! -d ~/benchmarks/SNU_NPB-1.0.3 ]; then
         # race between creating a sysconfig file and building the actual
         # benchmarks. It's easier to just not do a parallel build than to
         # fix this in each makefile.
-        make $bench CLASS=$class
+        LIBRARY_PATH=${OCL_LIB_DIR} make $bench CLASS=$class
         if [ $? -ne 0 ]; then
             echo -e "Failed to build $bench class $class"
             exit -1

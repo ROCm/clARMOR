@@ -40,7 +40,7 @@ if [ ! -f ~/benchmarks/LINPACK/hpl-gpu/bin/Generic/xhpl ]; then
         mkdir -p ~/benchmarks/LINPACK/
     fi
     cd ~/benchmarks/LINPACK/
-    cp $BASE_DIR/public_files/libgomp.patch ~/benchmarks/LINPACK/
+    cp $BASE_DIR/../support_files/libgomp.patch ~/benchmarks/LINPACK/
 
     if [ ! -d ~/benchmarks/LINPACK/acml/gfortran64_mp/ ]; then
         echo -e "Extracting ACML for LINPACK.."

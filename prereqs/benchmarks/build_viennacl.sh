@@ -62,7 +62,7 @@ if [ ! -f ~/benchmarks/ViennaCL-1.7.1/build/examples/benchmarks/dense_blas-bench
     sed -i.bak 's#std::cout << "RESULT:" << std::endl;#/*std::cout << "RESULT:" << std::endl;#' ./examples/tutorial/nmf.cpp
     sed -i.bak 's#std::cout << "H" << H << "\\n" << std::endl;#std::cout << "H" << H << "\\n" << std::endl;*/#' ./examples/tutorial/nmf.cpp
     cd ./build
-    cmake -DBUILD_TESTING=ON ..
+    cmake -DOPENCL_LIBRARY=${OCL_LIB_DIR}/libOpenCL.so -DBUILD_TESTING=ON ..
     make -j `nproc`
     if [ $? -ne 0 ]; then
         echo -e "Failed to build ViennaCL."

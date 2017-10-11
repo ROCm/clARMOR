@@ -33,6 +33,13 @@
 BASE_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 source ${BASE_DIR}/setup_bench_install.sh
 
+if [ ! -d ~/benchmarks/AMDAPP/AMDAPP_install/ ]; then
+    cd ~/benchmarks/
+    mkdir -p ~/benchmarks/AMDAPP/
+    cd ~/benchmarks/AMDAPP/
+    ${BASE_DIR}/../support_files/get_amd_app_sdk.sh -d $(pwd)
+    mv ./AMDAPP/ ./AMDAPP_install/
+fi
 cd ~/benchmarks/AMDAPP/
 
 if [ ! -d ~/benchmarks/AMDAPP/BlackScholes/ ]; then
