@@ -252,18 +252,34 @@ void mendCanaryRegion(cl_command_queue cmdQueue, void * const buffer, cl_bool bl
             poisonFillImageCanaries(fillQueue, m1, numEvts, waits, &finish);
         else
         {
+            cl_int cl_err;
+            cl_event region_event[2];
 #ifdef CL_VERSION_1_2
-            cl_int cl_err = clEnqueueFillBuffer(fillQueue, m1->handle, &poisonFill_8b, sizeof(uint8_t), m1->size - POISON_FILL_LENGTH, POISON_FILL_LENGTH, numEvts, waits, &finish);
+            cl_err = clEnqueueFillBuffer(fillQueue, m1->main_buff, &poisonFill_8b,
+                    sizeof(uint8_t), 0, POISON_FILL_LENGTH, numEvts, waits, &region_event[0]);
+            check_cl_error(__FILE__, __LINE__, cl_err);
+
+            cl_err = clEnqueueFillBuffer(fillQueue, m1->main_buff, &poisonFill_8b,
+                    sizeof(uint8_t), m1->size + POISON_FILL_LENGTH, POISON_FILL_LENGTH, numEvts, waits, &region_event[1]);
             check_cl_error(__FILE__, __LINE__, cl_err);
 #else
-            char * poison_data = malloc(POISON_FILL_LENGTH);
+            char *poison_data = malloc(POISON_FILL_LENGTH);
             memset(poison_data, poisonFill_8b, POISON_FILL_LENGTH);
-            cl_int cl_err = clEnqueueWriteBuffer(fillQueue, m1->handle,
-                    CL_BLOCKING, m1->size - POISON_FILL_LENGTH,
-                    POISON_FILL_LENGTH, poison_data, numEvts, waits, &finish);
+
+            cl_err = clEnqueueWriteBuffer(fillQueue, m1->main_buff,
+                    CL_NON_BLOCKING, 0,
+                    POISON_FILL_LENGTH, poison_data, numEvts, waits, &region_event[0]);
             check_cl_error(__FILE__, __LINE__, cl_err);
+
+            cl_err = clEnqueueWriteBuffer(fillQueue, m1->main_buff,
+                    CL_NON_BLOCKING, m1->size + POISON_FILL_LENGTH,
+                    POISON_FILL_LENGTH, poison_data, numEvts, waits, &region_event[1]);
+            check_cl_error(__FILE__, __LINE__, cl_err);
+
+            clWaitForEvents(2, region_event);
             free(poison_data);
 #endif
+            clEnqueueMarkerWithWaitList(fillQueue, 2, region_event, &finish);
         }
     }
 #ifdef CL_VERSION_2_0
@@ -276,8 +292,18 @@ void mendCanaryRegion(cl_command_queue cmdQueue, void * const buffer, cl_bool bl
             getCommandQueueForContext(m2->context, &fillQueue);
             convertEvents(m2->context, numEvts, waits);
 
-            cl_int cl_err = clEnqueueSVMMemFill(fillQueue, (char*)m2->handle + m2->size - POISON_FILL_LENGTH, &poisonFill_8b, sizeof(uint8_t), POISON_FILL_LENGTH, numEvts, waits, &finish);
+            cl_int cl_err;
+            cl_event region_event[2];
+
+            cl_err = clEnqueueSVMMemFill(fillQueue, (char*)m2->main_buff,
+                    &poisonFill_8b, sizeof(uint8_t), POISON_FILL_LENGTH, numEvts, waits, &region_event[0]);
             check_cl_error(__FILE__, __LINE__, cl_err);
+
+            cl_err = clEnqueueSVMMemFill(fillQueue, (char*)m2->main_buff + m2->size + POISON_FILL_LENGTH,
+                    &poisonFill_8b, sizeof(uint8_t), POISON_FILL_LENGTH, numEvts, waits, &region_event[1]);
+            check_cl_error(__FILE__, __LINE__, cl_err);
+
+            clEnqueueMarkerWithWaitList(fillQueue, 2, region_event, &finish);
         }
     }
 #endif

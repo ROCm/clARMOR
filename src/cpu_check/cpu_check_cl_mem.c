@@ -35,11 +35,11 @@ static void read_cl_mem_canaries(cl_command_queue cmd_queue,
         void **buffer_cl_mem, const cl_event *input_event,
         cl_event *read_events)
 {
+    char * c_canaries = (char *)canaries;
     for (uint32_t i = 0; i < num_cl_mem; i++)
     {
         // casting to char* to do pointer arithmetic.
-        char * c_canaries = (char *)canaries;
-        void * this_canary = c_canaries + (i * POISON_FILL_LENGTH);
+        void * this_canary = c_canaries + (2*i * POISON_FILL_LENGTH);
 
         cl_memobj *m1;
         m1 = cl_mem_find(get_cl_mem_alloc(), buffer_ptrs[i]);
@@ -51,10 +51,17 @@ static void read_cl_mem_canaries(cl_command_queue cmd_queue,
         // found a cl_mem
         buffer_cl_mem[i] = m1->handle;
 
-        cl_int cl_err = clEnqueueReadBuffer(cmd_queue, m1->handle,
-                CL_NON_BLOCKING, m1->size - POISON_FILL_LENGTH,
+        cl_int cl_err;
+        cl_err = clEnqueueReadBuffer(cmd_queue, m1->main_buff,
+                CL_NON_BLOCKING, 0,
                 POISON_FILL_LENGTH, this_canary, 1, input_event,
-                &(read_events[i]));
+                &(read_events[2*i]));
+        check_cl_error(__FILE__, __LINE__, cl_err);
+
+        cl_err = clEnqueueReadBuffer(cmd_queue, m1->main_buff,
+                CL_NON_BLOCKING, m1->size + POISON_FILL_LENGTH,
+                POISON_FILL_LENGTH, (void*)((uint64_t)this_canary + POISON_FILL_LENGTH), 1, input_event,
+                &(read_events[2*i + 1]));
         check_cl_error(__FILE__, __LINE__, cl_err);
     }
 }
@@ -73,14 +80,14 @@ void verify_cl_mem(kernel_info *kern_info, uint32_t num_cl_mem,
     cl_command_queue cmd_queue;
     getCommandQueueForContext(kern_ctx, &cmd_queue);
 
-    void * canaries = malloc(POISON_FILL_LENGTH * num_cl_mem);
-    cl_event * read_events = malloc(num_cl_mem * sizeof(cl_event));
+    void * canaries = malloc(POISON_FILL_LENGTH * 2*num_cl_mem);
+    cl_event * read_events = malloc(2*num_cl_mem * sizeof(cl_event));
     void ** buffer_cl_mem = malloc(num_cl_mem * sizeof(void*));
 
     read_cl_mem_canaries(cmd_queue, num_cl_mem, canaries, buffer_ptrs,
         buffer_cl_mem, evt, read_events);
 
-    cl_err = clWaitForEvents(num_cl_mem, read_events);
+    cl_err = clWaitForEvents(2*num_cl_mem, read_events);
     check_cl_error(__FILE__, __LINE__, cl_err);
 
     // Now check the canaries for each cl_mem region
@@ -88,10 +95,10 @@ void verify_cl_mem(kernel_info *kern_info, uint32_t num_cl_mem,
     {
         // casting to char* to do pointer arithmetic.
         char * c_canaries = (char *)canaries;
-        void * this_canary = c_canaries + (i * POISON_FILL_LENGTH);
+        void * this_canary = c_canaries + (2*i * POISON_FILL_LENGTH);
 
         //parse through the canary data
-        cpu_parse_canary(cmd_queue, POISON_FILL_LENGTH, this_canary, kern_info,
+        cpu_parse_canary(cmd_queue, 2*POISON_FILL_LENGTH, this_canary, kern_info,
                 buffer_cl_mem[i], dupe);
     }
 
