@@ -22,6 +22,7 @@
 # THE SOFTWARE.
 
 import os
+import subprocess
 
 #List of test benchmarks.
 # Benchmarks: 21
@@ -116,15 +117,54 @@ VIENNACL+="blas3_solve-test-opencl sparse_prod-test-opencl"
 NPB_OCL="npb_ocl_bt npb_ocl_cg npb_ocl_ep npb_ocl_ft npb_ocl_is npb_ocl_lu "
 NPB_OCL+="npb_ocl_mg npb_ocl_sp"
 
+AMD_OCL=False
+NV_OCL=False
+INT_OCL=False
+
+cl_dir=os.environ['AMDAPPSDKROOT']
+if not '' == cl_dir:
+    AMD_OCL=True
+else:
+    cl_dir=os.environ['ATISTREAMSDKROOT']
+    if not '' == cl_dir:
+        AMD_OCL=True
+    else:
+        cl_dir=os.environ['INTELOCLSDKROOT']
+        if not '' == cl_dir:
+            INT_OCL=True
+        else:
+            cl_dir=os.environ['CUDA_INC_PATH']
+            if not '' == cl_dir:
+                NV_OCL=True
+            else:
+                cl_dir=os.environ['CUDA_PATH']
+                if not '' == cl_dir:
+                    NV_OCL=True
+
+CL_V2_SUPPORTED=False
+args=['%s/bin/x86_64/clinfo' % cl_dir]
+clinfo_dump = subprocess.check_output(args)
+ver_index = clinfo_dump.find('\n  Version:', 0, len(clinfo_dump))
+if ver_index > -1:
+    CL_AVAIL_VERSION=clinfo_dump[ver_index:].split()[2]
+else:
+    CL_AVAIL_VERION=0
+
+if CL_AVAIL_VERSION > 1.2:
+    CL_V2_SUPPORTED=True
+
 ALL_BENCHMARKS_AMD=""
 ALL_BENCHMARKS_NV=""
 
 # Benchmark suites that work on AMD GPUs (w/ OpenCL 2.0)
 for bench in [RODINIA, SHOC, PHORONIX, OPENDWARFS, PROXYAPPS, AMDAPP,
     AMDAPP_CL2, PARBOIL, PANNOTIA, STREAMMR, POLYBENCH, FINANCEBENCH,
-    GPUSTREAM, MANTEVO, HETEROMARK, HETEROMARK_CL2, LINPACK, VIENNACL,
+    GPUSTREAM, MANTEVO, HETEROMARK, LINPACK, VIENNACL,
     NPB_OCL]:
     ALL_BENCHMARKS_AMD+=bench + " "
+if CL_V2_SUPPORTED:
+    for bench in [HETEROMARK_CL2]:
+        ALL_BENCHMARKS_AMD+=bench + " "
 
 # Benchmark suites that work on Nvidia GPUs
 for bench in [RODINIA_NV, SHOC, OPENDWARFS, PROXYAPPS, AMDAPP_ON_NV,
@@ -132,7 +172,10 @@ for bench in [RODINIA_NV, SHOC, OPENDWARFS, PROXYAPPS, AMDAPP_ON_NV,
     MANTEVO_ON_NV, HETEROMARK, VIENNACL, NPB_OCL]:
     ALL_BENCHMARKS_NV+=bench + ""
 
-ALL_BENCHMARKS=ALL_BENCHMARKS_AMD
+if AMD_OCL or INT_OCL:
+    ALL_BENCHMARKS=ALL_BENCHMARKS_AMD
+elif NV_OCL:
+    ALL_BENCHMARKS=ALL_BENCHMARKS_NV
 
 #Declare HashMaps
 benchCD = {}
