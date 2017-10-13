@@ -141,14 +141,13 @@ else:
                 if not '' == cl_dir:
                     NV_OCL=True
 
+CL_AVAIL_VERSION=0
 CL_V2_SUPPORTED=False
 args=['%s/bin/x86_64/clinfo' % cl_dir]
 clinfo_dump = subprocess.check_output(args)
 ver_index = clinfo_dump.find('\n  Version:', 0, len(clinfo_dump))
 if ver_index > -1:
-    CL_AVAIL_VERSION=clinfo_dump[ver_index:].split()[2]
-else:
-    CL_AVAIL_VERION=0
+    CL_AVAIL_VERSION=float(clinfo_dump[ver_index:].split()[2])
 
 if CL_AVAIL_VERSION > 1.2:
     CL_V2_SUPPORTED=True
