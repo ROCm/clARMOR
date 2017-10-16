@@ -80,7 +80,7 @@ sudo sh -c 'echo export PATH=\$PATH:/opt/amdgpu-pro/bin/ >> /etc/profile.d/gpupr
 #Set up the next script to run after the upcoming reboot.
 #===============================================================================
 INIT_FILE="amdgpu-pro_setup"
-NEXT_SCRIPT=ubuntu_16.04.3_amdgpu-pro_install_2.sh
+NEXT_SCRIPT=setup_ubuntu_16.04.3_amdgpu-pro_2.sh
 sudo sh -c "echo '#!/bin/bash' > /etc/init.d/${INIT_FILE}"
 sudo sh -c "echo ${BASE_DIR}/${NEXT_SCRIPT} >> /etc/init.d/${INIT_FILE}"
 sudo chmod 755 /etc/init.d/${INIT_FILE}

@@ -74,7 +74,7 @@ sudo ln -s /opt/rocm/hsa/lib/libhsa-runtime64.so.1 /opt/rocm/hsa/lib/libhsa-runt
 #modules.
 #===============================================================================
 INIT_FILE="rocm_setup"
-NEXT_SCRIPT=ubuntu_16.04.3_rocm_install_2.sh
+NEXT_SCRIPT=setup_ubuntu_16.04.3_rocm_2.sh
 sudo sh -c "echo '#!/bin/bash' > /etc/init.d/${INIT_FILE}"
 sudo sh -c "echo ${BASE_DIR}/${NEXT_SCRIPT} >> /etc/init.d/${INIT_FILE}"
 sudo chmod 755 /etc/init.d/${INIT_FILE}
