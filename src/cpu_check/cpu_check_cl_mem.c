@@ -60,7 +60,7 @@ static void read_cl_mem_canaries(cl_command_queue cmd_queue,
 
         cl_err = clEnqueueReadBuffer(cmd_queue, m1->main_buff,
                 CL_NON_BLOCKING, m1->size + POISON_FILL_LENGTH,
-                POISON_FILL_LENGTH, (void*)((uint64_t)this_canary + POISON_FILL_LENGTH), 1, input_event,
+                POISON_FILL_LENGTH, (void*)((char*)this_canary + POISON_FILL_LENGTH), 1, input_event,
                 &(read_events[2*i + 1]));
         check_cl_error(__FILE__, __LINE__, cl_err);
     }

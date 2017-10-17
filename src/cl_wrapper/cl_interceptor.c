@@ -702,10 +702,13 @@ clCreateBuffer(cl_context   context,
             cl_buffer_region sub_region;
             sub_region.origin = POISON_FILL_LENGTH;
             sub_region.size = size;
+            cl_mem_flags passDownFlags, ptrFlags;
+            ptrFlags = CL_MEM_USE_HOST_PTR | CL_MEM_ALLOC_HOST_PTR | CL_MEM_COPY_HOST_PTR;
+            passDownFlags = flags & !ptrFlags;
 
             ret =
                 CreateSubBuffer( main_buff,
-                        flags,
+                        passDownFlags,
                         CL_BUFFER_CREATE_TYPE_REGION,
                         (void*)&sub_region,
                         &internal_err );
@@ -763,41 +766,31 @@ CL_API_ENTRY cl_mem CL_API_CALL
     {
         initialize_logging();
 
+        cl_memobj *superBuff = cl_mem_find(get_cl_mem_alloc(), buffer);
+        cl_buffer_region buffer_region_info = *(cl_buffer_region*)buffer_create_info;
+	if(superBuff->has_canary == 1)
+        {
+            buffer = superBuff->main_buff;
+            buffer_region_info.origin += POISON_FILL_LENGTH;
+        }
+
         ret =
             CreateSubBuffer(
                     buffer,
                     flags,
                     buffer_create_type,
-                    buffer_create_info,
+                    &buffer_region_info,
                     errcode_ret);
 
         if(ret)
         {
-            cl_memobj *superBuff = cl_mem_find(get_cl_mem_alloc(), buffer);
-            cl_mem_flags passDownFlags, ptrFlags, gpuFlags;
-            ptrFlags = CL_MEM_USE_HOST_PTR | CL_MEM_ALLOC_HOST_PTR | CL_MEM_COPY_HOST_PTR;
-            gpuFlags = CL_MEM_READ_ONLY | CL_MEM_WRITE_ONLY | CL_MEM_READ_WRITE;
-
-            passDownFlags = superBuff->flags & ptrFlags;
-            if(flags & gpuFlags)
-                passDownFlags |= flags & gpuFlags;
-            else
-                passDownFlags |= superBuff->flags & gpuFlags;
-#ifdef CL_VERSION_1_2
-            cl_mem_flags hostFlags = CL_MEM_HOST_READ_ONLY | CL_MEM_HOST_WRITE_ONLY | CL_MEM_HOST_NO_ACCESS;
-            if(flags & hostFlags)
-                passDownFlags |= flags & hostFlags;
-            else
-                passDownFlags |= superBuff->flags & hostFlags;
-#endif
-
             cl_memobj *temp = (cl_memobj*)calloc(sizeof(cl_memobj), 1);
             temp->handle = ret;
             temp->is_sub = 1;
             temp->context = superBuff->context;
-            temp->flags = passDownFlags;
-            temp->size = ((cl_buffer_region*)buffer_create_info)->size;
-            temp->origin = ((cl_buffer_region*)buffer_create_info)->origin;
+            temp->flags = flags;
+            temp->size = buffer_region_info.size;
+            temp->origin = buffer_region_info.origin;
             if(superBuff->host_ptr)
                 temp->host_ptr = (char*)superBuff->host_ptr + temp->origin;
             else
