@@ -602,7 +602,7 @@ clGetMemObjectInfo(cl_mem memobj,
                 }
                 else
                 {
-                    //*p_val -= POISON_FILL_LENGTH;
+                    *p_val = m1->size;
                 }
             }
         }
@@ -701,7 +701,8 @@ clCreateBuffer(cl_context   context,
         {
             cl_buffer_region sub_region;
             sub_region.origin = POISON_FILL_LENGTH;
-            sub_region.size = size;
+            //include the canary region so this will work for nvidia buffers
+            sub_region.size = size + POISON_FILL_LENGTH;
             cl_mem_flags passDownFlags, ptrFlags;
             ptrFlags = CL_MEM_USE_HOST_PTR | CL_MEM_ALLOC_HOST_PTR | CL_MEM_COPY_HOST_PTR;
             passDownFlags = flags & !ptrFlags;
@@ -713,6 +714,25 @@ clCreateBuffer(cl_context   context,
                         (void*)&sub_region,
                         &internal_err );
             check_cl_error(__FILE__, __LINE__, internal_err);
+
+            if(device_may_fragment_buffer(context))
+            {
+                // Force the buffer allocation to contiguous gpu memory space.
+                // This will ensure that the whole buffer is in the same memory.
+                // Later when we act on the sub-buffer, any overflows will spill
+                //   into the main buffer.
+                cl_command_queue command_queue;
+                int weCreated = !getCommandQueueForContext(context, &command_queue);
+                if(!weCreated)
+                    clRetainCommandQueue(command_queue);
+
+                void *read_ptr = malloc(size_aug);
+                EnqueueReadBuffer(command_queue, main_buff, CL_TRUE, 0, size_aug, read_ptr,
+                                    0, NULL, NULL);
+                free(read_ptr);
+
+                clReleaseCommandQueue(command_queue);
+            }
         }
         else
         {

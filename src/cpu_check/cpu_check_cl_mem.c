@@ -102,6 +102,11 @@ void verify_cl_mem(kernel_info *kern_info, uint32_t num_cl_mem,
                 buffer_cl_mem[i], dupe);
     }
 
+    for (uint32_t i = 0; i < 2*num_cl_mem; i++)
+    {
+        clReleaseEvent(read_events[i]);
+    }
+
     free(buffer_cl_mem);
     free(read_events);
     free(canaries);

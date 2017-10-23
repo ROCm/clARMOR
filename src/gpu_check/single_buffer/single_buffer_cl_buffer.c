@@ -165,6 +165,8 @@ static void format_result_buff(cl_event event, cl_int status, void* verif_data)
 
     cl_err = clSetUserEventStatus(data->complete, CL_COMPLETE);
     check_cl_error(__FILE__, __LINE__, cl_err);
+
+    free(data);
 }
 
 void verify_cl_buffer_single(cl_context kern_ctx, cl_command_queue cmd_queue,
@@ -178,6 +180,7 @@ void verify_cl_buffer_single(cl_context kern_ctx, cl_command_queue cmd_queue,
         return;
     }
 
+    cl_int cl_err;
     cl_event init_evt;
 
     cl_kernel check_kern = get_canary_check_kernel(kern_ctx);
@@ -197,19 +200,6 @@ void verify_cl_buffer_single(cl_context kern_ctx, cl_command_queue cmd_queue,
     if(ret_evt != NULL)
         *ret_evt = readback_evt;
 
-    // Release the memory objects and events that are used by the read.
-    // Because they're queued, this is OK. The release won't destroy them until
-    // they are no longer needed.
-    cl_int cl_err;
-    cl_err = clReleaseMemObject(result);
-    check_cl_error(__FILE__, __LINE__, cl_err);
-    for (uint32_t i = 0; i < num_buff; i++)
-    {
-        cl_err = clReleaseEvent(check_events[i]);
-        check_cl_error(__FILE__, __LINE__, cl_err);
-    }
-    free(check_events);
-
     //consolidate change list by buffer
     // index by canary -> index by buffer
     cl_event user_evt = clCreateUserEvent(kern_ctx, &cl_err);
@@ -219,11 +209,23 @@ void verify_cl_buffer_single(cl_context kern_ctx, cl_command_queue cmd_queue,
     verif_data->first_change = first_change;
     verif_data->num_buff = num_buff;
     verif_data->complete = user_evt;
-    cl_err = clSetEventCallback(readback_evt, CL_COMPLETE, format_result_buff,
-            (void*)verif_data);
+    cl_err = clSetEventCallback(readback_evt, CL_COMPLETE,
+            format_result_buff, (void*)verif_data);
     check_cl_error(__FILE__, __LINE__, cl_err);
 
     // Finally, check the results of the memory checks above.
     analyze_check_results(cmd_queue, user_evt, kern_info, num_buff,
             buffer_ptrs, NULL, 0, NULL, first_change, dupe);
+
+    // Release the memory objects and events that are used by the read.
+    // Because they're queued, this is OK. The release won't destroy them until
+    // they are no longer needed.
+    cl_err = clReleaseMemObject(result);
+    check_cl_error(__FILE__, __LINE__, cl_err);
+    for (uint32_t i = 0; i < num_buff; i++)
+    {
+        cl_err = clReleaseEvent(check_events[i]);
+        check_cl_error(__FILE__, __LINE__, cl_err);
+    }
+    free(check_events);
 }

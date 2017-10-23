@@ -36,6 +36,39 @@ extern pthread_mutex_t command_queue_cache_lock;
 
 static __thread uint8_t canaryAccess = 0;
 
+int device_may_fragment_buffer(cl_context context)
+{
+    cl_int cl_err;
+    cl_device_id device;
+    cl_platform_id platform;
+    size_t platform_name_len = 0;
+    char *platform_name;
+
+    cl_err = clGetContextInfo(context, CL_CONTEXT_DEVICES,
+        sizeof(cl_device_id), &device, NULL);
+    check_cl_error(__FILE__, __LINE__, cl_err);
+    cl_err = clGetDeviceInfo(device, CL_DEVICE_PLATFORM,
+        sizeof(cl_platform_id), &platform, NULL);
+    check_cl_error(__FILE__, __LINE__, cl_err);
+
+    cl_err = clGetPlatformInfo(platform, CL_PLATFORM_NAME, 0, NULL,
+            &platform_name_len);
+    check_cl_error(__FILE__, __LINE__, cl_err);
+
+    platform_name = calloc(platform_name_len, sizeof(char));
+
+    cl_err = clGetPlatformInfo(platform, CL_PLATFORM_NAME,
+        platform_name_len, platform_name, NULL);
+    check_cl_error(__FILE__, __LINE__, cl_err);
+
+    char *found;
+    found = strstr(platform_name, "NVIDIA");
+    int ret = (found) ? 1 : 0;
+    free(platform_name);
+
+    return ret;
+}
+
 void allowCanaryAccess(void)
 {
     canaryAccess = 1;

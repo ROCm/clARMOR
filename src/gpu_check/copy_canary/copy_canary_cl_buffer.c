@@ -348,6 +348,7 @@ void verify_cl_buffer_copy(cl_context kern_ctx, cl_command_queue cmd_queue,
             buffer_ptrs, svm_canary_copies, copy_svm_ptrs, poison_pointers,
             first_change, dupe);
 
+    clReleaseEvent(kern_end);
     clReleaseMemObject(result);
     clReleaseMemObject(clmem_canary_copies);
 }

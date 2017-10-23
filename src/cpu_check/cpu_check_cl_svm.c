@@ -128,10 +128,6 @@ static void unmap_svm_buffers(cl_context kern_ctx, cl_command_queue cmd_queue,
         cl_err = clEnqueueSVMUnmap(cmd_queue, map_ptrs[i], 0, NULL,
                 &(unmap_events[i]));
         check_cl_error(__FILE__, __LINE__, cl_err);
-
-        cl_err = clEnqueueSVMUnmap(cmd_queue, (char*)map_ptrs[i] + POISON_FILL_LENGTH, 0, NULL,
-                &(unmap_events[i]));
-        check_cl_error(__FILE__, __LINE__, cl_err);
     }
 }
 
