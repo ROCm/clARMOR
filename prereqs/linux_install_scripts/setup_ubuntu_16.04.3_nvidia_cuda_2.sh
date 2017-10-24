@@ -28,7 +28,7 @@ REAL_USER=`logname 2>/dev/null || echo ${SUDO_USER:-${USER}}`
 
 sudo usermod -a -G video $REAL_USER
 
-INIT_FILE="amdgpu-pro_setup"
+INIT_FILE="nvidia_setup"
 sudo rm -f /etc/xdg/autostart/${INIT_FILE}.desktop
 sudo rm -f /etc/init.d/${INIT_FILE}
 
