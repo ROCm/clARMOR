@@ -48,6 +48,7 @@ sudo apt-get -y upgrade
 sudo apt-get -y install git openssh-server
 
 #Install Nvidia Driver
+cd $INSTALLER_DIR
 wget https://developer.nvidia.com/compute/cuda/9.0/Prod/local_installers/cuda_9.0.176_384.81_linux-run
 
 sudo service lightdm stop
@@ -57,10 +58,14 @@ sudo sh -c 'echo options nouveau modeset=0 >> /etc/modprobe.d/blacklist-nouveau.
 
 sudo update-initramfs -u
 
-sudo sh cuda_9.0.176_384.81_linux-run --override
+sudo sh cuda_9.0.176_384.81_linux-run --silent --driver --toolkit --samples --override
 
 sudo service lightdm start
 
+sudo sh -c 'echo export CUDA_INC_PATH=/usr/local/cuda/include > /etc/profile.d/cuda_ocl.sh'
+sudo sh -c 'echo export CUDA_LIB_PATH=/usr/local/cuda/lib64 >> /etc/profile.d/cuda_ocl.sh'
+sudo sh -c 'echo export CUDA_PATH=/usr/local/cuda >> /etc/profile.d/cuda_ocl.sh'
+sudo sh -c 'echo export PATH=\$PATH:/usr/local/cuda/bin/ >> /etc/profile.d/cuda_ocl.sh'
 
 
 #Set up the next script to run after the upcoming reboot.
