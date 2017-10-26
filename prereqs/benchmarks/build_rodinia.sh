@@ -44,9 +44,9 @@ if [ ! -d ~/benchmarks/rodinia_3.1 ]; then
     fi
     tar -xvf rodinia_3.1.tar.bz2
     cd rodinia_3.1/
-    sed -i.bak s"#OPENCL_DIR = /if10/kw5na/Packages/AMD-APP-SDK-v2.8-RC-lnx64#OPENCL_DIR = "${OCL_DIR}"#" ./common/make.config
-    sed -i.bak s"#OPENCL_INC = $(OPENCL_DIR)/include/#OPENCL_INC = "${OCL_INCLUDE_DIR}"#" ./common/make.config
-    sed -i.bak s"#OPENCL_LIB = $(OPENCL_DIR)/lib/x86_64/#OPENCL_LIB = "${OCL_LIB_DIR}"#" ./common/make.config
+    sed -i.bak s'#OPENCL_DIR = /if10/kw5na/Packages/AMD-APP-SDK-v2.8-RC-lnx64#OPENCL_DIR = '${OCL_DIR}'#' ./common/make.config
+    sed -i.bak s'#OPENCL_INC = $(OPENCL_DIR)/include/#OPENCL_INC = '${OCL_INCLUDE_DIR}'#' ./common/make.config
+    sed -i.bak s'#OPENCL_LIB = $(OPENCL_DIR)/lib/x86_64/#OPENCL_LIB = '${OCL_LIB_DIR}'#' ./common/make.config
     sed -i.bak s'/opencl.h/cl.h/' ./opencl/dwt2d/main.cpp
     sed -i.bak s'/platformIds\[1/platformIds\[0/' ./opencl/dwt2d/main.cpp
     sed -i.bak s"#/usr/local/cuda-5.5/include#"${OCL_INCLUDE_DIR}"#" ./opencl/dwt2d/Makefile

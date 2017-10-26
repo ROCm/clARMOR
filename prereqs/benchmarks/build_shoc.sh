@@ -51,7 +51,7 @@ if [ ! -f ~/benchmarks/shoc/Makefile ]; then
 
 
     if [ $NV_OCL -eq 1 ]; then
-        CFLAGS="-g -O3 -I"${OCL_INCLUDE_DIR} LIBS="-lOpenCL" CPPFLAGS="-g -O3 -I"${OCL_INCLUDE_DIR} ./configure --with-opencl --without-cuda --without-mpi
+        CFLAGS="-g -O3 -I"${OCL_INCLUDE_DIR} LIBS="-L"${OCL_LIB_DIR}" -lOpenCL" CPPFLAGS="-g -O3 -I"${OCL_INCLUDE_DIR} ./configure --with-opencl --without-cuda --without-mpi
     else
         CFLAGS="-g -O3 -I"${OCL_INCLUDE_DIR} LDFLAGS="-L"${OCL_LIB_DIR} LIBS="-lOpenCL" CPPFLAGS="-g -O3 -I"${OCL_INCLUDE_DIR} ./configure --with-opencl --without-cuda --without-mpi
     fi

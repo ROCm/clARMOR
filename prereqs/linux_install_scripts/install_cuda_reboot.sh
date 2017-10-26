@@ -38,18 +38,48 @@
 BASE_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 INSTALLER_DIR=${BASE_DIR}/../install_files/
 REAL_USER=`logname 2>/dev/null || echo ${SUDO_USER:-${USER}}`
-su -c "mkdir -p ${INSTALLER_DIR}" $REAL_USER
 
-
-#Do basic post-install stuff
-#==============================================================================
-sudo apt-get update
-sudo apt-get -y upgrade
-sudo apt-get -y install git openssh-server
 
 #Install Nvidia Driver
 cd $INSTALLER_DIR
-wget https://developer.nvidia.com/compute/cuda/9.0/Prod/local_installers/cuda_9.0.176_384.81_linux-run
 
-sudo nohup ${BASE_DIR}/install_cuda_reboot.sh &
+sudo service lightdm stop
 
+sudo sh -c 'echo blacklist nouveu > /etc/modprobe.d/blacklist-nouveau.conf'
+sudo sh -c 'echo options nouveau modeset=0 >> /etc/modprobe.d/blacklist-nouveau.conf'
+
+sudo update-initramfs -u
+
+sudo sh cuda_9.0.176_384.81_linux-run --silent --override --driver
+sudo sh cuda_9.0.176_384.81_linux-run --silent --override --toolkit
+
+sudo service lightdm start
+
+sudo sh -c 'echo export CUDA_INC_PATH=/usr/local/cuda/include > /etc/profile.d/cuda_ocl.sh'
+sudo sh -c 'echo export CUDA_LIB_PATH=/usr/local/cuda/lib64 >> /etc/profile.d/cuda_ocl.sh'
+sudo sh -c 'echo export CUDA_PATH=/usr/local/cuda >> /etc/profile.d/cuda_ocl.sh'
+sudo sh -c 'echo export PATH=\$PATH:/usr/local/cuda/bin/ >> /etc/profile.d/cuda_ocl.sh'
+
+sudo mkdir /usr/local/cuda/lib
+sudo ln -sf /usr/local/cuda/lib64 /usr/local/cuda/lib/x86_64
+
+
+#Set up the next script to run after the upcoming reboot.
+#===============================================================================
+INIT_FILE="nvidia_setup"
+NEXT_SCRIPT=setup_ubuntu_16.04.3_nvidia_cuda_2.sh
+sudo sh -c "echo '#!/bin/bash' > /etc/init.d/${INIT_FILE}"
+sudo sh -c "echo ${BASE_DIR}/${NEXT_SCRIPT} >> /etc/init.d/${INIT_FILE}"
+sudo chmod 755 /etc/init.d/${INIT_FILE}
+
+sudo sh -c "echo [Desktop Entry] > /etc/xdg/autostart/${INIT_FILE}.desktop"
+sudo sh -c "echo Name=${INIT_FILE} >> /etc/xdg/autostart/${INIT_FILE}.desktop"
+sudo sh -c "echo Terminal=true >> /etc/xdg/autostart/${INIT_FILE}.desktop"
+sudo sh -c "echo Exec=/etc/init.d/${INIT_FILE} >> /etc/xdg/autostart/${INIT_FILE}.desktop"
+sudo sh -c "echo Type=Application >> /etc/xdg/autostart/${INIT_FILE}.desktop"
+sudo sh -c "echo Categories=Utility\; >> /etc/xdg/autostart/${INIT_FILE}.desktop"
+
+#Reboot at this point
+#==============================================================================
+sudo reboot
+#==============================================================================

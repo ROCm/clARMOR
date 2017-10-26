@@ -1889,7 +1889,6 @@ clSVMFree(cl_context    context,
     }
     return;
 }
-#endif
 
 CL_API_ENTRY void* CL_API_CALL
 clEnqueueMapBuffer(cl_command_queue command_queue,
@@ -1925,7 +1924,6 @@ clEnqueueMapBuffer(cl_command_queue command_queue,
     return ret;
 }
 
-#ifdef CL_VERSION_2_0
 CL_API_ENTRY cl_int CL_API_CALL
 clEnqueueSVMFree(cl_command_queue command_queue,
         cl_uint         num_svm_pointers,
@@ -2032,8 +2030,6 @@ clEnqueueSVMUnmap(cl_command_queue command_queue,
 }
 
 
-#endif
-
 CL_API_ENTRY cl_int CL_API_CALL
 clEnqueueUnmapMemObject(cl_command_queue command_queue,
             cl_mem memobj,
@@ -2061,6 +2057,8 @@ clEnqueueUnmapMemObject(cl_command_queue command_queue,
 
     return err;
 }
+
+#endif
 
 /****************************************************************/
 cl_int runNDRangeKernel(launchOclKernelStruct *ocl_args)
