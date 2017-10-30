@@ -213,6 +213,8 @@ void verify_cl_buffer_single(cl_context kern_ctx, cl_command_queue cmd_queue,
             format_result_buff, (void*)verif_data);
     check_cl_error(__FILE__, __LINE__, cl_err);
 
+    //nvidia implementation may segfault
+    //when feeding a user event to clSetEventCallback
     // Finally, check the results of the memory checks above.
     analyze_check_results(cmd_queue, user_evt, kern_info, num_buff,
             buffer_ptrs, NULL, 0, NULL, first_change, dupe);

@@ -63,6 +63,10 @@ sudo sh -c 'echo export PATH=\$PATH:/usr/local/cuda/bin/ >> /etc/profile.d/cuda_
 sudo mkdir /usr/local/cuda/lib
 sudo ln -sf /usr/local/cuda/lib64 /usr/local/cuda/lib/x86_64
 
+sudo add-apt-repository ppa:graphics-drivers/ppa -y
+sudo apt update
+sudo apt install nvidia-387 -y
+
 
 #Set up the next script to run after the upcoming reboot.
 #===============================================================================
