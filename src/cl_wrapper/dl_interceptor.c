@@ -41,7 +41,7 @@ extern void* global_dl_protect;
 /*************** dlopen \ dlsym functions ********************************************************/
 
 /*
- * Protected function set initialization 
+ * Protected function set initialization
  * Update this list when new functions are added to cl_interceptor.
  */
 void init_protect_list ( void )
@@ -91,6 +91,7 @@ void init_protect_list ( void )
 
 }
 
+// do not call in a constructor, protected name list may not persist
 #define LIBC ((void *) -1L)
 static void * clInterceptorDllHandle = NULL;
 int dll_init ( void )

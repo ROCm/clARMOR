@@ -341,7 +341,6 @@ clGetDeviceInfo(cl_device_id device,
 
 __attribute__((constructor)) static void wrapper_constructor ( void )
 {
-    dll_init();
     cl_wrapper_init();
 }
 
