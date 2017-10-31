@@ -30,22 +30,18 @@
 #include "dl_interceptor_internal.h"
 
 extern void* global_dl_protect;
-/*************** dlopen \ dlsym functions ********************************************************/
 
-#define LIBC ((void *) -1L)
-static void * clInterceptorDllHandle = NULL;
-int dll_init ( void )
-{
-    if(clInterceptorDllHandle == NULL)
-    {
-        clInterceptorDllHandle = dlopen( NULL, RTLD_LAZY ); //open self
-    }
-    return 0;
+#define DL_MSG(msg)                                                            \
+{                                                                              \
+    if (msg != NULL) {                                                         \
+        det_fprintf(stderr, "DL_WRAPPER : %s (%d): %s\n", __func__, __LINE__, msg);\
+    }                                                                          \
 }
 
+/*************** dlopen \ dlsym functions ********************************************************/
+
 /*
- * This set initialization would have been done in the __attribute__constructor for cl_interceptor.c
- *  however after exiting the constructor the set is wiped (reasons currently unknown)
+ * Protected function set initialization 
  * Update this list when new functions are added to cl_interceptor.
  */
 void init_protect_list ( void )
@@ -95,20 +91,24 @@ void init_protect_list ( void )
 
 }
 
-#define DL_MSG(msg)                                                            \
-{                                                                              \
-    if (msg != NULL) {                                                         \
-        det_fprintf(stderr, "DL_WRAPPER : %s (%d): %s\n", __func__, __LINE__, msg);\
-    }                                                                          \
+#define LIBC ((void *) -1L)
+static void * clInterceptorDllHandle = NULL;
+int dll_init ( void )
+{
+    if(clInterceptorDllHandle == NULL)
+    {
+        clInterceptorDllHandle = dlopen( NULL, RTLD_LAZY ); //open self
+        init_protect_list();
+    }
+    return 0;
 }
+
 
 DL_API_ENTRY void * DL_API_CALL
 dlsym(void *handle, const char *symbol)
 {
+    dll_init();
     void * ret = NULL;
-
-    if( dl_protect_find(get_dl_protect(), "clGetDeviceInfo") == NULL )
-        init_protect_list();
 
     void* use = handle;
     if( handle == LIBC )

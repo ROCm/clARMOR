@@ -86,7 +86,7 @@ if [ ! -f ~/benchmarks/proxyapps/CoMD/CoMD-ocl ]; then
     cd CoMD/src-cl
     sed -i.bak 's#INCLUDE_PATH = /opt/rocm/opencl/include#''#' ./Makefile
     sed -i.bak 's#/opt/AMDAPP/include#'${OCL_INCLUDE_DIR}'#' ./Makefile
-    sed -i.bak 's#/opt/rocm/opencl/include#${AMDAPPSDKROOT}/include#' ./Makefile
+    sed -i.bak 's#/opt/rocm/opencl/lib/x86_64#'${OCL_LIB_DIR}'#' ./Makefile
     # Can't build in parallel
     LIBRARY_PATH=${OCL_LIB_DIR} make
     if [ $? -ne 0 ]; then

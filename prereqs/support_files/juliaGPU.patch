@@ -1,0 +1,33 @@
+44a45
+> static int useDevice = 0;
+325c326
+< 			devices[0],
+---
+> 			devices[useDevice],
+352c353
+< 	status = clBuildProgram(program, 1, devices, "-I.", NULL, NULL);
+---
+> 	status = clBuildProgram(program, (int) deviceListSize / sizeof(cl_device_id), devices, "-I.", NULL, NULL);
+359c360
+< 				devices[0],
+---
+> 				devices[useDevice],
+372c373
+< 				devices[0],
+---
+> 				devices[useDevice],
+396c426
+< 			devices[0],
+---
+> 			devices[useDevice],
+672c702
+< 	fprintf(stderr, "Usage: %s <use CPU device (0 or 1)> <use GPU device (0 or 1)> <kernel file name> <window width> <window height>\n", argv[0]);
+---
+> 	fprintf(stderr, "Usage: %s <use CPU device (0 or 1)> <use GPU device (0 or 1)> <kernel file name> <window width> <window height> <device>\n", argv[0]);
+692c722
+< 	if (argc == 6) {
+---
+> 	if (argc == 6 || argc == 7) {
+698a729,730
+> 		if (argc == 7)
+> 			useDevice = atoi(argv[6]);
