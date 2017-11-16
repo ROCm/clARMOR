@@ -121,9 +121,13 @@ CL_INTERCEPTOR_FUNCTION(ReleaseMemObject);
 #ifdef CL_VERSION_2_0
 CL_INTERCEPTOR_FUNCTION(SVMAlloc);
 CL_INTERCEPTOR_FUNCTION(SVMFree);
+CL_INTERCEPTOR_FUNCTION(EnqueueMapBuffer);
 CL_INTERCEPTOR_FUNCTION(EnqueueSVMFree);
+CL_INTERCEPTOR_FUNCTION(EnqueueSVMMap);
 CL_INTERCEPTOR_FUNCTION(EnqueueSVMMemcpy);
 CL_INTERCEPTOR_FUNCTION(EnqueueSVMMemFill);
+CL_INTERCEPTOR_FUNCTION(EnqueueSVMUnmap);
+CL_INTERCEPTOR_FUNCTION(EnqueueUnmapMemObject);
 #endif
 
 /* Kernel APIs */
@@ -201,9 +205,13 @@ static int cl_function_addresses( void* oclDllHandle )
 #ifdef CL_VERSION_2_0
     CL_INTERCEPTOR_FUNCTION_ADDRESS( SVMAlloc );
     CL_INTERCEPTOR_FUNCTION_ADDRESS( SVMFree );
+    CL_INTERCEPTOR_FUNCTION_ADDRESS( EnqueueMapBuffer );
     CL_INTERCEPTOR_FUNCTION_ADDRESS( EnqueueSVMFree );
+    CL_INTERCEPTOR_FUNCTION_ADDRESS( EnqueueSVMMap );
     CL_INTERCEPTOR_FUNCTION_ADDRESS( EnqueueSVMMemcpy );
     CL_INTERCEPTOR_FUNCTION_ADDRESS( EnqueueSVMMemFill );
+    CL_INTERCEPTOR_FUNCTION_ADDRESS( EnqueueSVMUnmap );
+    CL_INTERCEPTOR_FUNCTION_ADDRESS( EnqueueUnmapMemObject );
 #endif
 
     /* Kernel Object APIs */
@@ -333,7 +341,6 @@ clGetDeviceInfo(cl_device_id device,
 
 __attribute__((constructor)) static void wrapper_constructor ( void )
 {
-    dll_init();
     cl_wrapper_init();
 }
 
@@ -594,7 +601,7 @@ clGetMemObjectInfo(cl_mem memobj,
                 }
                 else
                 {
-                    *p_val -= POISON_FILL_LENGTH;
+                    *p_val = m1->size;
                 }
             }
         }
@@ -617,8 +624,16 @@ clCreateBuffer(cl_context   context,
     cl_mem ret = 0;
     if (CreateBuffer)
     {
-        char *fill_ptr = 0;
         initialize_logging();
+
+        if(size == 0)
+        {
+            *errcode_ret = CL_INVALID_BUFFER_SIZE;
+            return NULL;
+        }
+
+        char *fill_ptr = 0;
+        size_t size_aug = size;
 
         if(global_tool_stats_flags & STATS_MEM_OVERHEAD)
         {
@@ -642,24 +657,30 @@ clCreateBuffer(cl_context   context,
         }
         else
         {
-            fill_ptr = (char*)calloc(sizeof(char), size + POISON_FILL_LENGTH);
+            fill_ptr = (char*)calloc(sizeof(char), size + POISON_REGIONS*POISON_FILL_LENGTH);
 
             if(fill_ptr)
             {
+                uint32_t offset = 0;
+#ifdef UNDERFLOW_CHECK
+                memset(fill_ptr, POISON_FILL, POISON_FILL_LENGTH);
+                offset = POISON_FILL_LENGTH;
+#endif
                 if(flags & CL_MEM_COPY_HOST_PTR)
-                    memcpy(fill_ptr, host_ptr, size);
+                    memcpy(fill_ptr + offset, host_ptr, size);
 
-                memset(fill_ptr + size, POISON_FILL, POISON_FILL_LENGTH);
+                offset += size;
+                memset(fill_ptr + offset, POISON_FILL, POISON_FILL_LENGTH);
                 flags = flags | CL_MEM_COPY_HOST_PTR;
 
                 if(global_tool_stats_flags & STATS_MEM_OVERHEAD)
                 {
                     pthread_mutex_lock(&memory_overhead_lock);
-                    total_overhead_mem += POISON_FILL_LENGTH;
-                    current_overhead_mem += POISON_FILL_LENGTH;
+                    total_overhead_mem += POISON_REGIONS*POISON_FILL_LENGTH;
+                    current_overhead_mem += POISON_REGIONS*POISON_FILL_LENGTH;
                     pthread_mutex_unlock(&memory_overhead_lock);
                 }
-                size += POISON_FILL_LENGTH;
+                size_aug += POISON_REGIONS*POISON_FILL_LENGTH;
             }
         }
 
@@ -671,12 +692,59 @@ clCreateBuffer(cl_context   context,
             pthread_mutex_unlock(&memory_overhead_lock);
         }
 
-        ret =
+        cl_int internal_err;
+        cl_mem main_buff = 0;
+        main_buff =
             CreateBuffer( context ,
                     flags ,
-                    size ,
+                    size_aug ,
                     fill_ptr ,
-                    errcode_ret );
+                    &internal_err );
+
+        if(main_buff && !(flags & CL_MEM_USE_HOST_PTR))
+        {
+            cl_buffer_region sub_region;
+            sub_region.origin = 0;
+#ifdef UNDERFLOW_CHECK
+            sub_region.origin = POISON_FILL_LENGTH;
+#endif
+            //include the canary region so this will work for nvidia buffers
+            sub_region.size = size + POISON_FILL_LENGTH;
+            cl_mem_flags passDownFlags, ptrFlags;
+            ptrFlags = CL_MEM_USE_HOST_PTR | CL_MEM_ALLOC_HOST_PTR | CL_MEM_COPY_HOST_PTR;
+            passDownFlags = flags & !ptrFlags;
+
+            ret =
+                CreateSubBuffer( main_buff,
+                        passDownFlags,
+                        CL_BUFFER_CREATE_TYPE_REGION,
+                        (void*)&sub_region,
+                        &internal_err );
+            check_cl_error(__FILE__, __LINE__, internal_err);
+
+            if(is_nvidia_platform(context))
+            {
+                // Force the buffer allocation to contiguous gpu memory space.
+                // This will ensure that the whole buffer is in the same memory.
+                // Later when we act on the sub-buffer, any overflows will spill
+                //   into the main buffer.
+                cl_command_queue command_queue;
+                int weCreated = !getCommandQueueForContext(context, &command_queue);
+                if(!weCreated)
+                    clRetainCommandQueue(command_queue);
+
+                void *read_ptr = malloc(size_aug);
+                EnqueueReadBuffer(command_queue, main_buff, CL_TRUE, 0, size_aug, read_ptr,
+                                    0, NULL, NULL);
+                free(read_ptr);
+
+                clReleaseCommandQueue(command_queue);
+            }
+        }
+        else
+        {
+            ret = main_buff;
+        }
 
         if(fill_ptr && fill_ptr != host_ptr)
             free(fill_ptr);
@@ -693,6 +761,7 @@ clCreateBuffer(cl_context   context,
                 temp->host_ptr = host_ptr;
             else
             {
+                temp->main_buff = main_buff;
                 temp->host_ptr = NULL;
                 temp->has_canary = 1;
             }
@@ -700,6 +769,9 @@ clCreateBuffer(cl_context   context,
 
             cl_mem_insert(get_cl_mem_alloc(), temp);
         }
+
+        if(errcode_ret)
+            *errcode_ret = internal_err;
     }
     else
     {
@@ -721,41 +793,33 @@ CL_API_ENTRY cl_mem CL_API_CALL
     {
         initialize_logging();
 
+        cl_memobj *superBuff = cl_mem_find(get_cl_mem_alloc(), buffer);
+        cl_buffer_region buffer_region_info = *(cl_buffer_region*)buffer_create_info;
+        if(superBuff->has_canary == 1)
+        {
+            buffer = superBuff->main_buff;
+#ifdef UNDERFLOW_CHECK
+            buffer_region_info.origin += POISON_FILL_LENGTH;
+#endif
+        }
+
         ret =
             CreateSubBuffer(
                     buffer,
                     flags,
                     buffer_create_type,
-                    buffer_create_info,
+                    &buffer_region_info,
                     errcode_ret);
 
         if(ret)
         {
-            cl_memobj *superBuff = cl_mem_find(get_cl_mem_alloc(), buffer);
-            cl_mem_flags passDownFlags, ptrFlags, gpuFlags;
-            ptrFlags = CL_MEM_USE_HOST_PTR | CL_MEM_ALLOC_HOST_PTR | CL_MEM_COPY_HOST_PTR;
-            gpuFlags = CL_MEM_READ_ONLY | CL_MEM_WRITE_ONLY | CL_MEM_READ_WRITE;
-
-            passDownFlags = superBuff->flags & ptrFlags;
-            if(flags & gpuFlags)
-                passDownFlags |= flags & gpuFlags;
-            else
-                passDownFlags |= superBuff->flags & gpuFlags;
-#ifdef CL_VERSION_1_2
-            cl_mem_flags hostFlags = CL_MEM_HOST_READ_ONLY | CL_MEM_HOST_WRITE_ONLY | CL_MEM_HOST_NO_ACCESS;
-            if(flags & hostFlags)
-                passDownFlags |= flags & hostFlags;
-            else
-                passDownFlags |= superBuff->flags & hostFlags;
-#endif
-
             cl_memobj *temp = (cl_memobj*)calloc(sizeof(cl_memobj), 1);
             temp->handle = ret;
             temp->is_sub = 1;
             temp->context = superBuff->context;
-            temp->flags = passDownFlags;
-            temp->size = ((cl_buffer_region*)buffer_create_info)->size;
-            temp->origin = ((cl_buffer_region*)buffer_create_info)->origin;
+            temp->flags = flags;
+            temp->size = buffer_region_info.size;
+            temp->origin = buffer_region_info.origin;
             if(superBuff->host_ptr)
                 temp->host_ptr = (char*)superBuff->host_ptr + temp->origin;
             else
@@ -1318,6 +1382,8 @@ clRetainMemObject(cl_mem memobj )
         if (findme != NULL)
             findme->ref_count++;
         err = RetainMemObject( memobj );
+        if(findme && findme->main_buff)
+            err = RetainMemObject( findme->main_buff );
     }
     else
     {
@@ -1342,8 +1408,12 @@ clReleaseMemObject(cl_mem memobj )
     {
         initialize_logging();
         cl_memobj *findme = cl_mem_find(get_cl_mem_alloc(), memobj);
+        cl_mem main_buff = 0;
         if (findme != NULL)
         {
+            if(findme->main_buff)
+                main_buff = findme->main_buff;
+
             findme->ref_count--;
             if (findme->ref_count == 0)
             {
@@ -1351,7 +1421,11 @@ clReleaseMemObject(cl_mem memobj )
                 {
                     pthread_mutex_lock(&memory_overhead_lock);
                     if(internal_create)
+                    {
                         current_overhead_mem -= findme->size;
+                        if(!findme->is_image)
+                            current_overhead_mem -= POISON_REGIONS*POISON_FILL_LENGTH;
+                    }
                     else if( !findme->has_canary )
                         current_user_mem -= findme->size;
                     else if(findme->is_image)
@@ -1383,8 +1457,8 @@ clReleaseMemObject(cl_mem memobj )
                     }
                     else
                     {
-                        current_user_mem -= (findme->size - POISON_FILL_LENGTH);
-                        current_overhead_mem -= POISON_FILL_LENGTH;
+                        current_user_mem -= findme->size;
+                        current_overhead_mem -= POISON_REGIONS*POISON_FILL_LENGTH;
                     }
                     pthread_mutex_unlock(&memory_overhead_lock);
                 }
@@ -1395,7 +1469,10 @@ clReleaseMemObject(cl_mem memobj )
                     cl_mem_delete(temp);
             }
         }
+
         err = ReleaseMemObject( memobj );
+        if(main_buff)
+            err = ReleaseMemObject( main_buff );
     }
     else
     {
@@ -1623,7 +1700,7 @@ clSetKernelArgSVMPointer(
             // setting this kernel argument with the SetSVMPointer function.
             arg_temp->buffer = NULL;
             cl_svm_memobj *m1 = cl_svm_mem_find(get_cl_svm_mem_alloc(), arg_value);
-            if (m1 == NULL)
+            if (m1 == NULL && !canaryAccessAllowed())
             {
                 det_fprintf(stderr, "DETECTOR WARNING: Passing in a pointer to "
                         "clSetKernelArgSVMPointer() that was not allocated "
@@ -1677,15 +1754,6 @@ void *internalSVMAlloc(cl_context     context,
             cl_svm_fg_alloc(context, ret, flags, size, alignment);
     }
 
-    cl_svm_memobj *temp = (cl_svm_memobj*)calloc(sizeof(cl_svm_memobj), 1);
-    temp->handle = ret;
-    temp->context = context;
-    temp->flags = flags;
-    temp->size = size;
-    temp->alignment = alignment;
-    temp->detector_internal_buffer = 0; // will set this outside if need be.
-    cl_svm_mem_insert(get_cl_svm_mem_alloc(), temp);
-
     return ret;
 }
 
@@ -1699,6 +1767,8 @@ clSVMAlloc(cl_context           context,
     void *ret = NULL;
     if ( SVMAlloc )
     {
+        size_t size_aug = size;
+
         initialize_logging();
         // Workaround for a strange bug in the AMD OpenCL runtime.
         // If we start allocating small SVM buffers, some memory gets corrupted
@@ -1706,46 +1776,64 @@ clSVMAlloc(cl_context           context,
         // runtime iff you use some of its smaller buffers.
         // This workaround likely does not fix the problem, and may breka some
         // of your apps that really do require small SVM buffers. Sorry..
+        /*
         if (size < 128)
             size = 10000000;
+        */
 
         if(global_tool_stats_flags & STATS_MEM_OVERHEAD)
         {
             pthread_mutex_lock(&memory_overhead_lock);
             if(internal_create)
             {
-                total_overhead_mem += size + POISON_FILL_LENGTH;
-                current_overhead_mem += size + POISON_FILL_LENGTH;
+                total_overhead_mem += size + POISON_REGIONS*POISON_FILL_LENGTH;
+                current_overhead_mem += size + POISON_REGIONS*POISON_FILL_LENGTH;
             }
             else
             {
                 total_user_mem += size;
                 current_user_mem += size;
-                total_overhead_mem += POISON_FILL_LENGTH;
-                current_overhead_mem += POISON_FILL_LENGTH;
+                total_overhead_mem += POISON_REGIONS*POISON_FILL_LENGTH;
+                current_overhead_mem += POISON_REGIONS*POISON_FILL_LENGTH;
             }
 
             high_user_mem = (high_user_mem > current_user_mem) ? high_user_mem : current_user_mem;
             high_overhead_mem = (high_overhead_mem > current_overhead_mem) ? high_overhead_mem : current_overhead_mem;
             pthread_mutex_unlock(&memory_overhead_lock);
         }
-        size += POISON_FILL_LENGTH;
+        size_aug += POISON_REGIONS*POISON_FILL_LENGTH;
 
-        ret = internalSVMAlloc(context, flags, size, alignment);
+        ret = internalSVMAlloc(context, flags, size_aug, alignment);
 
         if (ret == NULL)
             return NULL;
 
+        void * user_ptr;
+        user_ptr = ret;
+#ifdef UNDERFLOW_CHECK
+        user_ptr = (char*)user_ptr + POISON_FILL_LENGTH;
+#endif
+
         cl_int cl_err;
         cl_command_queue cmdQueue;
         int weCreated = !getCommandQueueForContext(context, &cmdQueue);
+        if(!weCreated)
+            clRetainCommandQueue(cmdQueue);
 
-        cl_event finish;
-        cl_err = clEnqueueSVMMemFill(cmdQueue, (char*)ret + size - POISON_FILL_LENGTH, &poisonFill_8b, sizeof(uint8_t), POISON_FILL_LENGTH, 0, 0, &finish);
+        uint32_t offset = size;
+        cl_event finish[2];
+#ifdef UNDERFLOW_CHECK
+        cl_err = clEnqueueSVMMemFill(cmdQueue, (char*)ret, &poisonFill_8b, sizeof(uint8_t), POISON_FILL_LENGTH, 0, 0, &finish[1]);
+        check_cl_error(__FILE__, __LINE__, cl_err);
+
+        offset += POISON_FILL_LENGTH;
+#endif
+        cl_err = clEnqueueSVMMemFill(cmdQueue, (char*)ret + offset, &poisonFill_8b, sizeof(uint8_t), POISON_FILL_LENGTH, 0, 0, &finish[0]);
         check_cl_error(__FILE__, __LINE__, cl_err);
 
         cl_svm_memobj *temp = (cl_svm_memobj*)calloc(sizeof(cl_svm_memobj), 1);
-        temp->handle = ret;
+        temp->handle = user_ptr;
+        temp->main_buff = ret;
         temp->context = context;
         temp->flags = flags;
         temp->size = size;
@@ -1753,9 +1841,11 @@ clSVMAlloc(cl_context           context,
         temp->detector_internal_buffer = 0; // will set this outside if need be.
         cl_svm_mem_insert(get_cl_svm_mem_alloc(), temp);
 
-        clWaitForEvents(1, &finish);
-        if(weCreated)
-            clReleaseCommandQueue(cmdQueue);
+        clWaitForEvents(POISON_REGIONS, finish);
+
+        clReleaseCommandQueue(cmdQueue);
+
+        ret = user_ptr;
     }
     else
     {
@@ -1773,18 +1863,20 @@ clSVMFree(cl_context    context,
         initialize_logging();
         cl_svm_memobj *temp;
         temp = cl_svm_mem_remove(get_cl_svm_mem_alloc(), svm_pointer);
+        void *main_svm = 0;
 
         if(global_tool_stats_flags & STATS_MEM_OVERHEAD)
         {
             pthread_mutex_lock(&memory_overhead_lock);
             if(temp != NULL)
             {
+                main_svm = temp->main_buff;
                 if(internal_create)
-                    current_overhead_mem -= temp->size;
+                    current_overhead_mem -= temp->size + POISON_REGIONS*POISON_FILL_LENGTH;
                 else
                 {
-                    current_user_mem -= (temp->size - POISON_FILL_LENGTH);
-                    current_overhead_mem -= POISON_FILL_LENGTH;
+                    current_user_mem -= temp->size;
+                    current_overhead_mem -= POISON_REGIONS*POISON_FILL_LENGTH;
                 }
             }
             pthread_mutex_unlock(&memory_overhead_lock);
@@ -1803,6 +1895,8 @@ clSVMFree(cl_context    context,
          * to do the free and we end up with use-after-free errors.
          * Coarse-grained buffers call SVMFree like normal.
          */
+        if (main_svm && cl_svm_fg_free(context, main_svm))
+            SVMFree(context, main_svm);
         if (cl_svm_fg_free(context, svm_pointer))
             SVMFree(context, svm_pointer);
     }
@@ -1811,6 +1905,40 @@ clSVMFree(cl_context    context,
         CL_MSG("NOT FOUND!");
     }
     return;
+}
+
+CL_API_ENTRY void* CL_API_CALL
+clEnqueueMapBuffer(cl_command_queue command_queue,
+            cl_mem buffer,
+            cl_bool blocking_map,
+            cl_map_flags map_flags,
+            size_t offset,
+            size_t size,
+            cl_uint num_events_in_wait_list,
+            const cl_event *event_wait_list,
+            cl_event *event,
+            cl_int *errcode_ret)
+{
+    void *ret = NULL;
+    if(EnqueueMapBuffer)
+    {
+        cl_mem main_buffer = buffer;
+        size_t offset_aug = offset;
+        cl_memobj *m1 = cl_mem_find(get_cl_mem_alloc(), buffer);
+        if(m1 && m1->main_buff)
+        {
+            offset_aug += POISON_FILL_LENGTH;
+            main_buffer = m1->main_buff;
+        }
+
+        ret = EnqueueMapBuffer(command_queue, main_buffer, blocking_map, map_flags, offset_aug, size, num_events_in_wait_list, event_wait_list, event, errcode_ret);
+    }
+    else
+    {
+        CL_MSG("NOT FOUND!");
+    }
+
+    return ret;
 }
 
 CL_API_ENTRY cl_int CL_API_CALL
@@ -1856,6 +1984,97 @@ clEnqueueSVMFree(cl_command_queue command_queue,
     }
     return(err);
 }
+
+CL_API_ENTRY cl_int CL_API_CALL
+clEnqueueSVMMap(cl_command_queue command_queue,
+            cl_bool blocking_map,
+            cl_map_flags map_flags,
+            void *svm_ptr,
+            size_t size,
+            cl_uint num_events_in_wait_list,
+            const cl_event *event_wait_list,
+            cl_event *event)
+{
+    cl_int err = INT_MIN;
+    if(EnqueueSVMMap)
+    {
+        void *main_svm = svm_ptr;
+        size_t size_aug = size;
+
+        cl_svm_memobj *m1;
+        m1 = cl_svm_mem_find(get_cl_svm_mem_alloc(), svm_ptr);
+        if(m1)
+        {
+            main_svm = m1->main_buff;
+            size_aug += POISON_FILL_LENGTH;
+        }
+
+        err = EnqueueSVMMap(command_queue, blocking_map, map_flags, main_svm, size_aug, num_events_in_wait_list, event_wait_list, event);
+    }
+    else
+    {
+        CL_MSG("NOT FOUND!");
+    }
+    return(err);
+}
+
+CL_API_ENTRY cl_int CL_API_CALL
+clEnqueueSVMUnmap(cl_command_queue command_queue,
+            void *svm_ptr,
+            cl_uint num_events_in_wait_list,
+            const cl_event *event_wait_list,
+            cl_event *event)
+{
+    cl_int err = INT_MIN;
+    if(EnqueueSVMUnmap)
+    {
+        void *main_svm = svm_ptr;
+
+        cl_svm_memobj *m1;
+        m1 = cl_svm_mem_find(get_cl_svm_mem_alloc(), svm_ptr);
+        if(m1)
+        {
+            main_svm = m1->main_buff;
+        }
+
+        err = EnqueueSVMUnmap(command_queue, main_svm, num_events_in_wait_list, event_wait_list, event);
+    }
+    else
+    {
+        CL_MSG("NOT FOUND!");
+    }
+    return(err);
+}
+
+
+CL_API_ENTRY cl_int CL_API_CALL
+clEnqueueUnmapMemObject(cl_command_queue command_queue,
+            cl_mem memobj,
+            void *mapped_ptr,
+            cl_uint num_events_in_wait_list,
+            const cl_event *event_wait_list,
+            cl_event *event)
+{
+    cl_int err = INT_MIN;
+    if(EnqueueUnmapMemObject)
+    {
+        cl_mem main_buffer = memobj;
+        cl_memobj *m1 = cl_mem_find(get_cl_mem_alloc(), memobj);
+        if(m1 && m1->main_buff)
+        {
+            main_buffer = m1->main_buff;
+        }
+
+        err = EnqueueUnmapMemObject(command_queue, main_buffer, mapped_ptr, num_events_in_wait_list, event_wait_list, event);
+    }
+    else
+    {
+        CL_MSG("NOT FOUND!");
+    }
+
+    return err;
+}
+
 #endif
 
 /****************************************************************/

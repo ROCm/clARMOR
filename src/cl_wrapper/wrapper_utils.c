@@ -36,6 +36,39 @@ extern pthread_mutex_t command_queue_cache_lock;
 
 static __thread uint8_t canaryAccess = 0;
 
+int is_nvidia_platform(cl_context context)
+{
+    cl_int cl_err;
+    cl_device_id device;
+    cl_platform_id platform;
+    size_t platform_name_len = 0;
+    char *platform_name;
+
+    cl_err = clGetContextInfo(context, CL_CONTEXT_DEVICES,
+        sizeof(cl_device_id), &device, NULL);
+    check_cl_error(__FILE__, __LINE__, cl_err);
+    cl_err = clGetDeviceInfo(device, CL_DEVICE_PLATFORM,
+        sizeof(cl_platform_id), &platform, NULL);
+    check_cl_error(__FILE__, __LINE__, cl_err);
+
+    cl_err = clGetPlatformInfo(platform, CL_PLATFORM_NAME, 0, NULL,
+            &platform_name_len);
+    check_cl_error(__FILE__, __LINE__, cl_err);
+
+    platform_name = calloc(platform_name_len, sizeof(char));
+
+    cl_err = clGetPlatformInfo(platform, CL_PLATFORM_NAME,
+        platform_name_len, platform_name, NULL);
+    check_cl_error(__FILE__, __LINE__, cl_err);
+
+    char *found;
+    found = strstr(platform_name, "NVIDIA");
+    int ret = (found) ? 1 : 0;
+    free(platform_name);
+
+    return ret;
+}
+
 void allowCanaryAccess(void)
 {
     canaryAccess = 1;
@@ -228,17 +261,13 @@ uint8_t apiBufferOverflowCheck(char * const func, cl_mem buffer, size_t offset, 
     cl_memobj *m1 = cl_mem_find(get_cl_mem_alloc(), buffer);
     if(m1)
     {
-        uint64_t tail_length, data_size;
-        if( !m1->has_canary || canaryAccessAllowed() )
-            tail_length = 0;
-        else
-            tail_length = POISON_FILL_LENGTH;
+        uint64_t data_size;
 
-        data_size = m1->size - tail_length;
+        data_size = m1->size;
 
         if(offset + size > data_size)
         {
-            uint64_t bad_byte;
+            int64_t bad_byte;
             if(offset > data_size)
                 bad_byte = offset - data_size;
             else
@@ -261,11 +290,7 @@ uint8_t apiBufferRectOverflowCheck(char * const func, cl_mem buffer, const size_
     cl_memobj *m1 = cl_mem_find(get_cl_mem_alloc(), buffer);
     if(m1)
     {
-        uint64_t tail_length, b_off, b_end;
-        if( !m1->has_canary || canaryAccessAllowed() )
-            tail_length = 0;
-        else
-            tail_length = POISON_FILL_LENGTH;
+        uint64_t b_off, b_end;
 
         b_off = buffer_offset[0];
         b_end = region[0];
@@ -282,11 +307,11 @@ uint8_t apiBufferRectOverflowCheck(char * const func, cl_mem buffer, const size_
 
         b_end += b_off;
 
-        if(b_end > m1->size - tail_length)
+        if(b_end > m1->size)
         {
-            uint64_t bad_byte;
-            if(b_off > m1->size - tail_length)
-                bad_byte = b_off - (m1->size - tail_length);
+            int64_t bad_byte;
+            if(b_off > m1->size)
+                bad_byte = b_off - m1->size;
             else
                 bad_byte = 0;
 

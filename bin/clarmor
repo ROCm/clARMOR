@@ -87,6 +87,13 @@ def print_and_exit_on_cmd_error(cmd, err_code):
         logging.error("Exiting script.")
         sys.exit(2)
 
+def string_convert(input_array):
+    outstr = ""
+    for item in input_array:
+        outstr += "%s " % item
+
+    return outstr
+
 def add_arguments(parser):
     parser.add_argument('-h', '--help', action='store_true', dest="help",
             default=False, help='Print out this help menu.')
@@ -98,8 +105,8 @@ def add_arguments(parser):
     parser.add_argument('-w', '--working_directory', dest='working_dir',
             default=current_dir,
             help='Directory from which to run the application.')
-    parser.add_argument('-r', '--run', dest='cmd_line', default=None,
-            help='Command line of the application to run through the dtector.')
+    parser.add_argument('-r', '--run', nargs='+', dest='cmd_line', default=None,
+            help='Command line of the application to run through the detector.')
     parser.add_argument('-e', '--exit_on_overflow', action='store_true',
             dest='exit_on_overflow', default=False,
             help=('Exit the application with an error upon detecting the ' +
@@ -207,6 +214,9 @@ def run_detect_overflow(args, parser):
     # Use parameters from benchmark file if available
     # However, if we pass a command line with --run, it overrides the
     # benchmark file.
+
+    if not args['cmd_line'] == None:
+        args['cmd_line'] = string_convert(args['cmd_line'])
     if args["benchmark"] == None and args["cmd_line"] == None:
         print "\n\nError, no program to run. Please use the --run argument"
         print "Alternately, pass a benchmark or group of benchmarks."

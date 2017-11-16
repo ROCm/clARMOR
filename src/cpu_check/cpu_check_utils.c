@@ -62,6 +62,7 @@ void cpu_parse_canary(cl_command_queue cmd_queue, uint32_t check_len,
                     //clEnqueueNDRangeKernel->kernelLaunchFunc->verifyBufferInBounds->verify_buffer_on_host->verify_cl_mem->cpu_parse_canary
                     backtrace_str = get_backtrace_level(5);
                 }
+
                 overflowError(kern_info, buffer, sizeof(uint32_t)*p + q, backtrace_str);
                 printDupeWarning(kern_info->handle, dupe);
                 optionalKillOnOverflow(get_exitcode_envvar(), 0);

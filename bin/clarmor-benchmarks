@@ -22,6 +22,7 @@
 # THE SOFTWARE.
 
 import os
+import subprocess
 
 #List of test benchmarks.
 # Benchmarks: 21
@@ -116,23 +117,59 @@ VIENNACL+="blas3_solve-test-opencl sparse_prod-test-opencl"
 NPB_OCL="npb_ocl_bt npb_ocl_cg npb_ocl_ep npb_ocl_ft npb_ocl_is npb_ocl_lu "
 NPB_OCL+="npb_ocl_mg npb_ocl_sp"
 
-ALL_BENCHMARKS_AMD=""
-ALL_BENCHMARKS_NV=""
 
-# Benchmark suites that work on AMD GPUs (w/ OpenCL 2.0)
-for bench in [RODINIA, SHOC, PHORONIX, OPENDWARFS, PROXYAPPS, AMDAPP,
-    AMDAPP_CL2, PARBOIL, PANNOTIA, STREAMMR, POLYBENCH, FINANCEBENCH,
-    GPUSTREAM, MANTEVO, HETEROMARK, HETEROMARK_CL2, LINPACK, VIENNACL,
-    NPB_OCL]:
-    ALL_BENCHMARKS_AMD+=bench + " "
+ALL_BENCHMARKS=""
 
-# Benchmark suites that work on Nvidia GPUs
-for bench in [RODINIA_NV, SHOC, OPENDWARFS, PROXYAPPS, AMDAPP_ON_NV,
-    PARBOIL, PANNOTIA, POLYBENCH, FINANCEBENCH, GPUSTREAM,
-    MANTEVO_ON_NV, HETEROMARK, VIENNACL, NPB_OCL]:
-    ALL_BENCHMARKS_NV+=bench + ""
+null = open(os.devnull,"w")
+driver_rocm = 1
+try:
+    subprocess.check_call("uname -a | grep rocm", shell=True, stdout=null, stderr=null)
+except subprocess.CalledProcessError:
+    driver_rocm = 0
 
-ALL_BENCHMARKS=ALL_BENCHMARKS_AMD
+driver_amdgpu_pro = 1
+try:
+    subprocess.check_call("lsmod | grep ^amdkcl", shell=True, stdout=null, stderr=null)
+except subprocess.CalledProcessError:
+    driver_amdgpu_pro = 0
+
+driver_catalyst = 1
+try:
+    subprocess.check_call("lsmod | grep ^fglrx", shell=True, stdout=null, stderr=null)
+except subprocess.CalledProcessError:
+    driver_catalyst = 0
+
+if driver_rocm == 1:
+    # Skip Phoronix becuase we may not have working graphics-GPU
+    # Skip the HCC->OpenCL applications; those only work on Catalyst
+    # Skip the CL2 benchmarks as well.
+    for bench in [RODINIA, SHOC, OPENDWARFS, PROXYAPPS, AMDAPP,
+        PARBOIL, PANNOTIA, STREAMMR, POLYBENCH, FINANCEBENCH,
+        GPUSTREAM, MANTEVO, HETEROMARK, LINPACK, VIENNACL,
+        NPB_OCL]:
+        ALL_BENCHMARKS+=bench + " "
+elif driver_amdgpu_pro == 1:
+    # Skip Phoronix becuase we may not have working graphics-GPU
+    # Skip the HCC->OpenCL applications; those only work on Catalyst
+    # Skip the CL2 benchmarks as well.
+    for bench in [RODINIA, SHOC, OPENDWARFS, PROXYAPPS, AMDAPP,
+        PARBOIL, PANNOTIA, STREAMMR, POLYBENCH, FINANCEBENCH,
+        GPUSTREAM, MANTEVO, HETEROMARK, LINPACK, VIENNACL,
+        NPB_OCL]:
+        ALL_BENCHMARKS+=bench + " "
+elif driver_catalyst == 1:
+    for bench in [RODINIA, SHOC, PHORONIX, OPENDWARFS, PROXYAPPS,
+        AMDAPP, AMDAPP_CL2, PARBOIL, PANNOTIA, STREAMMR, POLYBENCH,
+        FINANCEBENCH, GPUSTREAM, MANTEVO, HETEROMARK, HETEROMARK_CL2,
+        LINPACK, VIENNACL, NPB_OCL]:
+        ALL_BENCHMARKS+=bench + " "
+else:
+    # Benchmark suites that work on Nvidia GPUs
+    for bench in [RODINIA_NV, SHOC, OPENDWARFS, PROXYAPPS, AMDAPP_ON_NV,
+        PARBOIL, PANNOTIA, POLYBENCH, FINANCEBENCH, GPUSTREAM,
+        MANTEVO_ON_NV, HETEROMARK, VIENNACL, NPB_OCL]:
+        ALL_BENCHMARKS+=bench + ""
+
 
 #Declare HashMaps
 benchCD = {}

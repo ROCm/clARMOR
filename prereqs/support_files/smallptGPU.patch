@@ -1,0 +1,38 @@
+#The Phoronix Test Suite is licensed under the GNU GPLv3 free software license.
+49a50
+> static int useDevice = 0;
+464c465
+< 			devices[0],
+---
+> 			devices[useDevice],
+550c551
+< 	status = clBuildProgram(program, 1, devices, "-I. -D__APPLE__", NULL, NULL);
+---
+> 	status = clBuildProgram(program, (int) deviceListSize / sizeof(cl_device_id), devices, "-I. -D__APPLE__", NULL, NULL);
+552c553
+< 	status = clBuildProgram(program, 1, devices, "-I. ", NULL, NULL);
+---
+> 	status = clBuildProgram(program, (int) deviceListSize / sizeof(cl_device_id), devices, "-I. ", NULL, NULL);
+560c561
+< 				devices[0],
+---
+> 				devices[useDevice],
+573c574
+< 				devices[0],
+---
+> 				devices[useDevice],
+597c598
+< 			devices[0],
+---
+> 			devices[useDevice],
+847c848
+< 	fprintf(stderr, "Usage: %s <use CPU/GPU device (0=CPU or 1=GPU)> <workgroup size (0=default value or anything > 0 and power of 2)> <kernel file name> <window width> <window height> <scene file>\n", argv[0]);
+---
+> 	fprintf(stderr, "Usage: %s <use CPU/GPU device (0=CPU or 1=GPU)> <workgroup size (0=default value or anything > 0 and power of 2)> <kernel file name> <window width> <window height> <scene file> <device>\n", argv[0]);
+849c850
+< 	if (argc == 7) {
+---
+> 	if (argc == 7 || argc == 8) {
+855a857,858
+> 		if (argc == 8)
+> 			useDevice = atoi(argv[7]);

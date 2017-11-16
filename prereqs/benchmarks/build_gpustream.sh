@@ -49,11 +49,8 @@ if [ ! -f ~/benchmarks/GPU-STREAM/gpu-stream-ocl ]; then
     cd ~/benchmarks/GPU-STREAM
     git checkout bbee43998514a8d618592adb90bcb1b27d4764e0
 
-	if [ ! -z ${CUDA_LIB_PATH+x} ] || [ ! -z ${CUDA_PATH+x} ]; then
-		sed -i.bak s"#O3#g -O3 -I "${OCL_INCLUDE_DIR}"#" ~/benchmarks/GPU-STREAM/Makefile
-	else
-		sed -i.bak s"#O3#g -O3 -I "${OCL_INCLUDE_DIR}" -L "${OCL_LIB_DIR}"#" ~/benchmarks/GPU-STREAM/Makefile
-	fi
+    sed -i.bak s"#O3#g -O3 -I "${OCL_INCLUDE_DIR}" -L "${OCL_LIB_DIR}"#" ~/benchmarks/GPU-STREAM/Makefile
+
     make -j `nproc` gpu-stream-ocl
     if [ $? -ne 0 ]; then
         echo -e "Failed to build GPU-STREAM"

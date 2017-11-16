@@ -90,11 +90,11 @@ if [ ! -d ~/benchmarks/parboil ]; then
     # Otherwise, we are doing a use-after-free of an event from that command queue, which causes a crash.
     sed -i.bak 's#pb_DestroyTimerSet#//pb_DestroyTimerSet#' ./benchmarks/sad/src/opencl_base/main.cpp
     sed -i.bak 's#OCL_ERRCK_RETVAL( clReleaseCommandQueue#pb_DestroyTimerSet(\&timers);\n  OCL_ERRCK_RETVAL( clReleaseCommandQueue#' ./benchmarks/sad/src/opencl_base/main.cpp
-	# Patch 'histo' so that it works on NV GPUs without running out of local memory space.
-	sed -i.bak 's#lmemKB = 48#lmemKB = 32#' ./benchmarks/histo/src/opencl_base/main.cpp
-	sed -i.bak 's#lmemKB = 24#lmemKB = 16#' ./benchmarks/histo/src/opencl_base/main.cpp
+    # Patch 'histo' so that it works on NV GPUs without running out of local memory space.
+    sed -i.bak 's#lmemKB = 48#lmemKB = 32#' ./benchmarks/histo/src/opencl_base/main.cpp
+    sed -i.bak 's#lmemKB = 24#lmemKB = 16#' ./benchmarks/histo/src/opencl_base/main.cpp
     for i in `./parboil list | grep "^ " | awk {'print $1'}`; do ./parboil compile $i opencl_base; done
-    ./parboil compile mri-q opencl
+    LIBRARY_PATH=${OCL_LIB_DIR} ./parboil compile mri-q opencl
 else
     echo -e "~/benchmarks/parboil exists. Not rebuilding Parboil."
 fi

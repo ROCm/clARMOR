@@ -32,6 +32,8 @@
 #  - XSBench uses an MIT license. See XSBench/LICENSE
 
 BASE_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+source ${BASE_DIR}/setup_bench_install.sh
+
 
 if [ ! -d ~/benchmarks/proxyapps ]; then
     mkdir -p ~/benchmarks/proxyapps
@@ -45,7 +47,7 @@ if [ ! -d ~/benchmarks/proxyapps/ComputeApps/ ] ||\
     [ ! -f ~/benchmarks/proxyapps/XSBench/src/XSBench ] ||\
     [ ! -f ~/benchmarks/proxyapps/SNAP-OpenCL/src/snap ] ||\
     [ ! -f ~/benchmarks/proxyapps/SNAP_MPI_OpenCL/src/snap ];
-    then
+then
     source ${BASE_DIR}/setup_bench_install.sh
 fi
 
@@ -53,7 +55,6 @@ if [ ! -d ~/benchmarks/proxyapps/ComputeApps/ ]; then
     cd ~/benchmarks/proxyapps/
     echo -e "\n\nAbout to log into GitHub to get AMD Proxy Apps:"
     git clone https://github.com/AMDComputeLibraries/ComputeApps.git
-	git checkout 4e5d9ca628b6b14b7b1094b9d37324e4856ce4c7
     cd ~/benchmarks/proxyapps/ComputeApps/
     git checkout 4e5d9ca628b6b14b7b1094b9d37324e4856ce4c7
     if [ ! -d ~/benchmarks/proxyapps/CoMD ]; then
@@ -77,14 +78,17 @@ if [ ! -f ~/benchmarks/proxyapps/CoMD/CoMD-ocl ]; then
         cd temp
         echo -e "\n\nAbout to log into GitHub to get AMD Proxy Apps (CoMD):"
         git clone https://github.com/AMDComputeLibraries/ComputeApps.git
-		git checkout 4e5d9ca628b6b14b7b1094b9d37324e4856ce4c7
+        git checkout 4e5d9ca628b6b14b7b1094b9d37324e4856ce4c7
         mv ./ComputeApps/comd-cl ../CoMD
         cd ..
         rm -rf ./temp
     fi
     cd CoMD/src-cl
-	sed -i.bak 's#/opt/AMDAPP/include#'${OCL_INCLUDE_DIR}'#' ./Makefile
-    make -j `nproc`
+    sed -i.bak 's#INCLUDE_PATH = /opt/rocm/opencl/include#''#' ./Makefile
+    sed -i.bak 's#/opt/AMDAPP/include#'${OCL_INCLUDE_DIR}'#' ./Makefile
+    sed -i.bak 's#/opt/rocm/opencl/lib/x86_64#'${OCL_LIB_DIR}'#' ./Makefile
+    # Can't build in parallel
+    LIBRARY_PATH=${OCL_LIB_DIR} make
     if [ $? -ne 0 ]; then
         echo -e "Failed to build CoMD."
         exit -1
@@ -100,30 +104,30 @@ if [ ! -f ~/benchmarks/proxyapps/LULESH/lulesh ]; then
         cd temp
         echo -e "\n\nAbout to log into GitHub to get AMD Proxy Apps (LULESH):"
         git clone https://github.com/AMDComputeLibraries/ComputeApps.git
-		git checkout 4e5d9ca628b6b14b7b1094b9d37324e4856ce4c7
+        git checkout 4e5d9ca628b6b14b7b1094b9d37324e4856ce4c7
         mv ./ComputeApps/lulesh-cl ../LULESH
         cd ..
         rm -rf ./temp
     fi
     cd LULESH
     sed -i.bak 's/O3/g -O3/' ./Makefile
-	sed -i.bak 's#/opt/AMDAPP/include/#'${OCL_INCLUDE_DIR}'#' ./Makefile
-	sed -i.bak 's#/opt/AMDAPP/lib/x86_64#'${OCL_LIB_DIR}'#' ./Makefile
-	sed -i.bak 's#-L$(LIB_PATH)##' ./Makefile
-	# The following changes need to be made so that this program will compile
-	# in Nvidia's OpenCL implementation.
-	sed -i.bak 's#(Real_t pfx\[8\],#(__private Real_t pfx[8],#' ./kernels.cl
-	sed -i.bak 's#Real_t pfy\[8\],#__private Real_t pfy[8],#' ./kernels.cl
-	sed -i.bak 's#Real_t pfz\[8\],#__private Real_t pfz[8],#' ./kernels.cl
-	sed -i.bak 's#const Real_t x\[8\],#__private const Real_t x[8],#' ./kernels.cl
-	sed -i.bak 's#const Real_t y\[8\],#__private const Real_t y[8],#' ./kernels.cl
-	sed -i.bak 's#const Real_t z\[8\],#__private const Real_t z[8],#' ./kernels.cl
-	sed -i.bak 's#Real_t b\[\]\[8\],#__private Real_t b[][8],#' ./kernels.cl
-	sed -i.bak 's#Real_t dvdx\[8\],#__private Real_t dvdx[8],#' ./kernels.cl
-	sed -i.bak 's#Real_t dvdy\[8\],#__private Real_t dvdy[8],#' ./kernels.cl
-	sed -i.bak 's#Real_t dvdz\[8\],#__private Real_t dvdz[8],#' ./kernels.cl
+    sed -i.bak 's#/opt/AMDAPP/include/#'${OCL_INCLUDE_DIR}'#' ./Makefile
+    sed -i.bak 's#/opt/AMDAPP/lib/x86_64#'${OCL_LIB_DIR}'#' ./Makefile
+    sed -i.bak 's#-L$(LIB_PATH)##' ./Makefile
+    # The following changes need to be made so that this program will compile
+    # in Nvidia's OpenCL implementation.
+    sed -i.bak 's#(Real_t pfx\[8\],#(__private Real_t pfx[8],#' ./kernels.cl
+    sed -i.bak 's#Real_t pfy\[8\],#__private Real_t pfy[8],#' ./kernels.cl
+    sed -i.bak 's#Real_t pfz\[8\],#__private Real_t pfz[8],#' ./kernels.cl
+    sed -i.bak 's#const Real_t x\[8\],#__private const Real_t x[8],#' ./kernels.cl
+    sed -i.bak 's#const Real_t y\[8\],#__private const Real_t y[8],#' ./kernels.cl
+    sed -i.bak 's#const Real_t z\[8\],#__private const Real_t z[8],#' ./kernels.cl
+    sed -i.bak 's#Real_t b\[\]\[8\],#__private Real_t b[][8],#' ./kernels.cl
+    sed -i.bak 's#Real_t dvdx\[8\],#__private Real_t dvdx[8],#' ./kernels.cl
+    sed -i.bak 's#Real_t dvdy\[8\],#__private Real_t dvdy[8],#' ./kernels.cl
+    sed -i.bak 's#Real_t dvdz\[8\],#__private Real_t dvdz[8],#' ./kernels.cl
 
-    make -j `nproc`
+    LIBRARY_PATH=${OCL_LIB_DIR} make -j `nproc`
     if [ $? -ne 0 ]; then
         echo -e "Failed to build LULESH."
         exit -1
@@ -139,23 +143,23 @@ if [ ! -f ~/benchmarks/proxyapps/XSBench/src/XSBench ]; then
         cd temp
         echo -e "\n\nAbout to log into GitHub to get AMD Proxy Apps (XSBench):"
         git clone https://github.com/AMDComputeLibraries/ComputeApps.git
-		git checkout 4e5d9ca628b6b14b7b1094b9d37324e4856ce4c7
+        git checkout 4e5d9ca628b6b14b7b1094b9d37324e4856ce4c7
         mv ./ComputeApps/xsbench-cl ../XSBench
         cd ..
         rm -rf ./temp
     fi
-	cd XSBench/src
+    cd XSBench/src
     sed -i.bak 's/O3/g -O3/' ./makefile
-	sed -i.bak 's#/opt/AMDAPP/include#'${OCL_INCLUDE_DIR}'#' ./makefile
-	sed -i.bak '1055s#local_work_size#NULL#' ./XSBench_OCL.c
-	# The following changes *will* affect what the kernel does. But there is a
-	# weird read overflow somewhere in this kernel that I don't care to fix.
-	# This workaround gets things moving, and doesn't greatly affect
-	# performance. This read overflow only shows up on NV GPUs, so take out
-	# these changes if you want to test on an AMD GPU.
-	sed -i.bak 's#mat_off >> 2#0#' ./xsbench_kernels.cl
-	sed -i.bak 's#pnuc_ids + n_nucs#pnuc_ids#' ./xsbench_kernels.cl
-    make -j `nproc`
+    sed -i.bak 's#/opt/AMDAPP/include#'${OCL_INCLUDE_DIR}'#' ./makefile
+    sed -i.bak 's#/opt/rocm/opencl/include#${AMDAPPSDKROOT}/include#' ./Makefile
+    # The following changes *will* affect what the kernel does. But there is a
+    # weird read overflow somewhere in this kernel that I don't care to fix.
+    # This workaround gets things moving, and doesn't greatly affect
+    # performance. This read overflow only shows up on NV GPUs, so take out
+    # these changes if you want to test on an AMD GPU.
+    sed -i.bak 's#mat_off >> 2#0#' ./xsbench_kernels.cl
+    sed -i.bak 's#pnuc_ids + n_nucs#pnuc_ids#' ./xsbench_kernels.cl
+    LIBRARY_PATH=${OCL_LIB_DIR} make -j `nproc`
     if [ $? -ne 0 ]; then
         echo -e "Failed to build XSBench."
         exit -1

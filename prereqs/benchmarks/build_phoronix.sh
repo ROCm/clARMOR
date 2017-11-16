@@ -40,7 +40,7 @@ if [ ! -d ~/benchmarks/phoronix/JuliaGPU-v1.2pts ] ||\
     [ ! -d ~/benchmarks/phoronix/MandelGPU-v1.3pts ] ||\
     [ ! -d ~/benchmarks/phoronix/SmallptGPU-v1.6pts ] ||\
     [ ! -d ~/benchmarks/phoronix/mandelbulbGPU-v1.0pts ];
-    then
+then
     source ${BASE_DIR}/setup_bench_install.sh
 fi
 
@@ -56,6 +56,8 @@ if [ ! -d ~/benchmarks/phoronix/JuliaGPU-v1.2pts ]; then
     sed -i.bak s'/-L.\+CL/\nLDFLAGS=-L\$(ATISTREAMSDKROOT)\/lib\/x86_64 -lglut -lglut -lGL -lm -lOpenCL/' ./Makefile
     sed -i.bak s'/displayfunc.c$/displayfunc.c \$(LDFLAGS)/' ./Makefile
     sed -i.bak s'/O3/g -O3/' ./Makefile
+    sed -i 's/exit(0)/glutLeaveMainLoop()/g' juliaGPU.c
+    patch juliaGPU.c ${BASE_DIR}/../support_files/juliaGPU.patch
     make -j `nproc`
 else
     echo -e "~/benchmarks/phoronix/JuliaGPU-v1.2pts exists. Not rebuilding juliaGPU."
@@ -69,10 +71,12 @@ if [ ! -d ~/benchmarks/phoronix/MandelGPU-v1.3pts ]; then
     fi
     tar -xvf MandelGPU-v1.3pts-1.tar.bz2
     cd MandelGPU-v1.3pts/
-	sed -i.bak 's#/home/david/src/ati-stream-sdk-v2.0-lnx64#'${OCL_DIR}'#' ./Makefile
+    sed -i.bak 's#/home/david/src/ati-stream-sdk-v2.0-lnx64#'${OCL_DIR}'#' ./Makefile
     sed -i.bak s'/-L.\+CL/\nLDFLAGS=-L\$(ATISTREAMSDKROOT)\/lib\/x86_64 -lglut -lglut -lGL -lm -lOpenCL/' ./Makefile
     sed -i.bak s'/displayfunc.c$/displayfunc.c \$(LDFLAGS)/' ./Makefile
     sed -i.bak s'/O3/g -O3/' ./Makefile
+    sed -i 's/exit(0)/glutLeaveMainLoop()/g' mandelGPU.c
+    patch mandelGPU.c ${BASE_DIR}/../support_files/mandelGPU.patch
     make -j `nproc`
 else
     echo -e "~/benchmarks/phoronix/MandelGPU-v1.3pts exists. Not rebuilding MandelGPU."
@@ -86,11 +90,13 @@ if [ ! -d ~/benchmarks/phoronix/SmallptGPU-v1.6pts ]; then
     fi
     tar -xvf SmallptGPU-v1.6pts-1.tar.bz2
     cd SmallptGPU-v1.6pts
-	sed -i.bak 's#/home/david/src/ati-stream-sdk-v2.0-lnx64#'${OCL_DIR}'#' ./Makefile
+    sed -i.bak 's#/home/david/src/ati-stream-sdk-v2.0-lnx64#'${OCL_DIR}'#' ./Makefile
     sed -i.bak s'/-L.\+CL/\nLDFLAGS=-L\$(ATISTREAMSDKROOT)\/lib\/x86_64 -lglut -lglut -lGL -lm -lOpenCL/' ./Makefile
     sed -i.bak s'/displayfunc.c$/displayfunc.c \$(LDFLAGS)/' ./Makefile
     sed -i.bak s'/O3/g -O3/' ./Makefile
     sed -i.bak s'#if (elapsedTime > tresholdTime)#//if (elapsedTime > tresholdTime)#' ./smallptGPU.c
+    sed -i 's/exit(0)/glutLeaveMainLoop()/g' smallptGPU.c
+    patch smallptGPU.c ${BASE_DIR}/../support_files/smallptGPU.patch
     make -j `nproc`
 else
     echo -e "~/benchmarks/phoronix/SmallptGPU-v1.6pts exists. Not rebulding SmallptGPU."
@@ -104,10 +110,12 @@ if [ ! -d ~/benchmarks/phoronix/mandelbulbGPU-v1.0pts ]; then
     fi
     tar -xvf mandelbulbGPU-v1.0pts-1.tar.bz2
     cd mandelbulbGPU-v1.0pts
-	sed -i.bak 's#/home/david/src/ati-stream-sdk-v2.0-lnx64#'${OCL_DIR}'#' ./Makefile
+    sed -i.bak 's#/home/david/src/ati-stream-sdk-v2.0-lnx64#'${OCL_DIR}'#' ./Makefile
     sed -i.bak s'/-L.\+CL/\nLDFLAGS=-L\$(ATISTREAMSDKROOT)\/lib\/x86_64 -lglut -lglut -lGL -lm -lOpenCL/' ./Makefile
     sed -i.bak s'/displayfunc.c$/displayfunc.c \$(LDFLAGS)/' ./Makefile
     sed -i.bak s'/O3/g -O3/' ./Makefile
+    sed -i 's/exit(0)/glutLeaveMainLoop()/g' mandelbulbGPU.c
+    patch mandelbulbGPU.c ${BASE_DIR}/../support_files/mandelbulbGPU.patch
     make -j `nproc`
 else
     echo -e "~/benchmarks/phoronix/mandelbulbGPU-v1.0pts exists. Not rebuilding mandelbulbGPU."

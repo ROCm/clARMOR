@@ -48,6 +48,7 @@ extern "C" {
 typedef struct cl_memobj_list_
 {
     cl_mem handle; /// the unique cl_mem object
+    cl_mem main_buff;
     cl_context context;
     cl_mem_flags flags;
     size_t size;
@@ -141,6 +142,7 @@ int cl_mem_delete(cl_memobj *item);
 typedef struct cl_svm_memobj_list_
 {
     void * handle; /// the pointer to the SVM region
+    void * main_buff;
     cl_context context;
     cl_svm_mem_flags flags;
     size_t size;
