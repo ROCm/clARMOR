@@ -21,6 +21,8 @@
  ********************************************************************************/
 
 #include <CL/cl.h>
+#include <string>
+#include "detector_defines.h"
 
 #include "gpu_check_kernels.h"
 
@@ -196,7 +198,7 @@ const char * get_single_buffer_src(void)
 }
 
 //length has to be a multiple of the local group size for this to work
-const char *buffer_and_ptr_copy_src =
+std::string buffer_and_ptr_copy_src =
 "uint compareWithPoison(uint poison,\n\
                             uint localBuff,\n\
                             uint index,\n\
@@ -239,8 +241,8 @@ __kernel void locateDiffSVMPtr(uint length,\n\
 #ifdef CL_VERSION_2_0
 "    else\n\
     {\n\
-        uint index = tid % (length/2);\n\
-        __global uint *val_ptr = (__global uint*)C[(tid - endBuffs) / (length/2)];\n\
+        uint index = tid % (length/"+std::to_string(POISON_REGIONS)+");\n\
+        __global uint *val_ptr = (__global uint*)C[(tid - endBuffs) / (length/"+std::to_string(POISON_REGIONS)+")];\n\
         ret = compareWithPoison(poison, localBuff, index, (__global uchar*)val_ptr);\n\
     }\n"
     "uint wgRet = work_group_scan_inclusive_min(ret);\n\
@@ -255,5 +257,5 @@ __kernel void locateDiffSVMPtr(uint length,\n\
 
 const char * get_buffer_and_ptr_copy_src(void)
 {
-    return buffer_and_ptr_copy_src;
+    return buffer_and_ptr_copy_src.c_str();
 }

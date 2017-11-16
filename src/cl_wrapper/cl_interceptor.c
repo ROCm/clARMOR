@@ -657,25 +657,30 @@ clCreateBuffer(cl_context   context,
         }
         else
         {
-            fill_ptr = (char*)calloc(sizeof(char), size + 2*POISON_FILL_LENGTH);
+            fill_ptr = (char*)calloc(sizeof(char), size + POISON_REGIONS*POISON_FILL_LENGTH);
 
             if(fill_ptr)
             {
-                if(flags & CL_MEM_COPY_HOST_PTR)
-                    memcpy(fill_ptr + POISON_FILL_LENGTH, host_ptr, size);
-
+                uint32_t offset = 0;
+#ifdef UNDERFLOW_CHECK
                 memset(fill_ptr, POISON_FILL, POISON_FILL_LENGTH);
-                memset(fill_ptr + POISON_FILL_LENGTH + size, POISON_FILL, POISON_FILL_LENGTH);
+                offset = POISON_FILL_LENGTH;
+#endif
+                if(flags & CL_MEM_COPY_HOST_PTR)
+                    memcpy(fill_ptr + offset, host_ptr, size);
+
+                offset += size;
+                memset(fill_ptr + offset, POISON_FILL, POISON_FILL_LENGTH);
                 flags = flags | CL_MEM_COPY_HOST_PTR;
 
                 if(global_tool_stats_flags & STATS_MEM_OVERHEAD)
                 {
                     pthread_mutex_lock(&memory_overhead_lock);
-                    total_overhead_mem += 2*POISON_FILL_LENGTH;
-                    current_overhead_mem += 2*POISON_FILL_LENGTH;
+                    total_overhead_mem += POISON_REGIONS*POISON_FILL_LENGTH;
+                    current_overhead_mem += POISON_REGIONS*POISON_FILL_LENGTH;
                     pthread_mutex_unlock(&memory_overhead_lock);
                 }
-                size_aug += 2*POISON_FILL_LENGTH;
+                size_aug += POISON_REGIONS*POISON_FILL_LENGTH;
             }
         }
 
@@ -699,7 +704,10 @@ clCreateBuffer(cl_context   context,
         if(main_buff && !(flags & CL_MEM_USE_HOST_PTR))
         {
             cl_buffer_region sub_region;
+            sub_region.origin = 0;
+#ifdef UNDERFLOW_CHECK
             sub_region.origin = POISON_FILL_LENGTH;
+#endif
             //include the canary region so this will work for nvidia buffers
             sub_region.size = size + POISON_FILL_LENGTH;
             cl_mem_flags passDownFlags, ptrFlags;
@@ -714,7 +722,7 @@ clCreateBuffer(cl_context   context,
                         &internal_err );
             check_cl_error(__FILE__, __LINE__, internal_err);
 
-            if(device_may_fragment_buffer(context))
+            if(is_nvidia_platform(context))
             {
                 // Force the buffer allocation to contiguous gpu memory space.
                 // This will ensure that the whole buffer is in the same memory.
@@ -787,10 +795,12 @@ CL_API_ENTRY cl_mem CL_API_CALL
 
         cl_memobj *superBuff = cl_mem_find(get_cl_mem_alloc(), buffer);
         cl_buffer_region buffer_region_info = *(cl_buffer_region*)buffer_create_info;
-	if(superBuff->has_canary == 1)
+        if(superBuff->has_canary == 1)
         {
             buffer = superBuff->main_buff;
+#ifdef UNDERFLOW_CHECK
             buffer_region_info.origin += POISON_FILL_LENGTH;
+#endif
         }
 
         ret =
@@ -1414,7 +1424,7 @@ clReleaseMemObject(cl_mem memobj )
                     {
                         current_overhead_mem -= findme->size;
                         if(!findme->is_image)
-                            current_overhead_mem -= 2*POISON_FILL_LENGTH;
+                            current_overhead_mem -= POISON_REGIONS*POISON_FILL_LENGTH;
                     }
                     else if( !findme->has_canary )
                         current_user_mem -= findme->size;
@@ -1448,7 +1458,7 @@ clReleaseMemObject(cl_mem memobj )
                     else
                     {
                         current_user_mem -= findme->size;
-                        current_overhead_mem -= 2*POISON_FILL_LENGTH;
+                        current_overhead_mem -= POISON_REGIONS*POISON_FILL_LENGTH;
                     }
                     pthread_mutex_unlock(&memory_overhead_lock);
                 }
@@ -1776,22 +1786,22 @@ clSVMAlloc(cl_context           context,
             pthread_mutex_lock(&memory_overhead_lock);
             if(internal_create)
             {
-                total_overhead_mem += size + 2*POISON_FILL_LENGTH;
-                current_overhead_mem += size + 2*POISON_FILL_LENGTH;
+                total_overhead_mem += size + POISON_REGIONS*POISON_FILL_LENGTH;
+                current_overhead_mem += size + POISON_REGIONS*POISON_FILL_LENGTH;
             }
             else
             {
                 total_user_mem += size;
                 current_user_mem += size;
-                total_overhead_mem += 2*POISON_FILL_LENGTH;
-                current_overhead_mem += 2*POISON_FILL_LENGTH;
+                total_overhead_mem += POISON_REGIONS*POISON_FILL_LENGTH;
+                current_overhead_mem += POISON_REGIONS*POISON_FILL_LENGTH;
             }
 
             high_user_mem = (high_user_mem > current_user_mem) ? high_user_mem : current_user_mem;
             high_overhead_mem = (high_overhead_mem > current_overhead_mem) ? high_overhead_mem : current_overhead_mem;
             pthread_mutex_unlock(&memory_overhead_lock);
         }
-        size_aug += 2*POISON_FILL_LENGTH;
+        size_aug += POISON_REGIONS*POISON_FILL_LENGTH;
 
         ret = internalSVMAlloc(context, flags, size_aug, alignment);
 
@@ -1799,7 +1809,10 @@ clSVMAlloc(cl_context           context,
             return NULL;
 
         void * user_ptr;
-        user_ptr = (void*)((char*)ret + POISON_FILL_LENGTH);
+        user_ptr = ret;
+#ifdef UNDERFLOW_CHECK
+        user_ptr = (char*)user_ptr + POISON_FILL_LENGTH;
+#endif
 
         cl_int cl_err;
         cl_command_queue cmdQueue;
@@ -1807,10 +1820,15 @@ clSVMAlloc(cl_context           context,
         if(!weCreated)
             clRetainCommandQueue(cmdQueue);
 
+        uint32_t offset = size;
         cl_event finish[2];
-        cl_err = clEnqueueSVMMemFill(cmdQueue, (char*)ret, &poisonFill_8b, sizeof(uint8_t), POISON_FILL_LENGTH, 0, 0, &finish[0]);
+#ifdef UNDERFLOW_CHECK
+        cl_err = clEnqueueSVMMemFill(cmdQueue, (char*)ret, &poisonFill_8b, sizeof(uint8_t), POISON_FILL_LENGTH, 0, 0, &finish[1]);
         check_cl_error(__FILE__, __LINE__, cl_err);
-        cl_err = clEnqueueSVMMemFill(cmdQueue, (char*)ret + size + POISON_FILL_LENGTH, &poisonFill_8b, sizeof(uint8_t), POISON_FILL_LENGTH, 0, 0, &finish[1]);
+
+        offset += POISON_FILL_LENGTH;
+#endif
+        cl_err = clEnqueueSVMMemFill(cmdQueue, (char*)ret + offset, &poisonFill_8b, sizeof(uint8_t), POISON_FILL_LENGTH, 0, 0, &finish[0]);
         check_cl_error(__FILE__, __LINE__, cl_err);
 
         cl_svm_memobj *temp = (cl_svm_memobj*)calloc(sizeof(cl_svm_memobj), 1);
@@ -1823,7 +1841,7 @@ clSVMAlloc(cl_context           context,
         temp->detector_internal_buffer = 0; // will set this outside if need be.
         cl_svm_mem_insert(get_cl_svm_mem_alloc(), temp);
 
-        clWaitForEvents(2, finish);
+        clWaitForEvents(POISON_REGIONS, finish);
 
         clReleaseCommandQueue(cmdQueue);
 
@@ -1854,11 +1872,11 @@ clSVMFree(cl_context    context,
             {
                 main_svm = temp->main_buff;
                 if(internal_create)
-                    current_overhead_mem -= temp->size + 2*POISON_FILL_LENGTH;
+                    current_overhead_mem -= temp->size + POISON_REGIONS*POISON_FILL_LENGTH;
                 else
                 {
                     current_user_mem -= temp->size;
-                    current_overhead_mem -= 2*POISON_FILL_LENGTH;
+                    current_overhead_mem -= POISON_REGIONS*POISON_FILL_LENGTH;
                 }
             }
             pthread_mutex_unlock(&memory_overhead_lock);

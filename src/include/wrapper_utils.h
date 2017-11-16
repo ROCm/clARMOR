@@ -34,10 +34,10 @@
 #include "detector_defines.h"
 
 /*!
- * Find if device may allocate sub-buffers separate from the main buffer
+ * is this context on an nvidia platform
  *
  */
-int device_may_fragment_buffer(cl_context context);
+int is_nvidia_platform(cl_context context);
 
 /*!
  * Allows access to canary region of a buffer without triggering an api overflow error

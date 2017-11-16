@@ -51,5 +51,5 @@ sudo apt-get -y install git openssh-server
 cd $INSTALLER_DIR
 wget https://developer.nvidia.com/compute/cuda/9.0/Prod/local_installers/cuda_9.0.176_384.81_linux-run
 
-sudo nohup ${BASE_DIR}/install_cuda_reboot.sh &
+sudo nohup ${BASE_DIR}/setup_ubuntu_16.04.3_nvidia_cuda_2.sh &
 

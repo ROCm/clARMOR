@@ -36,7 +36,7 @@ extern pthread_mutex_t command_queue_cache_lock;
 
 static __thread uint8_t canaryAccess = 0;
 
-int device_may_fragment_buffer(cl_context context)
+int is_nvidia_platform(cl_context context)
 {
     cl_int cl_err;
     cl_device_id device;

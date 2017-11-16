@@ -1,3 +1,4 @@
+#The Phoronix Test Suite is licensed under the GNU GPLv3 free software license.
 40a41
 > static int useDevice = 0;
 318c319

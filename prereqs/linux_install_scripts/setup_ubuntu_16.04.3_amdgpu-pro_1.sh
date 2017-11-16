@@ -50,14 +50,14 @@ sudo apt-get -y install git openssh-server
 #Install AMDGPU-Pro Driver
 su -c "mkdir -p ~/Downloads/software/" $REAL_USER
 cd ~/Downloads/software
-wget https://www2.ati.com/drivers/linux/ubuntu/amdgpu-pro-17.30-465504.tar.xz --referer=support.amd.com
+wget https://www2.ati.com/drivers/linux/ubuntu/amdgpu-pro-17.40-492261.tar.xz --referer=support.amd.com
 if [ $? -ne 0 ]; then
     echo -e "FAILED to download the AMDGPU-Pro Drivers."
     echo -e "Exiting installation script without doing anything else."
     exit -1
 fi
-tar -xf amdgpu-pro-17.30-465504.tar.xz
-sudo ./amdgpu-pro-17.30-465504/amdgpu-pro-install -y --compute
+tar -xf amdgpu-pro-17.40-492261.tar.xz
+sudo ./amdgpu-pro-17.40-492261/amdgpu-pro-install -y --compute
 
 sudo cp -r /opt/amdgpu-pro/lib/x86_64-linux-gnu /opt/amdgpu-pro/lib/x86_64
 sudo cp -a /opt/amdgpu-pro/lib/x86_64-linux-gnu/*.so* /usr/lib/.

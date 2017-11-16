@@ -1,5 +1,5 @@
 /********************************************************************************
- * Copyright (c) 2016 Advanced Micro Devices, Inc. All rights reserved.
+ * Copyright (c) 2017 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -21,10 +21,12 @@
  ********************************************************************************/
 
 
-// A test to make sure that programs with a buffer overflow complete and
-// cause the buffer overflow detector to find the overflow.
+// A test to make sure that programs with a buffer underflow complete and
+// cause the detector to find the underflow.
 #include "common_test_functions.h"
+#include "detector_defines.h"
 
+// kernel addresses negative array indexes, so underflow will occur
 const char *kernel_source = "\n"\
 "__kernel void test(__global uint *svm_buffer, uint len) {\n"\
 "    uint i = get_global_id(0);\n"\
@@ -42,8 +44,14 @@ int main(int argc, char** argv)
     cl_device_type dev_type = CL_DEVICE_TYPE_DEFAULT;
     uint64_t buffer_size = DEFAULT_BUFFER_SIZE;
 
+#ifndef UNDERFLOW_CHECK
+    output_fake_errors(OUTPUT_FILE_NAME, EXPECTED_ERRORS);
+    printf("Not testing for Underflow. Skipping Underflow SVM Test.\n");
+    return 0;
+#endif
+
     // Check input options.
-    check_opts(argc, argv, "SVM with Overflow",
+    check_opts(argc, argv, "SVM with Underflow",
             &platform_to_use, &device_to_use, &dev_type);
 
     // Set up the OpenCL environment.
@@ -69,17 +77,14 @@ int main(int argc, char** argv)
     printf("\n\nRunning Underflow SVM Test...\n");
     printf("    Using buffer size: %llu\n", (long long unsigned)buffer_size);
 
-    // In this case, we will create an SVM buffer that is slightly too
-    // small for the amount of writes we'll do it.
-    // This will create a buffer overflow because of the "buffer_size-10" below
-    void *bad_buffer = clSVMAlloc(context, CL_MEM_READ_WRITE, buffer_size, 0);
-    if (bad_buffer == NULL)
+    void *buffer = clSVMAlloc(context, CL_MEM_READ_WRITE, buffer_size, 0);
+    if (buffer == NULL)
     {
         fprintf(stderr, "clSVMAlloc near %s:%d failed.\n", __FILE__, __LINE__);
         exit(-1);
     }
 
-    cl_err = clSetKernelArgSVMPointer(test_kernel, 0, bad_buffer);
+    cl_err = clSetKernelArgSVMPointer(test_kernel, 0, buffer);
     check_cl_error(__FILE__, __LINE__, cl_err);
     cl_err = clSetKernelArg(test_kernel, 1, sizeof(cl_uint), &buffer_size);
     check_cl_error(__FILE__, __LINE__, cl_err);
@@ -87,7 +92,6 @@ int main(int argc, char** argv)
     // Each work item will touch sizeof(cl_uint) bytes.
     // This calculates how many work items we can have and still stay within
     // the nominal buffer size.
-    // However, we shrank the real buffer size above, so overflow territory.
     uint64_t num_entries_in_buf = buffer_size / sizeof(cl_uint);
     size_t work_items_to_use;
     if (num_entries_in_buf > SIZE_MAX)
