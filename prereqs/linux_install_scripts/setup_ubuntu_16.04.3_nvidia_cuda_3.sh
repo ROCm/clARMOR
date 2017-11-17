@@ -20,7 +20,6 @@
 # THE SOFTWARE.
 
 # The following script will help set up applications on a fresh Ubuntu 16.04.3
-# LTS installation with the amdgpu-pro drivers.
 
 BASE_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 INSTALLER_DIR=${BASE_DIR}/../install_files/

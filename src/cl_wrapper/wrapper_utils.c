@@ -39,25 +39,37 @@ static __thread uint8_t canaryAccess = 0;
 int is_nvidia_platform(cl_context context)
 {
     cl_int cl_err;
-    cl_device_id device;
-    cl_platform_id platform;
+    size_t size_dev, size_platform;
+    cl_device_id *device = NULL;
+    cl_platform_id *platform = NULL;
     size_t platform_name_len = 0;
     char *platform_name;
 
     cl_err = clGetContextInfo(context, CL_CONTEXT_DEVICES,
-        sizeof(cl_device_id), &device, NULL);
+        0, NULL, &size_dev);
     check_cl_error(__FILE__, __LINE__, cl_err);
-    cl_err = clGetDeviceInfo(device, CL_DEVICE_PLATFORM,
-        sizeof(cl_platform_id), &platform, NULL);
+    device = malloc(size_dev);
+
+    cl_err = clGetContextInfo(context, CL_CONTEXT_DEVICES,
+        size_dev, device, NULL);
     check_cl_error(__FILE__, __LINE__, cl_err);
 
-    cl_err = clGetPlatformInfo(platform, CL_PLATFORM_NAME, 0, NULL,
+    cl_err = clGetDeviceInfo(device[0], CL_DEVICE_PLATFORM,
+        0, NULL, &size_platform);
+    check_cl_error(__FILE__, __LINE__, cl_err);
+    platform = malloc(size_platform);
+
+    cl_err = clGetDeviceInfo(device[0], CL_DEVICE_PLATFORM,
+        size_platform, platform, NULL);
+    check_cl_error(__FILE__, __LINE__, cl_err);
+
+    cl_err = clGetPlatformInfo(platform[0], CL_PLATFORM_NAME, 0, NULL,
             &platform_name_len);
     check_cl_error(__FILE__, __LINE__, cl_err);
 
     platform_name = calloc(platform_name_len, sizeof(char));
 
-    cl_err = clGetPlatformInfo(platform, CL_PLATFORM_NAME,
+    cl_err = clGetPlatformInfo(platform[0], CL_PLATFORM_NAME,
         platform_name_len, platform_name, NULL);
     check_cl_error(__FILE__, __LINE__, cl_err);
 
@@ -65,6 +77,10 @@ int is_nvidia_platform(cl_context context)
     found = strstr(platform_name, "NVIDIA");
     int ret = (found) ? 1 : 0;
     free(platform_name);
+    if(device)
+        free(device);
+    if(platform)
+        free(platform);
 
     return ret;
 }
