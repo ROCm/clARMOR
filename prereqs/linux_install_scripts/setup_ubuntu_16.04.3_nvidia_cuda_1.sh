@@ -20,7 +20,7 @@
 # THE SOFTWARE.
 
 # The following script will set up a fresh Ubuntu 16.04.3 LTS installation
-# with the AMDGPU-Pro drivers and the AMD APP SDK 3.0. 
+# This script installs the Nvidia drivers and CUDA SDK. 
 
 # Note that there's very likely some overkill on the installs here. This is
 # based off a more comprehensive set of installation directions for a larger
