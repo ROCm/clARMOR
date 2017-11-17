@@ -1770,16 +1770,6 @@ clSVMAlloc(cl_context           context,
         size_t size_aug = size;
 
         initialize_logging();
-        // Workaround for a strange bug in the AMD OpenCL runtime.
-        // If we start allocating small SVM buffers, some memory gets corrupted
-        // This is exemplified by fir_cl20, which will segfault in the OpenCL
-        // runtime iff you use some of its smaller buffers.
-        // This workaround likely does not fix the problem, and may breka some
-        // of your apps that really do require small SVM buffers. Sorry..
-        /*
-        if (size < 128)
-            size = 10000000;
-        */
 
         if(global_tool_stats_flags & STATS_MEM_OVERHEAD)
         {

@@ -77,10 +77,8 @@ int is_nvidia_platform(cl_context context)
     found = strstr(platform_name, "NVIDIA");
     int ret = (found) ? 1 : 0;
     free(platform_name);
-    if(device)
-        free(device);
-    if(platform)
-        free(platform);
+    free(device);
+    free(platform);
 
     return ret;
 }
