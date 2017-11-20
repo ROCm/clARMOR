@@ -433,7 +433,7 @@ cl_kernel createPoisonedKernel(cl_command_queue command_queue,
                 flags = old_buffer_info->flags;
 
                 flags = flags & ~CL_MEM_USE_HOST_PTR & ~CL_MEM_COPY_HOST_PTR;
-                flags = flags | CL_MEM_ALLOC_HOST_PTR;
+                flags = flags & ~CL_MEM_ALLOC_HOST_PTR;
 
                 if(old_buffer_info->is_image)
                 {

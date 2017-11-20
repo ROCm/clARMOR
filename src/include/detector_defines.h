@@ -38,8 +38,15 @@
 //#define SEQUENTIAL
 #define KERN_CALLBACK
 
+#define UNDERFLOW_CHECK
+
 //measured in bytes
 #define POISON_FILL_LENGTH 8192
+#ifdef UNDERFLOW_CHECK
+#define POISON_REGIONS 2
+#else
+#define POISON_REGIONS 1
+#endif
 
 //measured in array indexes
 #define IMAGE_POISON_WIDTH 16

@@ -28,6 +28,10 @@
 #ifndef __GPU_CHECK_KERNELS_H
 #define __GPU_CHECK_KERNELS_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /*!
  * Returns the OpenCL source code for kernels that check the canary values
  * from a large number of buffers. This assumes that, previous to calling these
@@ -61,5 +65,9 @@ const char * get_single_buffer_src(void);
  * copied into one contiguous buffer. All of this is done int he same kernel.
  */
 const char * get_buffer_and_ptr_copy_src(void);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif // __GPU_CHECK_KERNELS_H

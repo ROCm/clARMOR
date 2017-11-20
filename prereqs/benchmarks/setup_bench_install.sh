@@ -118,7 +118,7 @@ fi
 
 # Note that this only finds the OpenCL version of the first available OpenCL device.
 echo -e "Checking available OpenCL versions. Please wait..."
-CL_AVAIL_VERSION=`~/benchmarks/AMDAPP/AMDAPP_install/bin/x86_64/clinfo | grep "^  Version:" | awk '{print $3}' | head -n 1`
+CL_AVAIL_VERSION=$(${OCL_DIR}/bin/x86_64/clinfo | grep '^  Version:' | awk '{print $3}' | head -n 1)
 if (( $(echo "$CL_AVAIL_VERSION > 1.2" | bc -l) )); then
     CL_V2_SUPPORTED=1
 fi

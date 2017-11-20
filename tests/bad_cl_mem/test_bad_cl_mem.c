@@ -58,13 +58,13 @@ int main(int argc, char** argv)
 
     // Run the actual test.
     printf("\n\nRunning Bad cl_mem Test...\n");
-    printf("    Using buffer size: %llu\n", (long long unsigned)buffer_size);
+    printf("    Using buffer size: %llu\n", (long long unsigned)(buffer_size-10));
 
     // In this case, we will create a cl_mem buffer that is slightly too
     // small for the amount of writes we'll do it.
     // This will create a buffer overflow because of the "buffer_size-10" below
     cl_mem bad_buffer = clCreateBuffer(context, CL_MEM_READ_WRITE,
-        buffer_size-10,  NULL, &cl_err);
+        (buffer_size-10),  NULL, &cl_err);
     check_cl_error(__FILE__, __LINE__, cl_err);
 
     cl_err = clSetKernelArg(test_kernel, 0, sizeof(cl_mem), &bad_buffer);
@@ -94,7 +94,7 @@ int main(int argc, char** argv)
             work_items_to_use, (long long unsigned)num_entries_in_buf);
     printf("This will write %llu out of %llu bytes in the buffer.\n",
             (long long unsigned)bytes_written,
-            (long long unsigned)buffer_size);
+            (long long unsigned)(buffer_size-10));
     cl_err = clEnqueueNDRangeKernel(cmd_queue, test_kernel, 1, NULL,
         &work_items_to_use, NULL, 0, NULL, NULL);
     check_cl_error(__FILE__, __LINE__, cl_err);

@@ -44,12 +44,12 @@ if [ ! -d ~/benchmarks/rodinia_3.1 ]; then
     fi
     tar -xvf rodinia_3.1.tar.bz2
     cd rodinia_3.1/
-	sed -i.bak s"#OPENCL_DIR = /if10/kw5na/Packages/AMD-APP-SDK-v2.8-RC-lnx64#OPENCL_DIR = "${OCL_DIR}"#" ./common/make.config
-	sed -i.bak s"#OPENCL_INC = $(OPENCL_DIR)/include/#OPENCL_INC = "${OCL_INCLUDE_DIR}"#" ./common/make.config
-	sed -i.bak s"#OPENCL_LIB = $(OPENCL_DIR)/lib/x86_64/#OPENCL_LIB = "${OCL_LIB_DIR}"#" ./common/make.config
+    sed -i.bak s'#OPENCL_DIR = /if10/kw5na/Packages/AMD-APP-SDK-v2.8-RC-lnx64#OPENCL_DIR = '${OCL_DIR}'#' ./common/make.config
+    sed -i.bak s'#OPENCL_INC = $(OPENCL_DIR)/include/#OPENCL_INC = '${OCL_INCLUDE_DIR}'#' ./common/make.config
+    sed -i.bak s'#OPENCL_LIB = $(OPENCL_DIR)/lib/x86_64/#OPENCL_LIB = '${OCL_LIB_DIR}'#' ./common/make.config
     sed -i.bak s'/opencl.h/cl.h/' ./opencl/dwt2d/main.cpp
     sed -i.bak s'/platformIds\[1/platformIds\[0/' ./opencl/dwt2d/main.cpp
-    sed -i.bak s"#/usr/local/cuda-5.5/include#"${OCL_INCLUDE_DIR}"#" ./opencl/dwt2d/Makefile 
+    sed -i.bak s"#/usr/local/cuda-5.5/include#"${OCL_INCLUDE_DIR}"#" ./opencl/dwt2d/Makefile
     sed -i.bak s'/^}$/return 0;\n}/' ./opencl/heartwall/main.c
     sed -i.bak s'/^}$/return 0;\n}/' ./opencl/srad/main.c
     sed -i.bak s'/platformID\[1/platformID\[0/' ./opencl/hybridsort/bucketsort.c
@@ -58,6 +58,13 @@ if [ ! -d ~/benchmarks/rodinia_3.1 ]; then
     sed -i.bak s'/cd opencl\/backprop/cd opencl\/b+tree;           make;   cp b+tree.out \$(OPENCL_BIN_DIR)\n\tcd opencl\/backprop/' ./Makefile
     sed -i.bak s'/cd opencl\/nw/cd opencl\/myocyte;         make;   cp myocyte.out \$(OPENCL_BIN_DIR)\n\tcd opencl\/nw/' ./Makefile
     rm -f ./opencl/kmeans/unistd.h
+    #fix bug where .o files aren't building for new gcc
+    sed -i.bak s'/\%.o: \%\.\[ch\]/\%.o: \%\.\[c\]/' ./opencl/leukocyte/OpenCL/Makefile
+    #fix for missing path to ocl lib dir
+    sed -i.bak s'/\$(OCL_LIB)/-L\$(OPENCL_LIB)/' ./opencl/dwt2d/Makefile
+    #fix bug where return type was not known at compile time, leading to a
+    #segfault in GCC 5.4.0
+    sed -i.bak '28i#include "../util/opencl/opencl.h"' ./opencl/b+tree/kernel/kernel_gpu_opencl_wrapper_2.c
 
     # Add debug flags to all builds that don't have them
     sed -i.bak s'/O3/g -O3/' ./opencl/b+tree/Makefile
@@ -66,7 +73,7 @@ if [ ! -d ~/benchmarks/rodinia_3.1 ]; then
     sed -i.bak s'/O3/g -O3/' ./opencl/heartwall/makefile
     sed -i.bak s'/O3/g -O3/' ./opencl/hotspot3D/Makefile
     sed -i.bak s'/c99/c99 -g -O3/' ./opencl/hybridsort/Makefile
-    sed -i.bak s'/O3/g -O3/' ./opencl/lavaMD/Makefile
+    sed -i.bak s'/O3/g -O3/' ./opencl/lavaMD/makefile
     sed -i.bak s'/O3/g -O3/' ./opencl/myocyte/Makefile
     sed -i.bak s'/O2/g -O2/' ./opencl/particlefilter/Makefile
     sed -i.bak s'/O3/g -O3/' ./opencl/srad/makefile

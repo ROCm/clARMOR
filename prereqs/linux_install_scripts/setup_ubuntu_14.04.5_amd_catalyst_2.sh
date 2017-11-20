@@ -23,7 +23,7 @@
 # with the AMD Catalyst drivers.
 
 BASE_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-INSTALLER_DIR=${BASE_DIR}/install_files/
+INSTALLER_DIR=${BASE_DIR}/../install_files/
 
 #Don't run this script again
 #==============================================================================
@@ -50,7 +50,7 @@ sudo aticonfig --initial -f
 
 #Install hacks to make OpenCL and graphics applications work over SSH
 #==============================================================================
-sudo cp $BASE_DIR/support_files/enable-amd-compute.sh /etc/enable-amd-compute.sh
+sudo cp $BASE_DIR/../support_files/enable-amd-compute.sh /etc/enable-amd-compute.sh
 sudo chmod +x /etc/enable-amd-compute.sh
 
 sudo sh -c "echo display-setup-script=/etc/enable-amd-compute.sh >> /etc/lightdm/lightdm.conf"

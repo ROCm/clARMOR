@@ -62,10 +62,9 @@ if [ ! -f ~/benchmarks/mantevo/TeaLeaf_OpenCL/tea_leaf ] ||\
     [ ! -f ~/benchmarks/mantevo/TeaLeaf3D_OpenCL/tea_leaf ] ||\
     [ ! -f ~/benchmarks/mantevo/CloverLeaf_OpenCL/clover_leaf ] ||\
     [ ! -f ~/benchmarks/mantevo/CloverLeaf3D_OpenCL/clover_leaf ];
-    then
+then
     source ${BASE_DIR}/setup_bench_install.sh
 fi
-
 
 if [ ! -f ~/benchmarks/mantevo/TeaLeaf_OpenCL/tea_leaf ]; then
     cd ~/benchmarks/mantevo/TeaLeaf_OpenCL/
@@ -80,12 +79,12 @@ if [ ! -f ~/benchmarks/mantevo/TeaLeaf_OpenCL/tea_leaf ]; then
     if [ $AMD_OCL -eq 1 ]; then
         sed -i.bak s'/opencl_vendor=any/opencl_vendor=advanced/' ./tea.in
     fi
-	if [ $NV_OCL -eq 1 ]; then
-		sed -i.bak s'/opencl_vendor=any/opencl_vendor=nvidia/' ./tea.in
-	fi
-	if [ $INT_OCL -eq 1 ]; then
-		sed -i.bak s'/opencl_vendor=any/opencl_vendor=intel/' ./tea.in
-	fi
+    if [ $NV_OCL -eq 1 ]; then
+        sed -i.bak s'/opencl_vendor=any/opencl_vendor=nvidia/' ./tea.in
+    fi
+    if [ $INT_OCL -eq 1 ]; then
+        sed -i.bak s'/opencl_vendor=any/opencl_vendor=intel/' ./tea.in
+    fi
     sed -i.bak s'/opencl_type=gpu/opencl_type=gpu\nuse_opencl_kernels/' ./tea.in
     make COMPILER=GNU -j `nproc`
     if [ $? -ne 0 ]; then
@@ -104,12 +103,12 @@ if [ ! -f ~/benchmarks/mantevo/TeaLeaf3D_OpenCL/tea_leaf ]; then
     sed -i.bak s'/FLAGS_          = -O3/FLAGS_          = -O3 -g -march=native -funroll-loops/' ./Makefile
     sed -i.bak s'#LDLIBS+=-lOpenCL -lstdc++ $(MPICXX_LIB)#LDLIBS+=-lOpenCL -lstdc++ $(MPICXX_LIB) -L'${OCL_LIB_DIR}'#' ./Makefile
     sed -i.bak s'#CFLAGS=$(CFLAGS_$(COMPILER)) $(OMP) $(I3E) $(C_OPTIONS) -c#CFLAGS=$(CFLAGS_$(COMPILER)) $(OMP) $(I3E) $(C_OPTIONS) -c -I'${OCL_INCLUDE_DIR}'#' ./Makefile
-	if [ $AMD_OCL -eq 1 ]; then
-		sed -i.bak s'/opencl_vendor=nvidia/opencl_vendor=advanced/' ./tea.in
-	fi
-	if [ $INT_OCL -eq 1 ]; then
-		sed -i.bak s'/opencl_vendor=nvidia/opencl_vendor=intel/' ./tea.in
-	fi
+    if [ $AMD_OCL -eq 1 ]; then
+        sed -i.bak s'/opencl_vendor=nvidia/opencl_vendor=advanced/' ./tea.in
+    fi
+    if [ $INT_OCL -eq 1 ]; then
+        sed -i.bak s'/opencl_vendor=nvidia/opencl_vendor=intel/' ./tea.in
+    fi
     sed -i.bak s'/opencl_device=0/opencl_device=0\n use_opencl_kernels/' ./tea.in
     sed -i.bak s'/end_step=20/end_step=2/' ./tea.in
     # Makefile broken for parallel builds here, just run it serial.
@@ -122,22 +121,34 @@ else
     echo -e "~/benchmarks/mantevo/TeaLeaf3D_OpenCL/tea_leaf exists. Not rebuilding TeaLeaf3D_OpenCL."
 fi
 
+MPI_LINK=""
+ubuntu_version=`lsb_release -r | awk {'print $2'} | awk -F'.' {'print $1'}`
+if [ ${ubuntu_version} -le 14 ]; then
+    MPI_LINK="-lmpi_f90 -lmpi_f77"
+else
+    MPI_LINK="-lmpi_usempif08 -lmpi_usempi_ignore_tkr -lmpi_mpifh -lmpi"
+fi
+
 if [ ! -f ~/benchmarks/mantevo/CloverLeaf_OpenCL/clover_leaf ]; then
     cd ~/benchmarks/mantevo/CloverLeaf_OpenCL/
     git checkout 85e9aa0baa22b2049d5da12233d4e7a6c53f450a
     sed -i.bak s'#OCL_AMD_INC=-I/opt/opencl/amd-app-2.7/include#OCL_AMD_INC=-I'${OCL_INCLUDE_DIR}' -I/usr/lib/openmpi/include -pthread -I/usr/lib/openmpi/lib#' ./Makefile
     sed -i.bak s'#OCL_AMD_LIB=-L/opt/opencl/amd-app-2.7/lib/x86_64 -lOpenCL -lstdc++#OCL_AMD_LIB=-L'${OCL_LIB_DIR}' -lOpenCL -lstdc++ -lmpi -lmpi_cxx#' ./Makefile
-    sed -i.bak s'#FLAGS=$(FLAGS_$(COMPILER)) $(I3E) $(OPTIONS) $(OCL_LIB) -DUSE_EXPLICIT_COMMS_BUFF_PACK -DCLOVER_OUTPUT_FILE=$(CLOVER_OUT_STRING)#FLAGS=$(FLAGS_$(COMPILER)) $(OCL_INC) $(I3E) $(OPTIONS) -DUSE_EXPLICIT_COMMS_BUFF_PACK -DCLOVER_OUTPUT_FILE=$(CLOVER_OUT_STRING)\nLDFLAGS=$(OCL_LIB) -L/usr//lib -L/usr/lib/openmpi/lib -lmpi_f90 -lmpi_f77 -lmpi -ldl -lhwloc#' ./Makefile
+    sed -i.bak s'#FLAGS=$(FLAGS_$(COMPILER)) $(I3E) $(OPTIONS) $(OCL_LIB) -DUSE_EXPLICIT_COMMS_BUFF_PACK -DCLOVER_OUTPUT_FILE=$(CLOVER_OUT_STRING)#FLAGS=$(FLAGS_$(COMPILER)) $(OCL_INC) $(I3E) $(OPTIONS) -DUSE_EXPLICIT_COMMS_BUFF_PACK -DCLOVER_OUTPUT_FILE=$(CLOVER_OUT_STRING)\nLDFLAGS=$(OCL_LIB) -L/usr//lib -L/usr/lib/openmpi/lib '${MPI_LINK}' -lmpi -ldl -lhwloc#' ./Makefile
     sed -i.bak s'#CFLAGS=$(CFLAGS_$(COMPILER)) $(I3E)#CFLAGS=$(CFLAGS_$(COMPILER)) $(OCL_INC) $(I3E)#' ./Makefile
     sed -i.bak s'#CloverCL.o                      \\#CloverCL.o                      \\\n    $(LDFLAGS)                      \\#' ./Makefile
-    sed -i.bak s'#MPI_COMPILER=mpif90#MPI_COMPILER=gfortran-4.8#' ./Makefile
+    if [ ${ubuntu_version} -le 14 ]; then
+        sed -i.bak s'#MPI_COMPILER=mpif90#MPI_COMPILER=gfortran-4.8#' ./Makefile
+    fi
     sed -i.bak s'#-O3#-O3 -g#' ./Makefile
-	if [ $AMD_OCL -eq 1 ]; then
-		sed -i.bak s'# opencl_vendor=Nvidia# opencl_vendor=Advanced#' ./clover_bm.in
-	fi
-	if [ $INT_OCL -eq 1 ]; then
-		sed -i.bak s'# opencl_vendor=Nvidia# opencl_vendor=Intel#' ./clover_bm.in
-	fi
+    sed -i.bak 's/$(OPTIONS) $(OCL_LIB)/$(OPTIONS)/' ./Makefile
+    sed -i.bak 's/^FLAGS=/LDFLAGS=$(OCL_LIB)\nFLAGS=/' ./Makefile
+    if [ $AMD_OCL -eq 1 ]; then
+        sed -i.bak s'# opencl_vendor=Nvidia# opencl_vendor=Advanced#' ./clover_bm.in
+    fi
+    if [ $INT_OCL -eq 1 ]; then
+        sed -i.bak s'# opencl_vendor=Nvidia# opencl_vendor=Intel#' ./clover_bm.in
+    fi
     sed -i.bak s'# end_step=2955# end_step=10#' ./clover_bm.in
     for i in `grep -R ocl_knls.h * | sed s/:/\ /g | awk {'print $1'}`; do
         sed -i.bak s'%#include "ocl_knls.h"%#include "'"$PWD"'/ocl_knls.h"%' $i
@@ -157,14 +168,14 @@ if [ ! -f ~/benchmarks/mantevo/CloverLeaf3D_OpenCL/clover_leaf ]; then
     sed -i.bak s'#CFLAGS_GNU       = -O3 -march=native -funroll-loops#CFLAGS_GNU       = -O3 -march=native -funroll-loops -I'${OCL_INCLUDE_DIR}' -I/usr/lib/openmpi/include -pthread -I/usr/lib/openmpi/lib#' ./Makefile
     sed -i.bak s'#LDLIBS+=-lOpenCL -lstdc++ $(MPICXX_LIB)#LDLIBS+=-L'${OCL_LIB_DIR}' -lOpenCL -lstdc++ $(MPICXX_LIB)#' ./Makefile
     sed -i.bak s'#FLAGS=$(FLAGS_$(COMPILER)) $(OMP) $(I3E) $(OPTIONS)#FLAGS=$(FLAGS_$(COMPILER)) $(OMP) $(I3E) $(OPTIONS) -I'${OCL_INCLUDE_DIR}' -I/usr/lib/openmpi/include -pthread -I/usr/lib/openmpi/lib#' ./Makefile
-    sed -i.bak s'#MPI_COMPILER=mpif90#MPI_COMPILER=gfortran-4.8\nLDFLAGS=-L/usr//lib -L/usr/lib/openmpi/lib -lmpi_f90 -lmpi_f77 -lmpi -ldl -lhwloc#' ./Makefile
+    sed -i.bak s'#MPI_COMPILER=mpif90#MPI_COMPILER=gfortran-4.8\nLDFLAGS=-L/usr//lib -L/usr/lib/openmpi/lib '${MPI_LINK}' -lmpi -ldl -lhwloc#' ./Makefile
     sed -i.bak s'#-O3#-O3 -g#' ./Makefile
-	if [ $AMD_OCL -eq 1 ]; then
-		sed -i.bak s'#opencl_vendor=nvidia#opencl_vendor=advanced#' ./clover.in
-	fi
-	if [ $INT_OCL -eq 1 ]; then
-		sed -i.bak s'#opencl_vendor=nvidia#opencl_vendor=intel#' ./clover.in
-	fi
+    if [ $AMD_OCL -eq 1 ]; then
+        sed -i.bak s'#opencl_vendor=nvidia#opencl_vendor=advanced#' ./clover.in
+    fi
+    if [ $INT_OCL -eq 1 ]; then
+        sed -i.bak s'#opencl_vendor=nvidia#opencl_vendor=intel#' ./clover.in
+    fi
     sed -i.bak s'#end_step=300#end_step=10#' ./clover.in
     make COMPILER=GNU -j `nproc`
     if [ $? -ne 0 ]; then

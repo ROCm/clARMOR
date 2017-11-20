@@ -307,7 +307,7 @@ int main(int argc, char** argv)
     cl_device_id device = setup_device(device_to_use, platform_to_use,
             platform, dev_type);
 
-    if (!device_supports_svm(device, 0) && !device_supports_svm(device, 1))
+    if (!device_supports_svm(device, 0) || !device_supports_svm(device, 1))
     {
         output_fake_errors(OUTPUT_FILE_NAME, EXPECTED_ERRORS);
         printf("Proper SVM not supported. Skipping Bad Complex SVM Test.\n");
