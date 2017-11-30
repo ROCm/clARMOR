@@ -33,3 +33,14 @@ int is_app_sdk_2_9(void)
     return 0;
 #endif
 }
+
+int is_app_sdk_3_0(void)
+{
+#if defined(CL_DEVICE_BOARD_NAME_AMD) && defined(CL_DEVICE_AVAILABLE_ASYNC_QUEUES_AMD)
+    // The first was added into cl_ext.h very early
+    // The latter was not added until APP SDK 3.0
+    return 1;
+#else
+    return 0;
+#endif
+}
