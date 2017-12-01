@@ -105,8 +105,6 @@ def add_arguments(parser):
     parser.add_argument('-w', '--working_directory', dest='working_dir',
             default=current_dir,
             help='Directory from which to run the application.')
-    parser.add_argument('-r', '--run', nargs='+', dest='cmd_line', default=None,
-            help='Command line of the application to run through the detector.')
     parser.add_argument('-e', '--exit_on_overflow', action='store_true',
             dest='exit_on_overflow', default=False,
             help=('Exit the application with an error upon detecting the ' +
@@ -150,6 +148,17 @@ def add_arguments(parser):
             help='Run a benchmark. See clarmor-benchmarks for a list.')
     parser.add_argument('-g', '--group', default=None,
             help=('Name of benchmark group to run. See clarmor-benchmarks.'))
+
+    parser.add_argument('cmd_line', nargs="*",
+            help='Command line of the application to run through the detector.'\
+			'\nIf your command line uses "-" or "--" arguments, you should '\
+            'either wrap the command line in double quotes ("cmd line") or '\
+            'put the entire command line after a double dash ( -- cmd line)'\
+            '\nThis will be combined with WORKING_DIR if '\
+            'the command is not an absolute path.\nIf WORKING_DIR '\
+            'is not set, or the binary is not found in that '\
+            'directory, this tool will check the PATH '\
+            'environment variable.')
 
 # Try to set the LD_PRELOAD for our wrapper library.
 # If the library does not exist, print out the approprirate error.
@@ -212,13 +221,13 @@ def run_detect_overflow(args, parser):
     #--------------------------------------------------------------------------#
     # Parse whether this is a benchmark or not.
     # Use parameters from benchmark file if available
-    # However, if we pass a command line with --run, it overrides the
-    # benchmark file.
+    # However, passing a program command lineoverrides the benchmark file.
 
     if not args['cmd_line'] == None:
         args['cmd_line'] = string_convert(args['cmd_line'])
     if args["benchmark"] == None and args["cmd_line"] == None:
-        print "\n\nError, no program to run. Please use the --run argument"
+        print "\n\nError, no program to run. Please pass a command line into "\
+            "the script (e.g., make arguments after typing '--')."
         print "Alternately, pass a benchmark or group of benchmarks."
         print "\n\n"
         parser.print_help()
@@ -257,7 +266,7 @@ def run_detect_overflow(args, parser):
     # Validate the arguments. If they don't exist, we have a problem.
     if args["cmd_line"] == None:
         parser.print_help()
-        logging.critical( "\n Please specify the bench mark to run." )
+        logging.critical( "\n Please specify an application to run." )
         sys.exit(2)
 
     #--------------------------------------------------------------------------#
