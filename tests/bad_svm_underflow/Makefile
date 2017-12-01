@@ -20,6 +20,6 @@
 
 
 EXPECTED_ERRORS:=1
-BENCH_NAME=underflow_svm
+BENCH_NAME=bad_svm_underflow
 
 include ../common_include/common.mk

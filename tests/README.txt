@@ -108,17 +108,14 @@ put into its own test in order to help break apart different types of problems.
     into a buffer using some kind of OpenCL API call. We should properly
     find and catch these errors because we keep track of appropriate meta-data
     about each buffer.
-
-
-Tests that are not *currently* written due to lack of full support in the
-buffer overflow detection software:
-
- 1. Buffer overflows in the negative direction:
-    These apply for all buffer types. Right now, the buffer overflow detector
-    does not find overflows that write before the beginning of a buffer.
-    This could be done by e.g. wrapping cl_mem creation calls and adding extra
-    canary space both before and after. When passing the buffer to a kernel,
-    pass it a SubBuffer that points to the "real" buffer start.
+ 13.Buffer overflows in the negative direction (bad_underflow_*):
+    These apply for both cl_mem and SVM buffer types. These tests only have
+    versions, because the good versions are covered by the good_cl_mem and
+    good_svm tests. However, these bad versions use a kernel that tries to
+    write to a region of memory before the beginning of the target buffer.
+    The detector finds these by wrapping adding extra canary space both before
+    the buffer and passing it as a SubBuffer to the kernel for cl_mem and by
+    passing a pointer after the preceeding canary space for SVM.
 
 
 

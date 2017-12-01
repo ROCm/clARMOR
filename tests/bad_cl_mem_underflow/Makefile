@@ -20,6 +20,6 @@
 
 
 EXPECTED_ERRORS:=1
-BENCH_NAME=underflow_cl_mem
+BENCH_NAME=bad_cl_mem_underflow
 
 include ../common_include/common.mk
