@@ -57,11 +57,11 @@ AMDAPP_ON_NV+="SimpleConvolution SobelFilter StringSearch URNG "
 # These require 'convert_uchar4_sat' type commands in OpenCL.
 # NV does not properly support them.
 AMDAPP=AMDAPP_ON_NV+"AdvancedConvolution BoxFilter "
-# This uses C++ in the kernel. Unsupported on NV.
-AMDAPP+="EigenValue MersenneTwister "
 # Crash on our NV test system for some reason.
 AMDAPP+="FluidSimulation2D GaussianNoise HDRToneMapping Histogram Mandelbrot "
 AMDAPP+="MatrixMulDouble NBody PrefixSum UnsharpMask "
+# This uses C++ in the kernel. Unsupported on NV and AMD ROCm.
+AMDAPP_CL_CPP=AMDAPP+"EigenValue MersenneTwister "
 
 # Benchmarks: 6
 AMDAPP_CL2="BufferBandwidth BufferImageInterop BinarySearchDeviceSideEnqueue "
@@ -143,23 +143,22 @@ if driver_rocm == 1:
     # Skip Phoronix becuase we may not have working graphics-GPU
     # Skip the HCC->OpenCL applications; those only work on Catalyst
     # Skip the CL2 benchmarks as well.
+    # StreamMR is, as usual, sort of broken so we skip it too.
     for bench in [RODINIA, SHOC, OPENDWARFS, PROXYAPPS, AMDAPP,
-        PARBOIL, PANNOTIA, STREAMMR, POLYBENCH, FINANCEBENCH,
-        GPUSTREAM, MANTEVO, HETEROMARK, LINPACK, VIENNACL,
-        NPB_OCL]:
+        PARBOIL, PANNOTIA, POLYBENCH, FINANCEBENCH, GPUSTREAM,
+        MANTEVO, HETEROMARK, VIENNACL, NPB_OCL]:
         ALL_BENCHMARKS+=bench + " "
 elif driver_amdgpu_pro == 1:
     # Skip Phoronix becuase we may not have working graphics-GPU
     # Skip the HCC->OpenCL applications; those only work on Catalyst
     # Skip the CL2 benchmarks as well.
-    for bench in [RODINIA, SHOC, OPENDWARFS, PROXYAPPS, AMDAPP,
+    for bench in [RODINIA, SHOC, OPENDWARFS, PROXYAPPS, AMDAPP_CL_CPP,
         PARBOIL, PANNOTIA, STREAMMR, POLYBENCH, FINANCEBENCH,
-        GPUSTREAM, MANTEVO, HETEROMARK, LINPACK, VIENNACL,
-        NPB_OCL]:
+        GPUSTREAM, MANTEVO, HETEROMARK, VIENNACL, NPB_OCL]:
         ALL_BENCHMARKS+=bench + " "
 elif driver_catalyst == 1:
     for bench in [RODINIA, SHOC, PHORONIX, OPENDWARFS, PROXYAPPS,
-        AMDAPP, AMDAPP_CL2, PARBOIL, PANNOTIA, STREAMMR, POLYBENCH,
+        AMDAPP_CL_CPP, AMDAPP_CL2, PARBOIL, PANNOTIA, STREAMMR, POLYBENCH,
         FINANCEBENCH, GPUSTREAM, MANTEVO, HETEROMARK, HETEROMARK_CL2,
         LINPACK, VIENNACL, NPB_OCL]:
         ALL_BENCHMARKS+=bench + " "

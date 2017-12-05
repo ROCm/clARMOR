@@ -19,8 +19,10 @@
 # THE SOFTWARE.
 
 clARMOR requires a working GPU OpenCL implementation. Currently, it has been
-tested with the AMD APP SDK running on AMD GPUs. No guarantee is made for being
-able to use this tool on GPUs from other companies.
+tested most rigorously with the AMD APP SDK running on AMD GPUs. This tool
+has been tested on Nvidia GPUs with the CUDA SDK OpenCL implementation, but
+no guarantee is made for being able to use this tool on GPUs from other
+companies.
 
 This directory contains a number of files to help install set your system up
 to run this tool.
@@ -28,8 +30,8 @@ to run this tool.
 This directory contains download_and_build_benchmarks.sh and the
 'benchmarks' subdirectory. The download_and_build script will automatically
 download and build a series of 169 benchmarks from 17 different benchmark
-suites.
-You must manually download Parboil, SNU OpenCL NPB, and ACML yourself, because
+suites (for AMD APP SDK versions that support OpenCL 2.0).
+You must manually download Parboil and SNU OpenCL NPB yourself, because
 of licensing restirctions. However, the script will handle all building and
 preparing of the benchmarks for you.
 

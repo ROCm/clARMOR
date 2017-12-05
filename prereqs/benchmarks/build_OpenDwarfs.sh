@@ -61,5 +61,5 @@ then
     ./createcrc -n 256 -s 131072 -f ./crcfile_N256_S128K
     ./createcsr -n 131072 -d 1000 -s 0.01 -f ./csr_n131072_d1000_s01
 else
-    echo -e "~/benchmarks/OpenDwarfs/build exists. Not rebuilding OpenDwarfds"
+    echo -e "~/benchmarks/OpenDwarfs/build exists. Not rebuilding OpenDwarfs"
 fi

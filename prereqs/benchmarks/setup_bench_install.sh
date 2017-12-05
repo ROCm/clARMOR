@@ -118,9 +118,30 @@ fi
 
 # Note that this only finds the OpenCL version of the first available OpenCL device.
 echo -e "Checking available OpenCL versions. Please wait..."
-CL_AVAIL_VERSION=$(${OCL_DIR}/bin/x86_64/clinfo | grep '^  Version:' | awk '{print $3}' | head -n 1)
+CL_AVAIL_VERSION=$(~/benchmarks/AMDAPP/AMDAPP_install/bin/x86_64/clinfo | grep '^  Version:' | awk '{print $3}' | head -n 1)
 if (( $(echo "$CL_AVAIL_VERSION > 1.2" | bc -l) )); then
     CL_V2_SUPPORTED=1
+fi
+
+# If we are in an AMD installation, we need to check if we are ROCm or full
+# AMD APP SDK. ROCm does not support C++ in the CL kernels.
+AMD_OCL_APPSDK=1
+
+if [ $AMD_OCL -eq 1 ]; then
+    uname -a | grep rocm &> /dev/null
+    if [ $? -eq 0 ]; then
+        AMD_OCL_APPSDK=0
+    fi
+fi
+
+# Our LINPACK benchmark requires an AMD Hawaii GPU
+AMD_HAWAII_GPU=0
+
+if [ $AMD_OCL_APPSDK -eq 1 ]; then
+    lspci -mm | grep VGA | grep "Advanced Micro Devices, Inc. \[AMD/ATI\]" | grep Hawaii &> /dev/null
+    if [ $? -eq 0 ]; then
+        AMD_HAWAII_GPU=1
+    fi
 fi
 
 cd ~/benchmarks/

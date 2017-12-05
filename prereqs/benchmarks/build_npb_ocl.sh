@@ -49,6 +49,13 @@ if [ ! -d ~/benchmarks/SNU_NPB-1.0.3 ]; then
     tar -xvf SNU_NPB-1.0.3.tar.gz
     cd ~/benchmarks/SNU_NPB-1.0.3/NPB3.3-OCL/;
     sed -i.bak 's#C_INC = #C_INC = -I'${OCL_INCLUDE_DIR}' #' ./config/make.def
+
+    # Patch CG to remove a broken OpenCL set of kernels that cause
+    # non-deterministic behavior and random buffer underflows / crashes
+    pushd ~/benchmarks/SNU_NPB-1.0.3/NPB3.3-OCL/CG/
+    patch cg.c ${BASE_DIR}/../support_files/npb_ocl_cg.patch
+    popd
+
     for bench in BT CG EP FT IS LU MG SP
     do
         if [ $bench == "LU" ]; then

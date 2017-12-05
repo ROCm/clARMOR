@@ -60,12 +60,17 @@ fi
 # The changes below with inMemFlags prevents the APP SDK application
 # from putting its data into host memory. Actually, you want these to be
 # in device memory.
-BENCH_CL1="AdvancedConvolution BinomialOption BitonicSort BlackScholes BlackScholesDP DCT DwtHaar1D EigenValue FastWalshTransform FloydWarshall FluidSimulation2D GaussianNoise HDRToneMapping Histogram ImageOverlap Mandelbrot MatrixMultiplication MatrixMulDouble MatrixTranspose MersenneTwister MonteCarloAsian MonteCarloAsianDP NBody PrefixSum QuasiRandomSequence RadixSort RecursiveGaussian Reduction ScanLargeArrays SimpleConvolution SobelFilter StringSearch UnsharpMask URNG"
+BENCH_CL1="AdvancedConvolution BinomialOption BitonicSort BlackScholes BlackScholesDP DCT DwtHaar1D FastWalshTransform FloydWarshall FluidSimulation2D GaussianNoise HDRToneMapping Histogram ImageOverlap Mandelbrot MatrixMultiplication MatrixMulDouble MatrixTranspose MonteCarloAsian MonteCarloAsianDP NBody PrefixSum QuasiRandomSequence RadixSort RecursiveGaussian Reduction ScanLargeArrays SimpleConvolution SobelFilter StringSearch UnsharpMask URNG"
 BENCH_CL2="BinarySearchDeviceSideEnqueue BufferBandwidth BufferImageInterop CalcPie DeviceEnqueueBFS ExtractPrimes ImageBandwidth ImageBinarization KmeansAutoclustering RangeMinimumQuery SVMBinaryTreeSearch"
+BENCH_CL_CPP="EigenValue MersenneTwister"
 if [ $CL_V2_SUPPORTED -eq 1 ]; then
     BENCH="$BENCH_CL1 $BENCH_CL2"
 else
     BENCH="$BENCH_CL1"
+fi
+
+if [ $AMD_OCL_APPSDK -eq 1 ]; then
+    BENCH="$BENCH_CL_CPP"
 fi
 
 if [ ! -f /usr/lib/libOpenCL.so.1 ]; then
