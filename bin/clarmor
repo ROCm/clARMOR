@@ -223,8 +223,11 @@ def run_detect_overflow(args, parser):
     # Use parameters from benchmark file if available
     # However, passing a program command lineoverrides the benchmark file.
 
-    if not args['cmd_line'] == None:
+    if not args['cmd_line'] == []:
         args['cmd_line'] = string_convert(args['cmd_line'])
+    else:
+        args['cmd_line'] = None
+
     if args["benchmark"] == None and args["cmd_line"] == None:
         print "\n\nError, no program to run. Please pass a command line into "\
             "the script (e.g., make arguments after typing '--')."
@@ -256,7 +259,7 @@ def run_detect_overflow(args, parser):
                 global global_prefix
                 global_prefix = benchmarks.benchPrefix[benchmarkName]
     else:
-        # If we pass --run
+        # If we pass a command line
         benchDir = args["working_dir"]
 
     if benchDir != None:
