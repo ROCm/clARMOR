@@ -1,5 +1,5 @@
 /********************************************************************************
- * Copyright (c) 2016 Advanced Micro Devices, Inc. All rights reserved.
+ * Copyright (c) 2016-2017 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -116,18 +116,18 @@ CL_INTERCEPTOR_FUNCTION(CreateImage2D);
 CL_INTERCEPTOR_FUNCTION(CreateImage3D);
 CL_INTERCEPTOR_FUNCTION(RetainMemObject);
 CL_INTERCEPTOR_FUNCTION(ReleaseMemObject);
+CL_INTERCEPTOR_FUNCTION(EnqueueMapBuffer);
+CL_INTERCEPTOR_FUNCTION(EnqueueUnmapMemObject);
 
 /* SVM APIs */
 #ifdef CL_VERSION_2_0
 CL_INTERCEPTOR_FUNCTION(SVMAlloc);
 CL_INTERCEPTOR_FUNCTION(SVMFree);
-CL_INTERCEPTOR_FUNCTION(EnqueueMapBuffer);
 CL_INTERCEPTOR_FUNCTION(EnqueueSVMFree);
 CL_INTERCEPTOR_FUNCTION(EnqueueSVMMap);
 CL_INTERCEPTOR_FUNCTION(EnqueueSVMMemcpy);
 CL_INTERCEPTOR_FUNCTION(EnqueueSVMMemFill);
 CL_INTERCEPTOR_FUNCTION(EnqueueSVMUnmap);
-CL_INTERCEPTOR_FUNCTION(EnqueueUnmapMemObject);
 #endif
 
 /* Kernel APIs */
@@ -201,17 +201,17 @@ static int cl_function_addresses( void* oclDllHandle )
     CL_INTERCEPTOR_FUNCTION_ADDRESS( CreateImage3D );
     CL_INTERCEPTOR_FUNCTION_ADDRESS( RetainMemObject );
     CL_INTERCEPTOR_FUNCTION_ADDRESS( ReleaseMemObject );
+    CL_INTERCEPTOR_FUNCTION_ADDRESS( EnqueueMapBuffer );
+    CL_INTERCEPTOR_FUNCTION_ADDRESS( EnqueueUnmapMemObject );
 
 #ifdef CL_VERSION_2_0
     CL_INTERCEPTOR_FUNCTION_ADDRESS( SVMAlloc );
     CL_INTERCEPTOR_FUNCTION_ADDRESS( SVMFree );
-    CL_INTERCEPTOR_FUNCTION_ADDRESS( EnqueueMapBuffer );
     CL_INTERCEPTOR_FUNCTION_ADDRESS( EnqueueSVMFree );
     CL_INTERCEPTOR_FUNCTION_ADDRESS( EnqueueSVMMap );
     CL_INTERCEPTOR_FUNCTION_ADDRESS( EnqueueSVMMemcpy );
     CL_INTERCEPTOR_FUNCTION_ADDRESS( EnqueueSVMMemFill );
     CL_INTERCEPTOR_FUNCTION_ADDRESS( EnqueueSVMUnmap );
-    CL_INTERCEPTOR_FUNCTION_ADDRESS( EnqueueUnmapMemObject );
 #endif
 
     /* Kernel Object APIs */
@@ -1481,6 +1481,69 @@ clReleaseMemObject(cl_mem memobj )
     return(err);
 }
 
+CL_API_ENTRY void* CL_API_CALL
+clEnqueueMapBuffer(cl_command_queue command_queue,
+            cl_mem buffer,
+            cl_bool blocking_map,
+            cl_map_flags map_flags,
+            size_t offset,
+            size_t size,
+            cl_uint num_events_in_wait_list,
+            const cl_event *event_wait_list,
+            cl_event *event,
+            cl_int *errcode_ret)
+{
+    void *ret = NULL;
+    if(EnqueueMapBuffer)
+    {
+        cl_mem main_buffer = buffer;
+        size_t offset_aug = offset;
+        cl_memobj *m1 = cl_mem_find(get_cl_mem_alloc(), buffer);
+        if(m1 && m1->main_buff)
+        {
+            offset_aug += POISON_FILL_LENGTH;
+            main_buffer = m1->main_buff;
+        }
+
+        ret = EnqueueMapBuffer(command_queue, main_buffer, blocking_map, map_flags, offset_aug, size, num_events_in_wait_list, event_wait_list, event, errcode_ret);
+    }
+    else
+    {
+        CL_MSG("NOT FOUND!");
+    }
+
+    return ret;
+}
+
+CL_API_ENTRY cl_int CL_API_CALL
+clEnqueueUnmapMemObject(cl_command_queue command_queue,
+            cl_mem memobj,
+            void *mapped_ptr,
+            cl_uint num_events_in_wait_list,
+            const cl_event *event_wait_list,
+            cl_event *event)
+{
+    cl_int err = INT_MIN;
+    if(EnqueueUnmapMemObject)
+    {
+        cl_mem main_buffer = memobj;
+        cl_memobj *m1 = cl_mem_find(get_cl_mem_alloc(), memobj);
+        if(m1 && m1->main_buff)
+        {
+            main_buffer = m1->main_buff;
+        }
+
+        err = EnqueueUnmapMemObject(command_queue, main_buffer, mapped_ptr, num_events_in_wait_list, event_wait_list, event);
+    }
+    else
+    {
+        CL_MSG("NOT FOUND!");
+    }
+
+    return err;
+}
+
+
 CL_API_ENTRY cl_int CL_API_CALL
 clRetainKernel(cl_kernel     kernel )
 {
@@ -1897,40 +1960,6 @@ clSVMFree(cl_context    context,
     return;
 }
 
-CL_API_ENTRY void* CL_API_CALL
-clEnqueueMapBuffer(cl_command_queue command_queue,
-            cl_mem buffer,
-            cl_bool blocking_map,
-            cl_map_flags map_flags,
-            size_t offset,
-            size_t size,
-            cl_uint num_events_in_wait_list,
-            const cl_event *event_wait_list,
-            cl_event *event,
-            cl_int *errcode_ret)
-{
-    void *ret = NULL;
-    if(EnqueueMapBuffer)
-    {
-        cl_mem main_buffer = buffer;
-        size_t offset_aug = offset;
-        cl_memobj *m1 = cl_mem_find(get_cl_mem_alloc(), buffer);
-        if(m1 && m1->main_buff)
-        {
-            offset_aug += POISON_FILL_LENGTH;
-            main_buffer = m1->main_buff;
-        }
-
-        ret = EnqueueMapBuffer(command_queue, main_buffer, blocking_map, map_flags, offset_aug, size, num_events_in_wait_list, event_wait_list, event, errcode_ret);
-    }
-    else
-    {
-        CL_MSG("NOT FOUND!");
-    }
-
-    return ret;
-}
-
 CL_API_ENTRY cl_int CL_API_CALL
 clEnqueueSVMFree(cl_command_queue command_queue,
         cl_uint         num_svm_pointers,
@@ -2034,35 +2063,6 @@ clEnqueueSVMUnmap(cl_command_queue command_queue,
         CL_MSG("NOT FOUND!");
     }
     return(err);
-}
-
-
-CL_API_ENTRY cl_int CL_API_CALL
-clEnqueueUnmapMemObject(cl_command_queue command_queue,
-            cl_mem memobj,
-            void *mapped_ptr,
-            cl_uint num_events_in_wait_list,
-            const cl_event *event_wait_list,
-            cl_event *event)
-{
-    cl_int err = INT_MIN;
-    if(EnqueueUnmapMemObject)
-    {
-        cl_mem main_buffer = memobj;
-        cl_memobj *m1 = cl_mem_find(get_cl_mem_alloc(), memobj);
-        if(m1 && m1->main_buff)
-        {
-            main_buffer = m1->main_buff;
-        }
-
-        err = EnqueueUnmapMemObject(command_queue, main_buffer, mapped_ptr, num_events_in_wait_list, event_wait_list, event);
-    }
-    else
-    {
-        CL_MSG("NOT FOUND!");
-    }
-
-    return err;
 }
 
 #endif
