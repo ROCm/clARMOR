@@ -34,6 +34,7 @@
 #include <execinfo.h>
 #include <sys/file.h>
 #include <CL/cl.h>
+#include "cl_err.h"
 
 #include "util_functions.h"
 
@@ -418,6 +419,53 @@ void print_backtrace( FILE* where_to )
     free(strings);
 }
 
+
+int is_nvidia_platform(cl_context context)
+{
+    cl_int cl_err;
+    size_t size_dev, size_platform;
+    cl_device_id *device = NULL;
+    cl_platform_id *platform = NULL;
+    size_t platform_name_len = 0;
+    char *platform_name;
+
+    cl_err = clGetContextInfo(context, CL_CONTEXT_DEVICES,
+        0, NULL, &size_dev);
+    check_cl_error(__FILE__, __LINE__, cl_err);
+    device = malloc(size_dev);
+
+    cl_err = clGetContextInfo(context, CL_CONTEXT_DEVICES,
+        size_dev, device, NULL);
+    check_cl_error(__FILE__, __LINE__, cl_err);
+
+    cl_err = clGetDeviceInfo(device[0], CL_DEVICE_PLATFORM,
+        0, NULL, &size_platform);
+    check_cl_error(__FILE__, __LINE__, cl_err);
+    platform = malloc(size_platform);
+
+    cl_err = clGetDeviceInfo(device[0], CL_DEVICE_PLATFORM,
+        size_platform, platform, NULL);
+    check_cl_error(__FILE__, __LINE__, cl_err);
+
+    cl_err = clGetPlatformInfo(platform[0], CL_PLATFORM_NAME, 0, NULL,
+            &platform_name_len);
+    check_cl_error(__FILE__, __LINE__, cl_err);
+
+    platform_name = calloc(platform_name_len, sizeof(char));
+
+    cl_err = clGetPlatformInfo(platform[0], CL_PLATFORM_NAME,
+        platform_name_len, platform_name, NULL);
+    check_cl_error(__FILE__, __LINE__, cl_err);
+
+    char *found;
+    found = strstr(platform_name, "NVIDIA");
+    int ret = (found) ? 1 : 0;
+    free(platform_name);
+    free(device);
+    free(platform);
+
+    return ret;
+}
 
 uint64_t timeval_diff_us(struct timeval *stop, struct timeval *start)
 {

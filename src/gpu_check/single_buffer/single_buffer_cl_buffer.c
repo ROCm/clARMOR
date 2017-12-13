@@ -122,7 +122,8 @@ static void perform_cl_buffer_checks(cl_command_queue cmd_queue,
             // eventually wait on all these events before reading the results.
             ocl_args.event = &(check_events[index]);
 
-            cl_int cl_err = runNDRangeKernel(&ocl_args);
+            cl_int cl_err;
+            cl_err = runNDRangeKernel(&ocl_args);
             check_cl_error(__FILE__, __LINE__, cl_err);
 
 #ifdef SEQUENTIAL
@@ -216,9 +217,20 @@ void verify_cl_buffer_single(cl_context kern_ctx, cl_command_queue cmd_queue,
     verif_data->first_change = first_change;
     verif_data->num_buff = num_buff;
     verif_data->complete = user_evt;
-    cl_err = clSetEventCallback(readback_evt, CL_COMPLETE,
-            format_result_buff, (void*)verif_data);
-    check_cl_error(__FILE__, __LINE__, cl_err);
+
+    if(!is_nvidia_platform(kern_ctx))
+    {
+        cl_err = clSetEventCallback(readback_evt, CL_COMPLETE,
+                format_result_buff, (void*)verif_data);
+        check_cl_error(__FILE__, __LINE__, cl_err);
+    }
+    else
+    {
+        clWaitForEvents(1, &readback_evt);
+        format_result_buff(0, 0, verif_data);
+        user_evt = readback_evt;
+    }
+
 #else
     (void)format_result_buff;
     user_evt = readback_evt;
