@@ -300,7 +300,7 @@ int main(int argc, char** argv)
 
     // In this case, we are going to create a cl_mem buffer of the appropriate
     // size. The kernel will then correctly copy the right amount of data
-    // into that buffer, and then the program will exist.
+    // into that buffer, and then the program will exit.
     // This will not create a buffer overflow.
     // Run the actual test.
 
@@ -315,7 +315,6 @@ int main(int argc, char** argv)
 
     cl_image_format format;
     uint32_t i = 0;
-    uint32_t j = 0;
     unsigned dataSize = 0;
 
     printf("\n\nHost Pointer Image2D Test...\n");
@@ -325,7 +324,7 @@ int main(int argc, char** argv)
     // does not support using CL_MEM_USE_HOST_PTR as a flag. However, the
     // image creation API does support this (???). As such, we don't actually
     // query against the host pointer flag..
-    flags = CL_MEM_READ_WRITE;
+    flags = CL_MEM_WRITE_ONLY;
 
     cl_err = clGetSupportedImageFormats(context, flags, CL_MEM_OBJECT_IMAGE2D, 0, NULL, &num_entries);
     check_cl_error(__FILE__, __LINE__, cl_err);
@@ -333,7 +332,7 @@ int main(int argc, char** argv)
     cl_err = clGetSupportedImageFormats(context, flags, CL_MEM_OBJECT_IMAGE2D, num_entries, formats_2d, NULL);
     check_cl_error(__FILE__, __LINE__, cl_err);
 
-    flags = CL_MEM_READ_WRITE | CL_MEM_USE_HOST_PTR;
+    flags = CL_MEM_WRITE_ONLY | CL_MEM_USE_HOST_PTR;
 
     format.image_channel_order =  formats_2d[0].image_channel_order;
     format.image_channel_data_type = formats_2d[0].image_channel_data_type;
@@ -361,11 +360,12 @@ int main(int argc, char** argv)
                 test_kernel = test_kernel3;
                 break;
             default:
-                test_kernel = NULL;
-                break;
+                printf("Error: No Kernel..skipping\n");
+                exit(-1);
         }
 
-        printf("%d:%d dataSize %u\n", 0, 10, dataSize);
+        printf("dataSize %u, %u - %u\n", dataSize,
+                format.image_channel_order, format.image_channel_data_type);
 
         cl_err = clSetKernelArg(test_kernel, 0, sizeof(cl_mem), &good_buffer);
         check_cl_error(__FILE__, __LINE__, cl_err);
@@ -388,7 +388,7 @@ int main(int argc, char** argv)
 
 
     printf("\nImage2D Test...\n");
-    flags = CL_MEM_READ_WRITE;
+    flags = CL_MEM_WRITE_ONLY;
     for(i = 0; i < num_entries; i++)
     {
         format.image_channel_order = formats_2d[i].image_channel_order;
@@ -403,7 +403,7 @@ int main(int argc, char** argv)
         good_buffer = clCreateImage2D(context, flags, &format, width, height, 0, NULL, &cl_err);
         if(cl_err == CL_IMAGE_FORMAT_NOT_SUPPORTED || cl_err == CL_INVALID_IMAGE_FORMAT_DESCRIPTOR)
         {
-            //printf("doesn't support format %u:%u", j, i);
+            //printf("doesn't support format %u", i);
             continue;
         }
         check_cl_error(__FILE__, __LINE__, cl_err);
@@ -420,12 +420,16 @@ int main(int argc, char** argv)
                 test_kernel = test_kernel3;
                 break;
             default:
+                printf("Error: No Kernel..skipping\n");
                 continue;
         }
 
-        printf("%u:%u dataSize %u\n", i, j, dataSize);
-
         cl_err = clSetKernelArg(test_kernel, 0, sizeof(cl_mem), &good_buffer);
+        if(cl_err != CL_SUCCESS)
+        {
+            //likely image format error, skip
+            continue;
+        }
         check_cl_error(__FILE__, __LINE__, cl_err);
         cl_err = clSetKernelArg(test_kernel, 1, sizeof(cl_uint), &width);
         check_cl_error(__FILE__, __LINE__, cl_err);
@@ -434,6 +438,10 @@ int main(int argc, char** argv)
 
 
         work_items_to_use = buffer_size / dataSize;//getNumWorkItems(buffer_size);
+
+        printf("%u dataSize %u, bufferSize %lu, image_channel_order:%u, image_channel_data_type:%u\n",
+            i, dataSize, width*height,
+            format.image_channel_order, format.image_channel_data_type);
 
         cl_err = clEnqueueNDRangeKernel(cmd_queue, test_kernel, 1, NULL,
                 &work_items_to_use, NULL, 0, NULL, NULL);
@@ -476,7 +484,7 @@ int main(int argc, char** argv)
         good_buffer = clCreateImage3D(context, flags, &format, width, height, depth, 0, 0, NULL, &cl_err);
         if(cl_err == CL_IMAGE_FORMAT_NOT_SUPPORTED || cl_err == CL_INVALID_IMAGE_FORMAT_DESCRIPTOR)
         {
-            //printf("doesn't support format %u:%u", j, i);
+            //printf("doesn't support format %u", i);
             continue;
         }
         check_cl_error(__FILE__, __LINE__, cl_err);
@@ -493,12 +501,16 @@ int main(int argc, char** argv)
                 test_kernel = test_kernel6;
                 break;
             default:
+                printf("Error: No Kernel..skipping\n");
                 continue;
         }
 
-        printf("%u:%u dataSize %u\n", i, j, dataSize);
-
         cl_err = clSetKernelArg(test_kernel, 0, sizeof(cl_mem), &good_buffer);
+        if(cl_err != CL_SUCCESS)
+        {
+            //likely image format error, skip
+            continue;
+        }
         check_cl_error(__FILE__, __LINE__, cl_err);
         cl_err = clSetKernelArg(test_kernel, 1, sizeof(cl_uint), &width);
         check_cl_error(__FILE__, __LINE__, cl_err);
@@ -508,6 +520,10 @@ int main(int argc, char** argv)
         check_cl_error(__FILE__, __LINE__, cl_err);
 
         work_items_to_use = buffer_size / dataSize;//getNumWorkItems(buffer_size);
+
+        printf("%u dataSize %u, bufferSize %lu, image_channel_order:%u, image_channel_data_type:%u\n",
+            i, dataSize, width*height*depth,
+            format.image_channel_order, format.image_channel_data_type);
 
         cl_err = clEnqueueNDRangeKernel(cmd_queue, test_kernel, 1, NULL,
                 &work_items_to_use, NULL, 0, NULL, NULL);

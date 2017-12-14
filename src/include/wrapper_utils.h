@@ -34,12 +34,6 @@
 #include "detector_defines.h"
 
 /*!
- * is this context on an nvidia platform
- *
- */
-int is_nvidia_platform(cl_context context);
-
-/*!
  * Allows access to canary region of a buffer without triggering an api overflow error
  *
  */
