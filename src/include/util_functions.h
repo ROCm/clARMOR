@@ -247,6 +247,12 @@ int det_vfprintf(FILE * stream, const char * format, va_list arg );
 int is_app_sdk_2_9(void);
 
 /*!
+ * Tell whether we are using the AMD APP SDK 3.0+.
+ *
+ */
+int is_app_sdk_3_0(void);
+
+/*!
  * Returns the version number of clARMOR that is set at build time.
  *
  */

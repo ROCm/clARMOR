@@ -271,6 +271,22 @@ void verify_images(kernel_info *kern_info, uint32_t num_images,
         // older than 3.0 and falls back to this path.
         cl_err = clFinish(cmd_queue);
     }
+    else if (is_app_sdk_3_0())
+    {
+#ifdef CL_VERSION_1_2
+        // BUGFIX -- Workaround.
+        // In at least the AMD OpenCL runtime from the APP SDK 3.0+
+        // (including ROCm OpenCL) fails here for large numbers of
+        // events on the clWaitForEvents. Adding a marker list fixes
+        // that problem.
+        cl_event temp_evt;
+        cl_err = clEnqueueMarkerWithWaitList(cmd_queue, total_to_wait, image_read_events, &temp_evt);
+        check_cl_error(__FILE__, __LINE__, cl_err);
+        cl_err = clWaitForEvents(1, &temp_evt);
+#else
+        (void)0;
+#endif
+    }
     else
         cl_err = clWaitForEvents(total_to_wait, image_read_events);
     check_cl_error(__FILE__, __LINE__, cl_err);
