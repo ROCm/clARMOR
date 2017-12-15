@@ -131,7 +131,7 @@ cd ${target_dir}
 rm -rf ${temp_dir}
 chmod +x ./amd_sdk.sh
 
-sed -i 's#URL="http://developer.amd.com/tools-and-sdks/opencl-zone/opencl-tools-sdks/amd-accelerated-parallel-processing-app-sdk/"#URL="http://developer.amd.com/amd-accelerated-parallel-processing-app-sdk/"#' ./amd_sdk.sh
+sed -i 's#http#https#' ./amd_sdk.sh
 
 # We now have the script to download the AMD APP SDK.
 # Download the tarball of the correct version
