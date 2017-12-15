@@ -178,8 +178,9 @@ __kernel void locateDiffParts(uint length,\n\
 {\n\
     int tid = get_global_id(0);\n\
     if(tid >= length) return;\n\
+    int lid = get_local_id(0);\n\
     uint ret;\n\
-    __global uint *val_ptr = (B+offset);\n\
+    __global uint *val_ptr = (__global uint*)(B+offset);\n\
     ret = compareWithPoison(poison, tid, val_ptr);\n"
 #ifdef CL_VERSION_2_0
 "    uint wgRet = work_group_scan_inclusive_min(ret);\n\

@@ -216,6 +216,7 @@ static cl_event perform_cl_buffer_checks(cl_context kern_ctx,
 {
     size_t global_work[3] = {POISON_REGIONS*poisonWordLen, 1, 1};
     size_t local_work[3] = {256, 1, 1};
+    size_t max_work_items[3] = {1, 1, 1};
     global_work[0] *= POISON_REGIONS*total_buffs;
 
     uint32_t buff_end = num_cl_mem * POISON_REGIONS*poisonWordLen;
@@ -251,6 +252,12 @@ static cl_event perform_cl_buffer_checks(cl_context kern_ctx,
     cl_set_arg_and_check(check_kern, 2, sizeof(unsigned), &svm_end);
     cl_set_arg_and_check(check_kern, 3, sizeof(unsigned), &poisonFill_32b);
     cl_set_arg_and_check(check_kern, 4, sizeof(cl_mem), &clmem_canary_copies);
+
+    cl_device_id dev_id;
+    clGetContextInfo(kern_ctx, CL_CONTEXT_DEVICES, sizeof(cl_device_id), &dev_id, NULL);
+    clGetKernelWorkGroupInfo(check_kern, dev_id, CL_KERNEL_WORK_GROUP_SIZE, sizeof(size_t), max_work_items, NULL);
+
+    local_work[0] = max_work_items[0];
 
     cl_event kern_end;
     launchOclKernelStruct ocl_args = setup_ocl_args(cmd_queue, check_kern,
