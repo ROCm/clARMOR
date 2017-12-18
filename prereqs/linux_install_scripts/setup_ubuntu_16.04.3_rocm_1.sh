@@ -49,7 +49,6 @@ sudo apt-get -y install git openssh-server
 
 #Install ROCm
 #==============================================================================
-sudo sh -c "echo 10.255.8.5      repo.radeon.com >> /etc/hosts"
 wget -qO - http://repo.radeon.com/rocm/apt/debian/rocm.gpg.key | sudo apt-key add -
 sudo sh -c 'echo deb [arch=amd64] http://repo.radeon.com/rocm/apt/debian/ xenial main > /etc/apt/sources.list.d/rocm.list'
 sudo apt-get update
