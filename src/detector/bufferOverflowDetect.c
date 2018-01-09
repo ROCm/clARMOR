@@ -606,10 +606,22 @@ void copyKernelBuffers(cl_kernel to, cl_kernel from,
                     cl_buffer_copy(command_queue, m1->handle, m2->handle, 0, 0, size, 0, 0, &events[i]);
                 }
             }
+            else
+            {
+                cl_int cl_err;
+                cl_context context;
+                cl_err = clGetCommandQueueInfo(command_queue, CL_QUEUE_CONTEXT, sizeof(context), &context, NULL);
+                check_cl_error(__FILE__, __LINE__, cl_err);
+                events[i] = clCreateUserEvent(context, &cl_err);
+                check_cl_error(__FILE__, __LINE__, cl_err);
+                cl_err = clSetUserEventStatus(events[i], CL_COMPLETE);
+                check_cl_error(__FILE__, __LINE__, cl_err);
+            }
         }
     }
 
-    clWaitForEvents(nargs, events);
+    cl_err = clWaitForEvents(nargs, events);
+    check_cl_error(__FILE__, __LINE__, cl_err);
     free(events);
 }
 

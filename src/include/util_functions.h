@@ -59,6 +59,8 @@ extern uint32_t global_tool_stats_flags;
 
 #define __CLARMOR_DEVICE_SELECT__ "CLARMOR_DEVICE_SELECT"
 
+#define __CLARMOR_ROCM_BROKEN_IMAGES__ "CLARMOR_ROCM_BROKEN_IMAGES"
+
 #define DEFAULT_DEVICE_CHECK 0
 #define DEVICE_GPU 1
 #define DEVICE_CPU 2
@@ -198,6 +200,14 @@ void print_backtrace(FILE* where_to);
  *
  */
 int is_nvidia_platform(cl_context context);
+
+/*!
+ * returns 1 if this system is running ROCm and has a GPU installed where
+ * events coming out of image functions have a data race and are broken.
+ * In this case, we disable clARMOR for images.
+ *
+ */
+int rocm_broken_images(void);
 
 /*!
  *

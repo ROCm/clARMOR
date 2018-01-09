@@ -65,7 +65,6 @@ test: run_test
 	EXPECTED_ERRORS=`grep EXPECTED_ERRORS ${ERR_FILE_NAME} | awk -F = {'print $$2'}`;\
 	if ! [ -n "$${CHECK_ERROR:+1}" ]; then \
 		echo "ERROR. Output log of buffer overflow not found at ${THIS_DIR}/buffer_overflow_detector.out";\
-		echo "blah $$CHECK_ERROR";\
 		exit 1;\
 	fi;\
 	if [ $$CHECK_ERROR -ne $$EXPECTED_ERRORS ]; then \
@@ -79,7 +78,6 @@ cpu_test: run_cpu_test
 	EXPECTED_ERRORS=`grep EXPECTED_ERRORS ${ERR_FILE_NAME} | awk -F = {'print $$2'}`;\
 	if ! [ -n "$${CHECK_ERROR:+1}" ]; then \
 		echo "ERROR. Output log of buffer overflow not found at ${THIS_DIR}/buffer_overflow_detector.out";\
-		echo "blah $$CHECK_ERROR";\
 		exit 1;\
 	fi;\
 	if [ $$CHECK_ERROR -ne $$EXPECTED_ERRORS ]; then \

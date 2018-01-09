@@ -215,6 +215,17 @@ def run_cmd( args, cmd, prefix = None ):
     print args["prefix"] + "Final command line to run: %s\n" % cmd
     return os.system( cmd )
 
+def rocm_broken_images():
+    images_work=1
+    is_rocm = os.system("uname -a | grep rocm")
+    if not is_rocm:
+        to_run = bin_dir+"/clarmor-info -g -b | grep Hawaii"
+        images_work = os.system(to_run)
+    if images_work:
+        return 0
+    else:
+        return 1
+
 def run_detect_overflow(args, parser):
     benchDir=None
 
@@ -369,6 +380,9 @@ def run_detect_overflow(args, parser):
     if args["error_exitcode"]:
         string_to_add = " CLARMOR_ERROR_EXITCODE=" + str(args["error_exitcode"]) + " "
         prefix += string_to_add
+
+    if rocm_broken_images():
+        prefix += " CLARMOR_ROCM_BROKEN_IMAGES=1 "
 
     # If you want to NOT use the wrapper (e.g. for testing), use this line:
     #prefix = global_prefix

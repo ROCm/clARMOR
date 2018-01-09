@@ -917,165 +917,173 @@ clCreateImage(cl_context              context ,
     cl_mem ret = 0;
     if ( CreateImage )
     {
-        cl_memobj *temp = (cl_memobj*)calloc(sizeof(cl_memobj), 1);
-        temp->is_image = 1;
-        temp->context = context;
-        temp->flags = flags;
+        if (!rocm_broken_images())
+        {
+            cl_memobj *temp = (cl_memobj*)calloc(sizeof(cl_memobj), 1);
+            temp->is_image = 1;
+            temp->context = context;
+            temp->flags = flags;
 
-        temp->image_format.image_channel_order = image_format->image_channel_order;
-        temp->image_format.image_channel_data_type = image_format->image_channel_data_type;
+            temp->image_format.image_channel_order = image_format->image_channel_order;
+            temp->image_format.image_channel_data_type = image_format->image_channel_data_type;
 
-        temp->image_desc.image_type = image_desc->image_type;
-        temp->image_desc.image_width = image_desc->image_width;
-        temp->image_desc.image_height = image_desc->image_height;
-        temp->image_desc.image_depth = image_desc->image_depth;
-        temp->image_desc.image_array_size = image_desc->image_array_size;
-        temp->image_desc.image_row_pitch = image_desc->image_row_pitch;
-        temp->image_desc.image_slice_pitch = image_desc->image_slice_pitch;
-        temp->image_desc.num_mip_levels = image_desc->num_mip_levels;
-        temp->image_desc.num_samples = image_desc->num_samples;
-        temp->image_desc.buffer = image_desc->buffer;
+            temp->image_desc.image_type = image_desc->image_type;
+            temp->image_desc.image_width = image_desc->image_width;
+            temp->image_desc.image_height = image_desc->image_height;
+            temp->image_desc.image_depth = image_desc->image_depth;
+            temp->image_desc.image_array_size = image_desc->image_array_size;
+            temp->image_desc.image_row_pitch = image_desc->image_row_pitch;
+            temp->image_desc.image_slice_pitch = image_desc->image_slice_pitch;
+            temp->image_desc.num_mip_levels = image_desc->num_mip_levels;
+            temp->image_desc.num_samples = image_desc->num_samples;
+            temp->image_desc.buffer = image_desc->buffer;
 
-        //doing some error correcting here
-        //some of these fields may be unchecked for certain image types
-        //i want to be able to use these fields generically so i'm enforcing standards here
-        if(image_desc->image_type == CL_MEM_OBJECT_IMAGE1D)
-        {
-            temp->image_desc.image_height = 1;
-            temp->image_desc.image_depth = 1;
-            temp->image_desc.image_array_size = 1;
-        }
-        else if(image_desc->image_type == CL_MEM_OBJECT_IMAGE1D_BUFFER)
-        {
-            temp->image_desc.image_height = 1;
-            temp->image_desc.image_depth = 1;
-            temp->image_desc.image_array_size = 1;
-        }
-        else if(image_desc->image_type == CL_MEM_OBJECT_IMAGE1D_ARRAY)
-        {
-            temp->image_desc.image_height = 1;
-            temp->image_desc.image_depth = 1;
-        }
-        else if(image_desc->image_type == CL_MEM_OBJECT_IMAGE2D)
-        {
-            temp->image_desc.image_depth = 1;
-            temp->image_desc.image_array_size = 1;
-        }
-        else if(image_desc->image_type == CL_MEM_OBJECT_IMAGE2D_ARRAY)
-        {
-            temp->image_desc.image_depth = 1;
-        }
-        else if(image_desc->image_type == CL_MEM_OBJECT_IMAGE3D)
-        {
-            temp->image_desc.image_array_size = 1;
-        }
-        else
-        {
-            det_fprintf(stderr, "failed to find image type");
-            exit(-1);
-        }
-
-        size_t dataSize = getImageDataSize(image_format);
-        temp->size = temp->image_desc.image_width * temp->image_desc.image_height * temp->image_desc.image_depth * temp->image_desc.image_array_size * dataSize;
-        uint64_t img_size = temp->size;
-        if(global_tool_stats_flags & STATS_MEM_OVERHEAD)
-        {
-            pthread_mutex_lock(&memory_overhead_lock);
-            if(internal_create)
+            //doing some error correcting here
+            //some of these fields may be unchecked for certain image types
+            //i want to be able to use these fields generically so i'm enforcing standards here
+            if(image_desc->image_type == CL_MEM_OBJECT_IMAGE1D)
             {
-                total_overhead_mem += img_size;
-                current_overhead_mem += img_size;
+                temp->image_desc.image_height = 1;
+                temp->image_desc.image_depth = 1;
+                temp->image_desc.image_array_size = 1;
+            }
+            else if(image_desc->image_type == CL_MEM_OBJECT_IMAGE1D_BUFFER)
+            {
+                temp->image_desc.image_height = 1;
+                temp->image_desc.image_depth = 1;
+                temp->image_desc.image_array_size = 1;
+            }
+            else if(image_desc->image_type == CL_MEM_OBJECT_IMAGE1D_ARRAY)
+            {
+                temp->image_desc.image_height = 1;
+                temp->image_desc.image_depth = 1;
+            }
+            else if(image_desc->image_type == CL_MEM_OBJECT_IMAGE2D)
+            {
+                temp->image_desc.image_depth = 1;
+                temp->image_desc.image_array_size = 1;
+            }
+            else if(image_desc->image_type == CL_MEM_OBJECT_IMAGE2D_ARRAY)
+            {
+                temp->image_desc.image_depth = 1;
+            }
+            else if(image_desc->image_type == CL_MEM_OBJECT_IMAGE3D)
+            {
+                temp->image_desc.image_array_size = 1;
             }
             else
             {
-                total_user_mem += img_size;
-                current_user_mem += img_size;
+                det_fprintf(stderr, "failed to find image type");
+                exit(-1);
             }
-            pthread_mutex_unlock(&memory_overhead_lock);
-        }
 
-        char *fill_ptr = NULL;
-
-        if(flags & CL_MEM_USE_HOST_PTR || image_desc->buffer)
-        {
-            fill_ptr = host_ptr;
-        }
-        else
-        {
-            expandLastDimForFill(&temp->image_desc);
+            size_t dataSize = getImageDataSize(image_format);
             temp->size = temp->image_desc.image_width * temp->image_desc.image_height * temp->image_desc.image_depth * temp->image_desc.image_array_size * dataSize;
+            uint64_t img_size = temp->size;
             if(global_tool_stats_flags & STATS_MEM_OVERHEAD)
             {
                 pthread_mutex_lock(&memory_overhead_lock);
-                total_overhead_mem += temp->size - img_size;
-                current_overhead_mem += temp->size - img_size;
+                if(internal_create)
+                {
+                    total_overhead_mem += img_size;
+                    current_overhead_mem += img_size;
+                }
+                else
+                {
+                    total_user_mem += img_size;
+                    current_user_mem += img_size;
+                }
                 pthread_mutex_unlock(&memory_overhead_lock);
             }
 
-            allocFlatImageCopy(&fill_ptr, host_ptr, temp);
+            char *fill_ptr = NULL;
 
-            temp->flags = flags | CL_MEM_COPY_HOST_PTR;
-            // reset the pitches because they no longer exist after
-            // the flat image copy
-            temp->image_desc.image_row_pitch = 0;
-            temp->image_desc.image_slice_pitch = 0;
-            temp->has_canary = 1;
-        }
-
-        if(global_tool_stats_flags & STATS_MEM_OVERHEAD)
-        {
-            pthread_mutex_lock(&memory_overhead_lock);
-            high_user_mem = (high_user_mem > current_user_mem) ? high_user_mem : current_user_mem;
-            high_overhead_mem = (high_overhead_mem > current_overhead_mem) ? high_overhead_mem : current_overhead_mem;
-            pthread_mutex_unlock(&memory_overhead_lock);
-        }
-
-        if (temp->flags & CL_MEM_COPY_HOST_PTR)
-        {
-            // Bug workaround.
-            // On the AMD ROCm software stack, CL_MEM_COPY_HOST_PTR causes
-            // memory corruption on the CPU side. As such, we replace the
-            // implicit copy with an explicit copy to make things work.
-            cl_int internal_err = CL_SUCCESS;
-            temp->flags &= ~CL_MEM_COPY_HOST_PTR;
-            ret = CreateImage(context, temp->flags, image_format,
-                    &temp->image_desc, NULL, errcode_ret);
-
-            if (errcode_ret != NULL)
-                *errcode_ret = internal_err;
-            temp->handle = ret;
-
-            if(internal_err != CL_IMAGE_FORMAT_NOT_SUPPORTED &&
-                    internal_err != CL_INVALID_IMAGE_FORMAT_DESCRIPTOR)
+            if(flags & CL_MEM_USE_HOST_PTR || image_desc->buffer)
             {
-                const size_t zero_origin[3] = {0,0,0};
-                const size_t region[3] = {temp->image_desc.image_width,
-                    temp->image_desc.image_height,
-                    temp->image_desc.image_depth};
-
-                cl_command_queue command_queue;
-                getCommandQueueForContext(context, &command_queue);
-                internal_err = EnqueueWriteImage(command_queue, ret, CL_BLOCKING,
-                        zero_origin, region, 0, 0, fill_ptr, 0, NULL, NULL);
-                check_cl_error(__FILE__, __LINE__, internal_err);
+                fill_ptr = host_ptr;
             }
+            else
+            {
+                expandLastDimForFill(&temp->image_desc);
+                temp->size = temp->image_desc.image_width * temp->image_desc.image_height * temp->image_desc.image_depth * temp->image_desc.image_array_size * dataSize;
+                if(global_tool_stats_flags & STATS_MEM_OVERHEAD)
+                {
+                    pthread_mutex_lock(&memory_overhead_lock);
+                    total_overhead_mem += temp->size - img_size;
+                    current_overhead_mem += temp->size - img_size;
+                    pthread_mutex_unlock(&memory_overhead_lock);
+                }
+
+                allocFlatImageCopy(&fill_ptr, host_ptr, temp);
+
+                temp->flags = flags | CL_MEM_COPY_HOST_PTR;
+                // reset the pitches because they no longer exist after
+                // the flat image copy
+                temp->image_desc.image_row_pitch = 0;
+                temp->image_desc.image_slice_pitch = 0;
+                temp->has_canary = 1;
+            }
+
+            if(global_tool_stats_flags & STATS_MEM_OVERHEAD)
+            {
+                pthread_mutex_lock(&memory_overhead_lock);
+                high_user_mem = (high_user_mem > current_user_mem) ? high_user_mem : current_user_mem;
+                high_overhead_mem = (high_overhead_mem > current_overhead_mem) ? high_overhead_mem : current_overhead_mem;
+                pthread_mutex_unlock(&memory_overhead_lock);
+            }
+
+            if (temp->flags & CL_MEM_COPY_HOST_PTR)
+            {
+                // Bug workaround.
+                // On the AMD ROCm software stack, CL_MEM_COPY_HOST_PTR causes
+                // memory corruption on the CPU side. As such, we replace the
+                // implicit copy with an explicit copy to make things work.
+                cl_int internal_err = CL_SUCCESS;
+                temp->flags &= ~CL_MEM_COPY_HOST_PTR;
+                ret = CreateImage(context, temp->flags, image_format,
+                        &temp->image_desc, NULL, errcode_ret);
+
+                if (errcode_ret != NULL)
+                    *errcode_ret = internal_err;
+                temp->handle = ret;
+
+                if(internal_err != CL_IMAGE_FORMAT_NOT_SUPPORTED &&
+                        internal_err != CL_INVALID_IMAGE_FORMAT_DESCRIPTOR)
+                {
+                    const size_t zero_origin[3] = {0,0,0};
+                    const size_t region[3] = {temp->image_desc.image_width,
+                        temp->image_desc.image_height,
+                        temp->image_desc.image_depth};
+
+                    cl_command_queue command_queue;
+                    getCommandQueueForContext(context, &command_queue);
+                    internal_err = EnqueueWriteImage(command_queue, ret, CL_BLOCKING,
+                            zero_origin, region, 0, 0, fill_ptr, 0, NULL, NULL);
+                    check_cl_error(__FILE__, __LINE__, internal_err);
+                }
+            }
+            else
+            {
+                ret = CreateImage(context, temp->flags, image_format,
+                        &temp->image_desc, fill_ptr, errcode_ret);
+            }
+
+            if(fill_ptr && fill_ptr != host_ptr)
+                free(fill_ptr);
+
+            temp->host_ptr = NULL;
+            if(flags & CL_MEM_USE_HOST_PTR)
+                temp->host_ptr = host_ptr;
+
+            temp->ref_count = 1;
+            temp->detector_internal_buffer = 0; // will set this outside if need be.
+            cl_mem_insert(get_cl_mem_alloc(), temp);
         }
         else
         {
-            ret = CreateImage(context, temp->flags, image_format,
-                    &temp->image_desc, fill_ptr, errcode_ret);
+            return CreateImage(context, flags, image_format, image_desc,
+                    host_ptr, errcode_ret);
         }
-
-        if(fill_ptr && fill_ptr != host_ptr)
-            free(fill_ptr);
-
-        temp->host_ptr = NULL;
-        if(flags & CL_MEM_USE_HOST_PTR)
-            temp->host_ptr = host_ptr;
-
-        temp->ref_count = 1;
-        temp->detector_internal_buffer = 0; // will set this outside if need be.
-        cl_mem_insert(get_cl_mem_alloc(), temp);
     }
     else
     {
@@ -1098,126 +1106,134 @@ clCreateImage2D(cl_context              context ,
     cl_mem ret = 0;
     if ( CreateImage2D )
     {
-        cl_memobj *temp = (cl_memobj*)calloc(sizeof(cl_memobj), 1);
-        temp->is_image = 1;
-        temp->context = context;
-        temp->flags = flags;
-
-        temp->image_format.image_channel_order = image_format->image_channel_order;
-        temp->image_format.image_channel_data_type = image_format->image_channel_data_type;
-
-        temp->image_desc.image_type = CL_MEM_OBJECT_IMAGE2D;
-        temp->image_desc.image_width = image_width;
-        temp->image_desc.image_height = image_height;
-        temp->image_desc.image_depth = 1;
-        temp->image_desc.image_array_size = 1;
-        temp->image_desc.image_row_pitch = image_row_pitch;
-        temp->image_desc.image_slice_pitch = 0;
-        temp->image_desc.num_mip_levels = 0;
-        temp->image_desc.num_samples = 0;
-        temp->image_desc.buffer = NULL;
-
-        size_t dataSize = getImageDataSize(image_format);
-        temp->size = image_width * image_height * dataSize;
-        uint64_t img_size = temp->size;
-        if(global_tool_stats_flags & STATS_MEM_OVERHEAD)
+        if (!rocm_broken_images())
         {
-            pthread_mutex_lock(&memory_overhead_lock);
-            if(internal_create)
-            {
-                total_overhead_mem += img_size;
-                current_overhead_mem += img_size;
-            }
-            else
-            {
-                total_user_mem += img_size;
-                current_user_mem += img_size;
-            }
-            pthread_mutex_unlock(&memory_overhead_lock);
-        }
+            cl_memobj *temp = (cl_memobj*)calloc(sizeof(cl_memobj), 1);
+            temp->is_image = 1;
+            temp->context = context;
+            temp->flags = flags;
 
-        char *fill_ptr = NULL;
+            temp->image_format.image_channel_order = image_format->image_channel_order;
+            temp->image_format.image_channel_data_type = image_format->image_channel_data_type;
 
-        if(flags & CL_MEM_USE_HOST_PTR)
-        {
-            fill_ptr = host_ptr;
-        }
-        else
-        {
-            expandLastDimForFill(&temp->image_desc);
-            temp->size = temp->image_desc.image_width * temp->image_desc.image_height * temp->image_desc.image_depth * temp->image_desc.image_array_size * dataSize;
+            temp->image_desc.image_type = CL_MEM_OBJECT_IMAGE2D;
+            temp->image_desc.image_width = image_width;
+            temp->image_desc.image_height = image_height;
+            temp->image_desc.image_depth = 1;
+            temp->image_desc.image_array_size = 1;
+            temp->image_desc.image_row_pitch = image_row_pitch;
+            temp->image_desc.image_slice_pitch = 0;
+            temp->image_desc.num_mip_levels = 0;
+            temp->image_desc.num_samples = 0;
+            temp->image_desc.buffer = NULL;
+
+            size_t dataSize = getImageDataSize(image_format);
+            temp->size = image_width * image_height * dataSize;
+            uint64_t img_size = temp->size;
             if(global_tool_stats_flags & STATS_MEM_OVERHEAD)
             {
                 pthread_mutex_lock(&memory_overhead_lock);
-                total_overhead_mem += temp->size - img_size;
-                current_overhead_mem += temp->size - img_size;
+                if(internal_create)
+                {
+                    total_overhead_mem += img_size;
+                    current_overhead_mem += img_size;
+                }
+                else
+                {
+                    total_user_mem += img_size;
+                    current_user_mem += img_size;
+                }
                 pthread_mutex_unlock(&memory_overhead_lock);
             }
 
-            allocFlatImageCopy(&fill_ptr, host_ptr, temp);
+            char *fill_ptr = NULL;
 
-            temp->flags = flags | CL_MEM_COPY_HOST_PTR;
-            temp->has_canary = 1;
-        }
-
-        if(global_tool_stats_flags & STATS_MEM_OVERHEAD)
-        {
-            pthread_mutex_lock(&memory_overhead_lock);
-            high_user_mem = (high_user_mem > current_user_mem) ? high_user_mem : current_user_mem;
-            high_overhead_mem = (high_overhead_mem > current_overhead_mem) ? high_overhead_mem : current_overhead_mem;
-            pthread_mutex_unlock(&memory_overhead_lock);
-        }
-
-        if (temp->flags & CL_MEM_COPY_HOST_PTR)
-        {
-            // Bug workaround.
-            // On the AMD ROCm software stack, CL_MEM_COPY_HOST_PTR causes
-            // memory corruption on the CPU side. As such, we replace the
-            // implicit copy with an explicit copy to make things work.
-            cl_int internal_err = CL_SUCCESS;
-            temp->flags &= ~CL_MEM_COPY_HOST_PTR;
-            ret = CreateImage2D(context, temp->flags, image_format,
-                    temp->image_desc.image_width,
-                    temp->image_desc.image_height,
-                    0, NULL, &internal_err);
-
-            if (errcode_ret != NULL)
-                *errcode_ret = internal_err;
-            temp->handle = ret;
-
-            if(internal_err != CL_IMAGE_FORMAT_NOT_SUPPORTED &&
-                internal_err != CL_INVALID_IMAGE_FORMAT_DESCRIPTOR)
+            if(flags & CL_MEM_USE_HOST_PTR)
             {
-                const size_t zero_origin[3] = {0,0,0};
-                const size_t region[3] = {temp->image_desc.image_width,
-                    temp->image_desc.image_height, 1};
-
-                cl_command_queue command_queue;
-                getCommandQueueForContext(context, &command_queue);
-                internal_err = EnqueueWriteImage(command_queue, ret,
-                        CL_BLOCKING, zero_origin, region, 0, 0, fill_ptr, 0,
-                        NULL, NULL);
-                check_cl_error(__FILE__, __LINE__, internal_err);
+                fill_ptr = host_ptr;
             }
+            else
+            {
+                expandLastDimForFill(&temp->image_desc);
+                temp->size = temp->image_desc.image_width * temp->image_desc.image_height * temp->image_desc.image_depth * temp->image_desc.image_array_size * dataSize;
+                if(global_tool_stats_flags & STATS_MEM_OVERHEAD)
+                {
+                    pthread_mutex_lock(&memory_overhead_lock);
+                    total_overhead_mem += temp->size - img_size;
+                    current_overhead_mem += temp->size - img_size;
+                    pthread_mutex_unlock(&memory_overhead_lock);
+                }
+
+                allocFlatImageCopy(&fill_ptr, host_ptr, temp);
+
+                temp->flags = flags | CL_MEM_COPY_HOST_PTR;
+                temp->has_canary = 1;
+            }
+
+            if(global_tool_stats_flags & STATS_MEM_OVERHEAD)
+            {
+                pthread_mutex_lock(&memory_overhead_lock);
+                high_user_mem = (high_user_mem > current_user_mem) ? high_user_mem : current_user_mem;
+                high_overhead_mem = (high_overhead_mem > current_overhead_mem) ? high_overhead_mem : current_overhead_mem;
+                pthread_mutex_unlock(&memory_overhead_lock);
+            }
+
+            if (temp->flags & CL_MEM_COPY_HOST_PTR)
+            {
+                // Bug workaround.
+                // On the AMD ROCm software stack, CL_MEM_COPY_HOST_PTR causes
+                // memory corruption on the CPU side. As such, we replace the
+                // implicit copy with an explicit copy to make things work.
+                cl_int internal_err = CL_SUCCESS;
+                temp->flags &= ~CL_MEM_COPY_HOST_PTR;
+                ret = CreateImage2D(context, temp->flags, image_format,
+                        temp->image_desc.image_width,
+                        temp->image_desc.image_height,
+                        0, NULL, &internal_err);
+
+                if (errcode_ret != NULL)
+                    *errcode_ret = internal_err;
+                temp->handle = ret;
+
+                if(internal_err != CL_IMAGE_FORMAT_NOT_SUPPORTED &&
+                        internal_err != CL_INVALID_IMAGE_FORMAT_DESCRIPTOR)
+                {
+                    const size_t zero_origin[3] = {0,0,0};
+                    const size_t region[3] = {temp->image_desc.image_width,
+                        temp->image_desc.image_height, 1};
+
+                    cl_command_queue command_queue;
+                    getCommandQueueForContext(context, &command_queue);
+                    internal_err = EnqueueWriteImage(command_queue, ret,
+                            CL_BLOCKING, zero_origin, region, 0, 0, fill_ptr, 0,
+                            NULL, NULL);
+                    check_cl_error(__FILE__, __LINE__, internal_err);
+                }
+            }
+            else
+            {
+                ret = CreateImage2D(context, temp->flags, image_format,
+                        temp->image_desc.image_width,
+                        temp->image_desc.image_height,
+                        0, fill_ptr, errcode_ret);
+            }
+
+            if(fill_ptr && fill_ptr != host_ptr)
+                free(fill_ptr);
+
+            temp->host_ptr = NULL;
+            if(flags & CL_MEM_USE_HOST_PTR)
+                temp->host_ptr = host_ptr;
+
+            temp->ref_count = 1;
+            temp->detector_internal_buffer = 0; // will set this outside if need be.
+            cl_mem_insert(get_cl_mem_alloc(), temp);
         }
         else
         {
-            ret = CreateImage2D(context, temp->flags, image_format,
-                    temp->image_desc.image_width,
-                    temp->image_desc.image_height,
-                    0, fill_ptr, errcode_ret);
+            return CreateImage2D(context, flags, image_format, image_width,
+                    image_height, image_row_pitch, host_ptr, errcode_ret);
         }
-
-        if(fill_ptr && fill_ptr != host_ptr)
-            free(fill_ptr);
-
-        temp->host_ptr = NULL;
-        if(flags & CL_MEM_USE_HOST_PTR)
-            temp->host_ptr = host_ptr;
-
-        temp->ref_count = 1;
-        temp->detector_internal_buffer = 0; // will set this outside if need be.
-        cl_mem_insert(get_cl_mem_alloc(), temp);
     }
     else
     {
@@ -1241,127 +1257,136 @@ clCreateImage3D(cl_context              context ,
     cl_mem ret = 0;
     if ( CreateImage3D )
     {
-        cl_memobj *temp = (cl_memobj*)calloc(sizeof(cl_memobj), 1);
-        temp->is_image = 1;
-        temp->context = context;
-        temp->flags = flags;
-
-        temp->image_format.image_channel_order = image_format->image_channel_order;
-        temp->image_format.image_channel_data_type = image_format->image_channel_data_type;
-
-        temp->image_desc.image_type = CL_MEM_OBJECT_IMAGE3D;
-        temp->image_desc.image_width = image_width;
-        temp->image_desc.image_height = image_height;
-        temp->image_desc.image_depth = image_depth;
-        temp->image_desc.image_array_size = 1;
-        temp->image_desc.image_row_pitch = image_row_pitch;
-        temp->image_desc.image_slice_pitch = image_slice_pitch;
-        temp->image_desc.num_mip_levels = 0;
-        temp->image_desc.num_samples = 0;
-        temp->image_desc.buffer = NULL;
-
-        size_t dataSize = getImageDataSize(image_format);
-        temp->size = image_width * image_height * image_depth * dataSize;
-        uint64_t img_size = temp->size;
-        if(global_tool_stats_flags & STATS_MEM_OVERHEAD)
+        if (!rocm_broken_images())
         {
-            pthread_mutex_lock(&memory_overhead_lock);
-            if(internal_create)
-            {
-                total_overhead_mem += img_size;
-                current_overhead_mem += img_size;
-            }
-            else
-            {
-                total_user_mem += img_size;
-                current_user_mem += img_size;
-            }
-            pthread_mutex_unlock(&memory_overhead_lock);
-        }
+            cl_memobj *temp = (cl_memobj*)calloc(sizeof(cl_memobj), 1);
+            temp->is_image = 1;
+            temp->context = context;
+            temp->flags = flags;
 
-        char *fill_ptr = NULL;
+            temp->image_format.image_channel_order = image_format->image_channel_order;
+            temp->image_format.image_channel_data_type = image_format->image_channel_data_type;
 
-        if(flags & CL_MEM_USE_HOST_PTR)
-        {
-            fill_ptr = host_ptr;
-        }
-        else
-        {
-            expandLastDimForFill(&temp->image_desc);
-            temp->size = temp->image_desc.image_width * temp->image_desc.image_height * temp->image_desc.image_depth * temp->image_desc.image_array_size * dataSize;
+            temp->image_desc.image_type = CL_MEM_OBJECT_IMAGE3D;
+            temp->image_desc.image_width = image_width;
+            temp->image_desc.image_height = image_height;
+            temp->image_desc.image_depth = image_depth;
+            temp->image_desc.image_array_size = 1;
+            temp->image_desc.image_row_pitch = image_row_pitch;
+            temp->image_desc.image_slice_pitch = image_slice_pitch;
+            temp->image_desc.num_mip_levels = 0;
+            temp->image_desc.num_samples = 0;
+            temp->image_desc.buffer = NULL;
+
+            size_t dataSize = getImageDataSize(image_format);
+            temp->size = image_width * image_height * image_depth * dataSize;
+            uint64_t img_size = temp->size;
             if(global_tool_stats_flags & STATS_MEM_OVERHEAD)
             {
                 pthread_mutex_lock(&memory_overhead_lock);
-                total_overhead_mem += temp->size - img_size;
-                current_overhead_mem += temp->size - img_size;
+                if(internal_create)
+                {
+                    total_overhead_mem += img_size;
+                    current_overhead_mem += img_size;
+                }
+                else
+                {
+                    total_user_mem += img_size;
+                    current_user_mem += img_size;
+                }
                 pthread_mutex_unlock(&memory_overhead_lock);
             }
 
-            allocFlatImageCopy(&fill_ptr, host_ptr, temp);
+            char *fill_ptr = NULL;
 
-            temp->flags = flags | CL_MEM_COPY_HOST_PTR;
-            temp->has_canary = 1;
-        }
-
-        if(global_tool_stats_flags & STATS_MEM_OVERHEAD)
-        {
-            pthread_mutex_lock(&memory_overhead_lock);
-            high_user_mem = (high_user_mem > current_user_mem) ? high_user_mem : current_user_mem;
-            high_overhead_mem = (high_overhead_mem > current_overhead_mem) ? high_overhead_mem : current_overhead_mem;
-            pthread_mutex_unlock(&memory_overhead_lock);
-        }
-
-        if (temp->flags & CL_MEM_COPY_HOST_PTR)
-        {
-            // Bug workaround.
-            // On the AMD ROCm software stack, CL_MEM_COPY_HOST_PTR causes
-            // memory corruption on the CPU side. As such, we replace the
-            // implicit copy with an explicit copy to make things work.
-            cl_int internal_err = CL_SUCCESS;
-            temp->flags &= ~CL_MEM_COPY_HOST_PTR;
-            ret = CreateImage3D(context, temp->flags, image_format,
-                    temp->image_desc.image_width,
-                    temp->image_desc.image_height,
-                    temp->image_desc.image_depth,
-                    0, 0, NULL, &internal_err);
-
-            if (errcode_ret != NULL)
-                *errcode_ret = internal_err;
-            temp->handle = ret;
-
-            if(internal_err != CL_IMAGE_FORMAT_NOT_SUPPORTED &&
-                    internal_err != CL_INVALID_IMAGE_FORMAT_DESCRIPTOR)
+            if(flags & CL_MEM_USE_HOST_PTR)
             {
-                const size_t zero_origin[3] = {0,0,0};
-                const size_t region[3] = {temp->image_desc.image_width,
-                    temp->image_desc.image_height, temp->image_desc.image_depth};
-
-                cl_command_queue command_queue;
-                getCommandQueueForContext(context, &command_queue);
-                internal_err = EnqueueWriteImage(command_queue, ret, CL_BLOCKING,
-                        zero_origin, region, 0, 0, fill_ptr, 0, NULL, NULL);
-                check_cl_error(__FILE__, __LINE__, internal_err);
+                fill_ptr = host_ptr;
             }
+            else
+            {
+                expandLastDimForFill(&temp->image_desc);
+                temp->size = temp->image_desc.image_width * temp->image_desc.image_height * temp->image_desc.image_depth * temp->image_desc.image_array_size * dataSize;
+                if(global_tool_stats_flags & STATS_MEM_OVERHEAD)
+                {
+                    pthread_mutex_lock(&memory_overhead_lock);
+                    total_overhead_mem += temp->size - img_size;
+                    current_overhead_mem += temp->size - img_size;
+                    pthread_mutex_unlock(&memory_overhead_lock);
+                }
+
+                allocFlatImageCopy(&fill_ptr, host_ptr, temp);
+
+                temp->flags = flags | CL_MEM_COPY_HOST_PTR;
+                temp->has_canary = 1;
+            }
+
+            if(global_tool_stats_flags & STATS_MEM_OVERHEAD)
+            {
+                pthread_mutex_lock(&memory_overhead_lock);
+                high_user_mem = (high_user_mem > current_user_mem) ? high_user_mem : current_user_mem;
+                high_overhead_mem = (high_overhead_mem > current_overhead_mem) ? high_overhead_mem : current_overhead_mem;
+                pthread_mutex_unlock(&memory_overhead_lock);
+            }
+
+            if (temp->flags & CL_MEM_COPY_HOST_PTR)
+            {
+                // Bug workaround.
+                // On the AMD ROCm software stack, CL_MEM_COPY_HOST_PTR causes
+                // memory corruption on the CPU side. As such, we replace the
+                // implicit copy with an explicit copy to make things work.
+                cl_int internal_err = CL_SUCCESS;
+                temp->flags &= ~CL_MEM_COPY_HOST_PTR;
+                ret = CreateImage3D(context, temp->flags, image_format,
+                        temp->image_desc.image_width,
+                        temp->image_desc.image_height,
+                        temp->image_desc.image_depth,
+                        0, 0, NULL, &internal_err);
+
+                if (errcode_ret != NULL)
+                    *errcode_ret = internal_err;
+                temp->handle = ret;
+
+                if(internal_err != CL_IMAGE_FORMAT_NOT_SUPPORTED &&
+                        internal_err != CL_INVALID_IMAGE_FORMAT_DESCRIPTOR)
+                {
+                    const size_t zero_origin[3] = {0,0,0};
+                    const size_t region[3] = {temp->image_desc.image_width,
+                        temp->image_desc.image_height, temp->image_desc.image_depth};
+
+                    cl_command_queue command_queue;
+                    getCommandQueueForContext(context, &command_queue);
+                    internal_err = EnqueueWriteImage(command_queue, ret, CL_BLOCKING,
+                            zero_origin, region, 0, 0, fill_ptr, 0, NULL, NULL);
+                    check_cl_error(__FILE__, __LINE__, internal_err);
+                }
+            }
+            else
+            {
+                ret = CreateImage3D(context, temp->flags, image_format,
+                        temp->image_desc.image_width,
+                        temp->image_desc.image_height,
+                        temp->image_desc.image_depth,
+                        0, 0, fill_ptr, errcode_ret);
+            }
+
+            if(fill_ptr && fill_ptr != host_ptr)
+                free(fill_ptr);
+
+            temp->host_ptr = NULL;
+            if(flags & CL_MEM_USE_HOST_PTR)
+                temp->host_ptr = host_ptr;
+
+            temp->ref_count = 1;
+            temp->detector_internal_buffer = 0; // will set this outside if need be.
+            cl_mem_insert(get_cl_mem_alloc(), temp);
         }
         else
         {
-            ret = CreateImage3D(context, temp->flags, image_format,
-                    temp->image_desc.image_width,
-                    temp->image_desc.image_height,
-                    temp->image_desc.image_depth,
-                    0, 0, fill_ptr, errcode_ret);
+            return CreateImage3D(context, flags, image_format, image_width,
+                    image_height, image_depth, image_row_pitch,
+                    image_slice_pitch, host_ptr, errcode_ret);
         }
-
-        if(fill_ptr && fill_ptr != host_ptr)
-            free(fill_ptr);
-
-        temp->host_ptr = NULL;
-        if(flags & CL_MEM_USE_HOST_PTR)
-            temp->host_ptr = host_ptr;
-
-        temp->ref_count = 1;
-        temp->detector_internal_buffer = 0; // will set this outside if need be.
-        cl_mem_insert(get_cl_mem_alloc(), temp);
     }
     else
     {
@@ -2187,8 +2212,6 @@ static cl_int kernelLaunchFunc(void * thread_args_)
         cl_event_insert(get_cl_evt_list(), evt_info);
     }
 
-    //clFinish( ocl_args->command_queue );
-
     //------------------------------------END-RUN-------------------------------
 
     // -----------------Deleting Host Pointers and Cleaning Up------------------
@@ -2709,28 +2732,11 @@ clEnqueueReadImage(cl_command_queue      command_queue ,
     cl_int err = CL_SUCCESS;
     if ( EnqueueReadImage )
     {
-/*
-        cl_memobj *m1 = cl_mem_find(get_cl_mem_alloc(), image);
-        size_t dataSize;
-        dataSize = getImageDataSize(&m1->image_format);
-        row_pitch = (row_pitch < m1->image_desc.width * dataSize) ? m1->image_desc.width * dataSize : row_pitch;
-        slice_pitch = (slice_pitch < row_pitch * m1->image_desc.height) ? row_pitch * m1->image_desc.height : slice_pitch;
-        */
-
         if( !apiImageOverflowCheck("clEnqueueReadImage", image, origin, region) )
         {
-            err =
-                EnqueueReadImage(command_queue ,
-                        image ,
-                        blocking_read ,
-                        origin ,
-                        region ,
-                        row_pitch ,
-                        slice_pitch ,
-                        ptr ,
-                        num_events ,
-                        event_list ,
-                        event );
+            err = EnqueueReadImage(command_queue, image, blocking_read,
+                    origin, region, row_pitch, slice_pitch, ptr,
+                    num_events, event_list, event);
         }
     }
     else
@@ -2868,25 +2874,29 @@ clEnqueueCopyImageToBuffer(cl_command_queue  command_queue ,
     {
         cl_memobj *m1 = cl_mem_find(get_cl_mem_alloc(), src_image);
         size_t dataSize;
-        dataSize = getImageDataSize(&m1->image_format);
-        size_t row_pitch = region[0] * dataSize;
-        size_t slice_pitch = region[1] * row_pitch;
-        size_t dst_origin[] = {dst_offset, 0, 0};
+		int run_real_call = 0;
+		if (m1 != NULL)
+		{
+			dataSize = getImageDataSize(&m1->image_format);
+			size_t row_pitch = region[0] * dataSize;
+			size_t slice_pitch = region[1] * row_pitch;
+			size_t dst_origin[] = {dst_offset, 0, 0};
 
-        if( !apiImageOverflowCheck("clEnqueueCopyImageToBuffer", src_image, src_origin, region)
-            && !apiBufferRectOverflowCheck("clEnqueueCopyImageToBuffer", dst_buffer, dst_origin, region, row_pitch, slice_pitch) )
-        {
-        err =
-            EnqueueCopyImageToBuffer(command_queue ,
-                    src_image ,
-                    dst_buffer ,
-                    src_origin ,
-                    region ,
-                    dst_offset ,
-                    num_events ,
-                    event_list ,
-                    event );
-        }
+			if( !apiImageOverflowCheck("clEnqueueCopyImageToBuffer", src_image, src_origin, region)
+					&& !apiBufferRectOverflowCheck("clEnqueueCopyImageToBuffer", dst_buffer, dst_origin, region, row_pitch, slice_pitch) )
+			{
+				run_real_call = 1;
+			}
+		}
+		else
+			run_real_call = 1;
+
+		if (run_real_call)
+		{
+			err = EnqueueCopyImageToBuffer(command_queue, src_image,
+					dst_buffer, src_origin, region, dst_offset,
+					num_events, event_list, event);
+		}
     }
     else
     {
@@ -2912,24 +2922,28 @@ clEnqueueCopyBufferToImage(cl_command_queue  command_queue ,
     {
         cl_memobj *m1 = cl_mem_find(get_cl_mem_alloc(), dst_image);
         size_t dataSize;
-        dataSize = getImageDataSize(&m1->image_format);
-        size_t row_pitch = region[0] * dataSize;
-        size_t slice_pitch = region[1] * row_pitch;
-        size_t src_origin[] = {src_offset, 0, 0};
-
-        if( !apiBufferRectOverflowCheck("clEnqueueCopyBufferToImage", src_buffer, src_origin, region, row_pitch, slice_pitch)
-            && !apiImageOverflowCheck("clEnqueueCopyBufferToImage", dst_image, dst_origin, region) )
+        int run_real_call = 0;
+        if (m1 != NULL)
         {
-            err =
-                EnqueueCopyBufferToImage(command_queue ,
-                        src_buffer ,
-                        dst_image ,
-                        src_offset ,
-                        dst_origin ,
-                        region ,
-                        num_events ,
-                        event_list ,
-                        event );
+            dataSize = getImageDataSize(&m1->image_format);
+            size_t row_pitch = region[0] * dataSize;
+            size_t slice_pitch = region[1] * row_pitch;
+            size_t src_origin[] = {src_offset, 0, 0};
+
+            if( !apiBufferRectOverflowCheck("clEnqueueCopyBufferToImage", src_buffer, src_origin, region, row_pitch, slice_pitch)
+                    && !apiImageOverflowCheck("clEnqueueCopyBufferToImage", dst_image, dst_origin, region) )
+            {
+                run_real_call = 1;
+            }
+        }
+        else
+            run_real_call = 1;
+
+        if (run_real_call)
+        {
+            err = EnqueueCopyBufferToImage(command_queue, src_buffer,
+                    dst_image, src_offset, dst_origin, region,
+                    num_events, event_list, event);
         }
     }
     else

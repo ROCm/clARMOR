@@ -242,7 +242,6 @@ unsigned int get_check_on_device_envvar(void)
         }
         return ret_val;
     }
-
 }
 
 int get_print_backtrace_envvar(void)
@@ -465,6 +464,26 @@ int is_nvidia_platform(cl_context context)
     free(platform);
 
     return ret;
+}
+
+int rocm_broken_images(void)
+{
+    char * rocm_broken_images_envvar = NULL;
+    if (getenv(__CLARMOR_ROCM_BROKEN_IMAGES__) == NULL)
+        return 0;
+    else
+    {
+        unsigned int ret_val = 0;
+        if (!get_env_util(&rocm_broken_images_envvar, __CLARMOR_ROCM_BROKEN_IMAGES__))
+        {
+            if (rocm_broken_images_envvar != NULL)
+            {
+                ret_val = strtoul(rocm_broken_images_envvar, NULL, 0);
+                free(rocm_broken_images_envvar);
+            }
+        }
+        return ret_val;
+    }
 }
 
 uint64_t timeval_diff_us(struct timeval *stop, struct timeval *start)
