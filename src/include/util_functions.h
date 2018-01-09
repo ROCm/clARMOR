@@ -194,6 +194,12 @@ char* get_backtrace_level(int level);
 void print_backtrace(FILE* where_to);
 
 /*!
+ * is this context on an nvidia platform
+ *
+ */
+int is_nvidia_platform(cl_context context);
+
+/*!
  *
  * \param stop
  *      stop time

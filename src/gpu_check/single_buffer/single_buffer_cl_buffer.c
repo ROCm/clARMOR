@@ -30,13 +30,6 @@
 #include "../gpu_check_utils.h"
 #include "single_buffer_cl_buffer.h"
 
-static unsigned int uint_min(unsigned int a, unsigned int b)
-{
-    if (a < b)
-        return a;
-    else
-        return b;
-}
 
 static void perform_cl_buffer_checks(cl_command_queue cmd_queue,
         cl_kernel check_kern, cl_event init_evt, cl_event real_kern_evt,
@@ -45,9 +38,17 @@ static void perform_cl_buffer_checks(cl_command_queue cmd_queue,
 {
     // Set up kernel invocation constants
     size_t global_work[3] = {poisonWordLen, 1, 1};
-    unsigned min_local_size = uint_min(poisonWordLen, 256);
-    size_t local_work[3] = {min_local_size, 1, 1};
+    size_t local_work[3] = {256, 1, 1};
+    size_t max_work_items[3] = {1, 1, 1};
     cl_event kern_wait[2] = {init_evt, real_kern_evt};
+
+    cl_context kern_ctx;
+    cl_device_id dev_id;
+    clGetKernelInfo(check_kern, CL_KERNEL_CONTEXT, sizeof(cl_context), &kern_ctx, NULL);
+    clGetContextInfo(kern_ctx, CL_CONTEXT_DEVICES, sizeof(cl_device_id), &dev_id, NULL);
+    clGetKernelWorkGroupInfo(check_kern, dev_id, CL_KERNEL_WORK_GROUP_SIZE, sizeof(size_t), max_work_items, NULL);
+
+    local_work[0] = max_work_items[0];
 
     // Set up checker kernel launch API arguments
     launchOclKernelStruct ocl_args = setup_ocl_args(cmd_queue, check_kern,
@@ -122,7 +123,8 @@ static void perform_cl_buffer_checks(cl_command_queue cmd_queue,
             // eventually wait on all these events before reading the results.
             ocl_args.event = &(check_events[index]);
 
-            cl_int cl_err = runNDRangeKernel(&ocl_args);
+            cl_int cl_err;
+            cl_err = runNDRangeKernel(&ocl_args);
             check_cl_error(__FILE__, __LINE__, cl_err);
 
 #ifdef SEQUENTIAL
@@ -216,9 +218,20 @@ void verify_cl_buffer_single(cl_context kern_ctx, cl_command_queue cmd_queue,
     verif_data->first_change = first_change;
     verif_data->num_buff = num_buff;
     verif_data->complete = user_evt;
-    cl_err = clSetEventCallback(readback_evt, CL_COMPLETE,
-            format_result_buff, (void*)verif_data);
-    check_cl_error(__FILE__, __LINE__, cl_err);
+
+    if(!is_nvidia_platform(kern_ctx))
+    {
+        cl_err = clSetEventCallback(readback_evt, CL_COMPLETE,
+                format_result_buff, (void*)verif_data);
+        check_cl_error(__FILE__, __LINE__, cl_err);
+    }
+    else
+    {
+        clWaitForEvents(1, &readback_evt);
+        format_result_buff(0, 0, verif_data);
+        user_evt = readback_evt;
+    }
+
 #else
     (void)format_result_buff;
     user_evt = readback_evt;

@@ -67,10 +67,10 @@ int main(int argc, char** argv)
     printf("\n\nRunning Bad SubBuffer Test...\n");
     printf("    Using buffer size: %llu\n", (long long unsigned)buffer_size);
 
-    // In this case, we are going to create a cl_mem buffer of the appropriate
-    // size. The kernel will then correctly copy the right amount of data
-    // into that buffer, and then the program will exist.
-    // This will not create a buffer overflow.
+    // In this case, we are going to create a undersized cl_mem sub-buffer.
+    // The kernel will then copy data
+    // into that buffer, and then the program will exit.
+    // This will create a buffer overflow.
     cl_mem parent_buffer = clCreateBuffer(context, CL_MEM_READ_WRITE,
         buffer_size,  NULL, &cl_err);
     check_cl_error(__FILE__, __LINE__, cl_err);
@@ -86,9 +86,7 @@ int main(int argc, char** argv)
 
     // Each work item will touch sizeof(cl_uint) bytes.
     // This calculates how many work items we can have and still stay within
-    // the buffer size.
-    // If the maximum work items we can launch won't reach the end of the
-    // buffer, that is OK. Then we definitely won't have an overflow.
+    // the original buffer size.
     uint64_t num_entries_in_buf = sub_buffer_size / sizeof(cl_uint);
     size_t work_items_to_use;
     if (num_entries_in_buf > SIZE_MAX)

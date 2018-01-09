@@ -39,13 +39,16 @@ static void perform_cl_image_checks(cl_context kern_ctx,
 {
     // Set up kernel invocation constants
     size_t global_work[3] = {1, 1, 1};
-    size_t local_work[3] = {64, 1, 1};
-    size_t max_work_items[3];
+    size_t local_work[3] = {256, 1, 1};
+    size_t max_work_items[3] = {1, 1, 1};
     cl_event kern_wait[3] = {init_evt, real_kern_evt};
 
     cl_device_id dev_id;
     clGetContextInfo(kern_ctx, CL_CONTEXT_DEVICES, sizeof(cl_device_id), &dev_id, NULL);
-    clGetDeviceInfo(dev_id, CL_DEVICE_MAX_WORK_ITEM_SIZES, sizeof(max_work_items), max_work_items, NULL);
+    //clGetDeviceInfo(dev_id, CL_DEVICE_MAX_WORK_ITEM_SIZES, sizeof(max_work_items), max_work_items, NULL);
+    clGetKernelWorkGroupInfo(check_kern, dev_id, CL_KERNEL_WORK_GROUP_SIZE, sizeof(size_t), max_work_items, NULL);
+
+    local_work[0] = max_work_items[0];
 
     // Set up checker kernel launch API arguments
     launchOclKernelStruct ocl_args = setup_ocl_args(cmd_queue, check_kern,
@@ -91,11 +94,6 @@ static void perform_cl_image_checks(cl_context kern_ctx,
 
         global_work[0] = canary_lengths[i];
         ocl_args.global_work_size = global_work;
-
-        local_work[0] = max_work_items[0];
-        while(global_work[0] % local_work[0] != 0)
-            local_work[0] /= 2;
-	ocl_args.local_work_size = local_work;
 
         ocl_args.event_wait_list = kern_wait;
         ocl_args.event = &(check_events[i]);

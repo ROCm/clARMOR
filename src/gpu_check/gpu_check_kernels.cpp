@@ -146,26 +146,27 @@ const char * get_image_copy_canary_src(void)
 
 //length has to be a multiple of the local group size for this to work
 const char *single_buffer_src =
-"uint compareWithPoison(uint poison,\n\
-                            uint localBuff,\n\
-                            uint index,\n\
-                            __global uchar *B)\n\
+" \n\
+uint compareWithPoison(uint poison,\n\
+                       uint index,\n\
+                       __global uint *B)\n\
 {\n\
-    uint ret = INT_MAX;\n\
-    if(poison != ((__global uint*)B)[index])\n\
+    uint retval = INT_MAX;\n\
+    uint word = poison ^ B[index];\n\
+    if(word)\n\
     {\n\
         uint i;\n\
         for(i=0; i < 4; i++)\n\
         {\n\
-            if((poison & 0xFF) != B[4*index+i])\n\
+            if(((uchar*)&word)[i])\n\
             {\n\
-                ret = 4*localBuff + i;\n\
+                retval = 4*index + i;\n\
                 break;\n\
             }\n\
         }\n\
-        ((__global uint*)B)[index] = poison;\n\
+        B[index] = poison;\n\
     }\n\
-    return ret;\n\
+    return retval;\n\
 }\n\
 \n\
 __kernel void locateDiffParts(uint length,\n\
@@ -179,16 +180,16 @@ __kernel void locateDiffParts(uint length,\n\
     if(tid >= length) return;\n\
     int lid = get_local_id(0);\n\
     uint ret;\n\
-    __global char *val_ptr = (B+offset);\n\
-    ret = compareWithPoison(poison, tid, tid, val_ptr);\n"
+    __global uint *val_ptr = (__global uint*)(B+offset);\n\
+    ret = compareWithPoison(poison, tid, val_ptr);\n"
 #ifdef CL_VERSION_2_0
 "    uint wgRet = work_group_scan_inclusive_min(ret);\n\
     if(lid == get_local_size(0)-1 || tid == length-1)\n\
     {\n\
-        atomic_min((__global uint*)&first[buffID], (uint)wgRet);\n\
+        atomic_min((__global uint*)&first[buffID], wgRet);\n\
     }\n"
 #else
-    "atomic_min((__global uint*)&first[buffID], (uint)ret);\n"
+    "atomic_min(&first[buffID], ret);\n"
 #endif
 "}";
 
