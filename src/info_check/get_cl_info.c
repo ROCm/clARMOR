@@ -178,6 +178,7 @@ int main(int argc, char** argv)
                         if (cl_err != CL_SUCCESS)
                         {
                             fprintf(stderr, "Error getting board %d name. Errcode: %d\n", j, cl_err);
+                            free(board_name);
                             free(devices);
                             free(platforms);
                             return -1;

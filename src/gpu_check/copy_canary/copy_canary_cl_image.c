@@ -108,8 +108,17 @@ static cl_event perform_cl_image_checks(cl_context kern_ctx,
 
     // Launch the kernel that checks the copies of the canary values.
     cl_event kern_end;
-    launchOclKernelStruct ocl_args = setup_ocl_args(cmd_queue, check_kern,
-        1, NULL, global_work, local_work, num_init_evts, init_evts, &kern_end);
+    launchOclKernelStruct ocl_args;
+    if (global_work[0] % local_work[0] == 0)
+    {
+        ocl_args = setup_ocl_args(cmd_queue, check_kern,
+            1, NULL, global_work, local_work, num_init_evts, init_evts, &kern_end);
+    }
+    else
+    {
+        ocl_args = setup_ocl_args(cmd_queue, check_kern,
+            1, NULL, global_work, NULL, num_init_evts, init_evts, &kern_end);
+    }
     cl_err = runNDRangeKernel( &ocl_args );
     check_cl_error(__FILE__, __LINE__, cl_err);
 

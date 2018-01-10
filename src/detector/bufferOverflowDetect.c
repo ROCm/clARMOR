@@ -610,7 +610,7 @@ void copyKernelBuffers(cl_kernel to, cl_kernel from,
             {
                 cl_int cl_err;
                 cl_context context;
-                cl_err = clGetCommandQueueInfo(command_queue, CL_QUEUE_CONTEXT, sizeof(context), &context, NULL);
+                cl_err = clGetCommandQueueInfo(command_queue, CL_QUEUE_CONTEXT, sizeof(cl_context), &context, NULL);
                 check_cl_error(__FILE__, __LINE__, cl_err);
                 events[i] = clCreateUserEvent(context, &cl_err);
                 check_cl_error(__FILE__, __LINE__, cl_err);

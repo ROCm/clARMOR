@@ -45,14 +45,9 @@ static void perform_cl_image_checks(cl_context kern_ctx,
 
     cl_device_id dev_id;
     clGetContextInfo(kern_ctx, CL_CONTEXT_DEVICES, sizeof(cl_device_id), &dev_id, NULL);
-    //clGetDeviceInfo(dev_id, CL_DEVICE_MAX_WORK_ITEM_SIZES, sizeof(max_work_items), max_work_items, NULL);
     clGetKernelWorkGroupInfo(check_kern, dev_id, CL_KERNEL_WORK_GROUP_SIZE, sizeof(size_t), max_work_items, NULL);
 
     local_work[0] = max_work_items[0];
-
-    // Set up checker kernel launch API arguments
-    launchOclKernelStruct ocl_args = setup_ocl_args(cmd_queue, check_kern,
-            1, NULL, global_work, local_work, 2, kern_wait, NULL);
 
     // Set up constant cl_mem checker kernel arguments
     uint32_t check_num = 1;
@@ -63,6 +58,19 @@ static void perform_cl_image_checks(cl_context kern_ctx,
     // We check each buffer independently
     for(uint32_t i = 0; i < num_images; i++)
     {
+        // Set up checker kernel launch API arguments
+        launchOclKernelStruct ocl_args;
+        if (canary_lengths[i] % local_work[0] == 0)
+        {
+            ocl_args = setup_ocl_args(cmd_queue, check_kern,
+                    1, NULL, global_work, local_work, 2, kern_wait, NULL);
+        }
+        else
+        {
+            ocl_args = setup_ocl_args(cmd_queue, check_kern,
+                    1, NULL, global_work, NULL, 2, kern_wait, NULL);
+        }
+
         cl_int cl_err;
         cl_mem canaryLength = clCreateBuffer(kern_ctx, CL_MEM_COPY_HOST_PTR,
                 sizeof(uint32_t), &(canary_lengths[i]), &cl_err);
