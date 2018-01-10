@@ -917,7 +917,7 @@ clCreateImage(cl_context              context ,
     cl_mem ret = 0;
     if ( CreateImage )
     {
-        if (!rocm_broken_images())
+        if (!opencl_broken_images())
         {
             cl_memobj *temp = (cl_memobj*)calloc(sizeof(cl_memobj), 1);
             temp->is_image = 1;
@@ -1106,7 +1106,7 @@ clCreateImage2D(cl_context              context ,
     cl_mem ret = 0;
     if ( CreateImage2D )
     {
-        if (!rocm_broken_images())
+        if (!opencl_broken_images())
         {
             cl_memobj *temp = (cl_memobj*)calloc(sizeof(cl_memobj), 1);
             temp->is_image = 1;
@@ -1257,7 +1257,7 @@ clCreateImage3D(cl_context              context ,
     cl_mem ret = 0;
     if ( CreateImage3D )
     {
-        if (!rocm_broken_images())
+        if (!opencl_broken_images())
         {
             cl_memobj *temp = (cl_memobj*)calloc(sizeof(cl_memobj), 1);
             temp->is_image = 1;
@@ -2873,11 +2873,10 @@ clEnqueueCopyImageToBuffer(cl_command_queue  command_queue ,
     if ( EnqueueCopyImageToBuffer )
     {
         cl_memobj *m1 = cl_mem_find(get_cl_mem_alloc(), src_image);
-        size_t dataSize;
 		int run_real_call = 0;
 		if (m1 != NULL)
 		{
-			dataSize = getImageDataSize(&m1->image_format);
+			size_t dataSize = getImageDataSize(&m1->image_format);
 			size_t row_pitch = region[0] * dataSize;
 			size_t slice_pitch = region[1] * row_pitch;
 			size_t dst_origin[] = {dst_offset, 0, 0};
@@ -2921,11 +2920,10 @@ clEnqueueCopyBufferToImage(cl_command_queue  command_queue ,
     if ( EnqueueCopyBufferToImage )
     {
         cl_memobj *m1 = cl_mem_find(get_cl_mem_alloc(), dst_image);
-        size_t dataSize;
         int run_real_call = 0;
         if (m1 != NULL)
         {
-            dataSize = getImageDataSize(&m1->image_format);
+            size_t dataSize = getImageDataSize(&m1->image_format);
             size_t row_pitch = region[0] * dataSize;
             size_t slice_pitch = region[1] * row_pitch;
             size_t src_origin[] = {src_offset, 0, 0};

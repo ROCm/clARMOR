@@ -598,18 +598,18 @@ static int get_env_util( char **env_, const char *env_var_nm_ )
 
 int images_are_broken(void)
 {
-    char * rocm_broken_images_envvar = NULL;
-    if (getenv("CLARMOR_ROCM_BROKEN_IMAGES") == NULL)
+    char * broken_images_envvar = NULL;
+    if (getenv("CLARMOR_ROCM_HAWAII") == NULL)
         return 0;
     else
     {
         unsigned int ret_val = 0;
-        if (!get_env_util(&rocm_broken_images_envvar, "CLARMOR_ROCM_BROKEN_IMAGES"))
+        if (!get_env_util(&broken_images_envvar, "CLARMOR_ROCM_HAWAII"))
         {
-            if (rocm_broken_images_envvar != NULL)
+            if (broken_images_envvar != NULL)
             {
-                ret_val = strtoul(rocm_broken_images_envvar, NULL, 0);
-                free(rocm_broken_images_envvar);
+                ret_val = strtoul(broken_images_envvar, NULL, 0);
+                free(broken_images_envvar);
             }
         }
         return ret_val;

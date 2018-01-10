@@ -466,20 +466,20 @@ int is_nvidia_platform(cl_context context)
     return ret;
 }
 
-int rocm_broken_images(void)
+int opencl_broken_images(void)
 {
-    char * rocm_broken_images_envvar = NULL;
-    if (getenv(__CLARMOR_ROCM_BROKEN_IMAGES__) == NULL)
+    char * broken_images_envvar = NULL;
+    if (getenv(__CLARMOR_ROCM_HAWAII__) == NULL)
         return 0;
     else
     {
         unsigned int ret_val = 0;
-        if (!get_env_util(&rocm_broken_images_envvar, __CLARMOR_ROCM_BROKEN_IMAGES__))
+        if (!get_env_util(&broken_images_envvar, __CLARMOR_ROCM_HAWAII__))
         {
-            if (rocm_broken_images_envvar != NULL)
+            if (broken_images_envvar != NULL)
             {
-                ret_val = strtoul(rocm_broken_images_envvar, NULL, 0);
-                free(rocm_broken_images_envvar);
+                ret_val = strtoul(broken_images_envvar, NULL, 0);
+                free(broken_images_envvar);
             }
         }
         return ret_val;

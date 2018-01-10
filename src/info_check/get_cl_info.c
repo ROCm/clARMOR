@@ -169,6 +169,8 @@ int main(int argc, char** argv)
                         if (cl_err != CL_SUCCESS)
                         {
                             fprintf(stderr, "Error getting size of board %d name. Errcode: %d\n", j, cl_err);
+                            free(devices);
+                            free(platforms);
                             return -1;
                         }
                         board_name = calloc(name_size, sizeof(char));
@@ -176,6 +178,8 @@ int main(int argc, char** argv)
                         if (cl_err != CL_SUCCESS)
                         {
                             fprintf(stderr, "Error getting board %d name. Errcode: %d\n", j, cl_err);
+                            free(devices);
+                            free(platforms);
                             return -1;
                         }
                         printf("Board name: %s\n", board_name);
