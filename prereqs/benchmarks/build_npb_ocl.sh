@@ -56,6 +56,12 @@ if [ ! -d ~/benchmarks/SNU_NPB-1.0.3 ]; then
     patch cg.c ${BASE_DIR}/../support_files/npb_ocl_cg.patch
     popd
 
+    # In IS, it is possible that if the OpenCL runtime reports a larger maximum
+    # work item size than the largest workgroup can handle, the program will
+    # error out when attempting to enqueue a kernel. This patch prevents such
+    # a case from occurring.
+    sed -i '759i  { int i; for (i = 0; i < 3; i++) { if (work_item_sizes[i] > max_work_group_size) work_item_sizes[i] = max_work_group_size; } }'  ~/benchmarks/SNU_NPB-1.0.3/NPB3.3-OCL/IS/is.c
+
     for bench in BT CG EP FT IS LU MG SP
     do
         if [ $bench == "LU" ]; then
