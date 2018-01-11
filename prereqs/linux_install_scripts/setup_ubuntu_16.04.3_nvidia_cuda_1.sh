@@ -46,6 +46,7 @@ su -c "mkdir -p ${INSTALLER_DIR}" $REAL_USER
 sudo apt-get update
 sudo apt-get -y upgrade
 sudo apt-get -y install git openssh-server
+sudo apt-get -y install lib32gcc1 build-essential g++ gdb m4 make patch patchutils perl python vim emacs wget libperl-dev libtext-lorem-perl
 
 #Install Nvidia Driver
 cd $INSTALLER_DIR

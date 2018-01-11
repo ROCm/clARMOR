@@ -217,8 +217,13 @@ def run_cmd( args, cmd, prefix = None ):
 
 def rocm_and_hawaii():
     images_work=1
-    is_rocm = os.system("uname -a | grep rocm")
-    if not is_rocm:
+    dev_null_fn = os.open(os.devnull, os.O_WRONLY)
+    is_not_rocm = subprocess.call(['rocminfo'], stdout=dev_null_fn, stderr=subprocess.STDOUT, shell=True)
+    os.close(dev_null_fn)
+    if is_not_rocm:
+        # May be an old version of ROCm that does not include rocminfo
+        is_not_rocm = os.system("uname -a | grep rocm")
+    if not is_not_rocm:
         to_run = bin_dir+"/clarmor-info -g -b | grep Hawaii"
         images_work = os.system(to_run)
     if images_work:

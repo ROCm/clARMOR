@@ -44,8 +44,8 @@ echo "HLSim Ubuntu 16.04.3 Installation Script (ROCm drivers) Step 1/2"
 #==============================================================================
 sudo apt-get update
 sudo apt-get -y upgrade
-sudo apt-get -y install git openssh-server
-
+sudo apt-get -y install git openssh-server aptitude
+sudo apt-get -y install lib32gcc1 build-essential g++ gdb m4 make patch patchutils perl python vim emacs wget libperl-dev libtext-lorem-perl
 
 #Install ROCm
 #==============================================================================
@@ -53,19 +53,18 @@ wget -qO - http://repo.radeon.com/rocm/apt/debian/rocm.gpg.key | sudo apt-key ad
 sudo sh -c 'echo deb [arch=amd64] http://repo.radeon.com/rocm/apt/debian/ xenial main > /etc/apt/sources.list.d/rocm.list'
 sudo apt-get update
 
-sudo apt-get -y install rocm
-sudo apt-get -y install rocm-opencl rocm-opencl-dev
+sudo apt-get update
+sudo apt-get -y install rocm-dkms rocm-opencl rocm-opencl-dev
 sudo sh -c 'echo export AMDAPPSDKROOT=/opt/rocm/opencl > /etc/profile.d/rocm_ocl.sh'
 sudo sh -c 'echo export LD_LIBRARY_PATH=/opt/rocm/opencl/lib/x86_64:/opt/rocm/hsa/lib:\$LD_LIBRARY_PATH >> /etc/profile.d/rocm.sh'
 sudo sh -c 'echo export PATH=\$PATH:/opt/rocm/bin/:/opt/rocm/profiler/bin/:/opt/rocm/opencl/bin/x86_64/ >> /etc/profile.d/rocm.sh'
-sudo sed /etc/default/grub -i -e 's/GRUB_DEFAULT=[^\n]*/GRUB_DEFAULT=\"1>0\"/g'
-sudo update-grub
-sudo apt-get -y install aptitude
-for i in `aptitude --disable-columns search linux | grep "i A" | awk {'print $3'}`; do echo $i hold | sudo dpkg --set-selections; done
 
 sudo cp -a /opt/rocm/opencl/lib/x86_64/*.so* /usr/lib/.
 sudo ln -s /opt/rocm/hsa/lib/libhsa-runtime64.so.1 /opt/rocm/hsa/lib/libhsa-runtime64.so
 
+sudo usermod -a -G video $LOGNAME
+sudo sh -c 'echo ADD_EXTRA_GROUPS=1 >> /etc/adduser.conf'
+sudo sh -c 'echo EXTRA_GROUPS=video >> /etc/adduser.conf'
 
 #Set up the next script to run after the upcoming reboot.
 #We must reboot before installing the Catalyst drivers because we need to be

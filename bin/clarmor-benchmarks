@@ -122,10 +122,12 @@ ALL_BENCHMARKS=""
 
 null = open(os.devnull,"w")
 driver_rocm = 1
-try:
-    subprocess.check_call("uname -a | grep rocm", shell=True, stdout=null, stderr=null)
-except subprocess.CalledProcessError:
-    driver_rocm = 0
+is_not_rocm = subprocess.call(['rocminfo'], stdout=null, stderr=subprocess.STDOUT, shell=True)
+if is_not_rocm:
+    try:
+        subprocess.check_call("uname -a | grep rocm", shell=True, stdout=null, stderr=null)
+    except subprocess.CalledProcessError:
+        driver_rocm = 0
 
 driver_amdgpu_pro = 1
 try:
