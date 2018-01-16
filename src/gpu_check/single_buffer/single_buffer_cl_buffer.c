@@ -37,6 +37,7 @@ static void perform_cl_buffer_checks(cl_command_queue cmd_queue,
         int is_svm, cl_event *check_events)
 {
     // Set up kernel invocation constants
+    cl_int cl_err;
     size_t global_work[3] = {poisonWordLen, 1, 1};
     size_t local_work[3] = {256, 1, 1};
     size_t max_work_items[3] = {1, 1, 1};
@@ -123,12 +124,12 @@ static void perform_cl_buffer_checks(cl_command_queue cmd_queue,
             // eventually wait on all these events before reading the results.
             ocl_args.event = &(check_events[index]);
 
-            cl_int cl_err;
             cl_err = runNDRangeKernel(&ocl_args);
             check_cl_error(__FILE__, __LINE__, cl_err);
 
 #ifdef SEQUENTIAL
-            clFinish(cmd_queue);
+            cl_err = clFinish(cmd_queue);
+            check_cl_error(__FILE__, __LINE__, cl_err);
 #endif
 
             if(global_tool_stats_flags & STATS_CHECKER_TIME)
@@ -227,7 +228,8 @@ void verify_cl_buffer_single(cl_context kern_ctx, cl_command_queue cmd_queue,
     }
     else
     {
-        clWaitForEvents(1, &readback_evt);
+        cl_err = clWaitForEvents(1, &readback_evt);
+        check_cl_error(__FILE__, __LINE__, cl_err);
         format_result_buff(0, 0, verif_data);
         user_evt = readback_evt;
     }

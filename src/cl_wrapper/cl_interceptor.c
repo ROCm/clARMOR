@@ -651,6 +651,10 @@ clCreateBuffer(cl_context   context,
             pthread_mutex_unlock(&memory_overhead_lock);
         }
 
+        flags &= ~CL_MEM_WRITE_ONLY;
+        flags &= ~CL_MEM_READ_ONLY;
+        flags |= CL_MEM_READ_WRITE;
+
         if(flags & CL_MEM_USE_HOST_PTR)
         {
             fill_ptr = host_ptr;
@@ -671,7 +675,7 @@ clCreateBuffer(cl_context   context,
 
                 offset += size;
                 memset(fill_ptr + offset, POISON_FILL, POISON_FILL_LENGTH);
-                flags = flags | CL_MEM_COPY_HOST_PTR;
+                flags |= CL_MEM_COPY_HOST_PTR;
 
                 if(global_tool_stats_flags & STATS_MEM_OVERHEAD)
                 {
@@ -708,11 +712,10 @@ clCreateBuffer(cl_context   context,
 #ifdef UNDERFLOW_CHECK
             sub_region.origin = POISON_FILL_LENGTH;
 #endif
-            //include the canary region so this will work for nvidia buffers
-            sub_region.size = size + POISON_FILL_LENGTH;
+            sub_region.size = size;
             cl_mem_flags passDownFlags, ptrFlags;
             ptrFlags = CL_MEM_USE_HOST_PTR | CL_MEM_ALLOC_HOST_PTR | CL_MEM_COPY_HOST_PTR;
-            passDownFlags = flags & !ptrFlags;
+            passDownFlags = flags & ~ptrFlags;
 
             ret =
                 CreateSubBuffer( main_buff,
