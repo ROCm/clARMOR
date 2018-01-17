@@ -328,18 +328,19 @@ void analyze_check_results(cl_command_queue cmd_queue, cl_event readback_evt,
     // The checker kernel will run after we are finished reading back the
     // results of the check kernel.
     cl_context kern_ctx;
-    cl_err = clGetCommandQueueInfo(cmd_queue, CL_QUEUE_CONTEXT, 
+    cl_err = clGetCommandQueueInfo(cmd_queue, CL_QUEUE_CONTEXT,
                 sizeof(cl_context), &kern_ctx, NULL);
     check_cl_error(__FILE__, __LINE__, cl_err);
     if(!is_nvidia_platform(kern_ctx))
     {
-        cl_err = clSetEventCallback(readback_evt, CL_COMPLETE, 
+        cl_err = clSetEventCallback(readback_evt, CL_COMPLETE,
             verify_callback, data);
         check_cl_error(__FILE__, __LINE__, cl_err);
     }
     else
     {
-        clWaitForEvents(1, &readback_evt);
+        cl_err = clWaitForEvents(1, &readback_evt);
+        check_cl_error(__FILE__, __LINE__, cl_err);
         verify_callback(0, 0, data);
     }
 
