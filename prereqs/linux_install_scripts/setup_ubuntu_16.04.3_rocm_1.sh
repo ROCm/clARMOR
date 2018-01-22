@@ -57,7 +57,7 @@ sudo apt-get update
 sudo apt-get -y install rocm-dkms rocm-opencl rocm-opencl-dev
 sudo sh -c 'echo export AMDAPPSDKROOT=/opt/rocm/opencl > /etc/profile.d/rocm_ocl.sh'
 sudo sh -c 'echo export LD_LIBRARY_PATH=/opt/rocm/opencl/lib/x86_64:/opt/rocm/hsa/lib:\$LD_LIBRARY_PATH >> /etc/profile.d/rocm.sh'
-sudo sh -c 'echo export PATH=\$PATH:/opt/rocm/bin/:/opt/rocm/profiler/bin/:/opt/rocm/opencl/bin/x86_64/ >> /etc/profile.d/rocm.sh'
+sudo sh -c 'echo export PATH=\$PATH:/opt/rocm/bin:/opt/rocm/profiler/bin:/opt/rocm/opencl/bin/x86_64 >> /etc/profile.d/rocm.sh'
 
 sudo cp -a /opt/rocm/opencl/lib/x86_64/*.so* /usr/lib/.
 sudo ln -s /opt/rocm/hsa/lib/libhsa-runtime64.so.1 /opt/rocm/hsa/lib/libhsa-runtime64.so
