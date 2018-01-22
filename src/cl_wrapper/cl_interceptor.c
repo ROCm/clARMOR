@@ -1559,11 +1559,14 @@ clEnqueueMapBuffer(cl_command_queue command_queue,
     {
         cl_mem main_buffer = buffer;
         size_t offset_aug = offset;
+
         cl_memobj *m1 = cl_mem_find(get_cl_mem_alloc(), buffer);
         if(m1 && m1->main_buff)
         {
-            offset_aug += POISON_FILL_LENGTH;
             main_buffer = m1->main_buff;
+#ifdef UNDERFLOW_CHECK
+            offset_aug += POISON_FILL_LENGTH;
+#endif
         }
 
         ret = EnqueueMapBuffer(command_queue, main_buffer, blocking_map, map_flags, offset_aug, size, num_events_in_wait_list, event_wait_list, event, errcode_ret);
@@ -2080,16 +2083,20 @@ clEnqueueSVMMap(cl_command_queue command_queue,
     {
         void *main_svm = svm_ptr;
         size_t size_aug = size;
+        cl_map_flags flags = map_flags;
 
         cl_svm_memobj *m1;
         m1 = cl_svm_mem_find(get_cl_svm_mem_alloc(), svm_ptr);
         if(m1)
         {
             main_svm = m1->main_buff;
+#ifdef UNDERFLOW_CHECK
+            flags &= ~CL_MAP_WRITE_INVALIDATE_REGION;
             size_aug += POISON_FILL_LENGTH;
+#endif
         }
 
-        err = EnqueueSVMMap(command_queue, blocking_map, map_flags, main_svm, size_aug, num_events_in_wait_list, event_wait_list, event);
+        err = EnqueueSVMMap(command_queue, blocking_map, flags, main_svm, size_aug, num_events_in_wait_list, event_wait_list, event);
     }
     else
     {
