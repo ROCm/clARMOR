@@ -271,7 +271,8 @@ void write_out_mem_perf_stats(void)
 {
     FILE *perf_out_f = NULL;
     pthread_mutex_lock(&memory_overhead_lock);
-    perf_out_f = fopen(global_tool_stats_outfile, "a");
+    perf_out_f = fopen(global_tool_stats_outfile, "w");
+    fprintf(perf_out_f, "total_user_mem_B, total_overhead_mem_B, high_user_mem_B, high_overhead_mem_B\n");
     fprintf(perf_out_f, "%lu, %lu, %lu, %lu\n", total_user_mem, total_overhead_mem, high_user_mem, high_overhead_mem);
     fclose(perf_out_f);
     pthread_mutex_unlock(&memory_overhead_lock);

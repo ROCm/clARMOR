@@ -41,7 +41,7 @@
 #define UNDERFLOW_CHECK
 
 //measured in bytes
-#define POISON_FILL_LENGTH 8192
+#define POISON_FILL_LENGTH 4096
 #ifdef UNDERFLOW_CHECK
 #define POISON_REGIONS 2
 #else
