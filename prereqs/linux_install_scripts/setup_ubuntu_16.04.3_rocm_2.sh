@@ -34,7 +34,7 @@ sudo rm -f /etc/init.d/${INIT_FILE}
 #Install general utilities
 #===============================================================================
 # Other common build things
-sudo apt-get -y install gfortran fort77 mesa-common-dev binutils-dev libcpufreq-dev autoconf automake cmake cmake-curses-gui libtool libtool-bin automake1.11 autotools-dev numactl cpufreqd flex bison libxml2-dev aptitude valgrind dos2unix cppcheck libx11-6:i386 libc6:i386 gcc-multilib g++-multilib libncurses5:i386 libstdc++6:i386 lib32z1 lib32ncurses5 libbz2-1.0 lib32stdc++6 libelf-dev libboost-dev libboost-system-dev libboost-filesystem-dev libboost-thread-dev libboost-all-dev libswitch-perl qt5-default qttools5-dev-tools libvtk6.2 libstdc++-4.8-dev libdwarf-dev libtinfo-dev libc6-dev-i386 llvm llvm-dev llvm-runtime libc++1 libc++-dev libc++abi1 libc++abi-dev libncurses5-dev parallel screen htop libssl-dev libnuma-dev libgtest-dev
+sudo apt-get -y install gfortran fort77 mesa-common-dev binutils-dev libcpufreq-dev autoconf automake cmake cmake-curses-gui libtool libtool-bin automake1.11 autotools-dev numactl cpufreqd flex bison libxml2-dev aptitude valgrind dos2unix cppcheck libx11-6:i386 libc6:i386 gcc-multilib g++-multilib libncurses5:i386 libstdc++6:i386 lib32z1 lib32ncurses5 libbz2-1.0 lib32stdc++6 libelf-dev libboost-dev libboost-system-dev libboost-filesystem-dev libboost-thread-dev libboost-all-dev libswitch-perl qt5-default qttools5-dev-tools libvtk6.2 libstdc++-4.8-dev libdwarf-dev libtinfo-dev libc6-dev-i386 llvm llvm-dev llvm-runtime libc++1 libc++-dev libc++abi1 libc++abi-dev libncurses5-dev parallel screen htop libssl-dev libnuma-dev libgtest-dev super
 sudo apt-get -y install clang-3.9 clang-3.9-doc libclang-common-3.9-dev libclang-3.9-dev libclang1-3.9 libclang1-3.9-dbg libllvm3.9 llvm-3.9 llvm-3.9-dev llvm-3.9-doc llvm-3.9-examples llvm-3.9-runtime clang-format-3.9 python-clang-3.9
 sudo apt-get -y install clang-4.0 clang-4.0-doc libclang-common-4.0-dev libclang-4.0-dev libclang1-4.0 libclang1-4.0-dbg libllvm4.0 llvm-4.0 llvm-4.0-dev llvm-4.0-doc llvm-4.0-examples llvm-4.0-runtime clang-format-4.0 
 sudo apt-get -y install clang-5.0 clang-5.0-doc libclang-common-5.0-dev libclang-5.0-dev libclang1-5.0 libclang1-5.0-dbg libllvm5.0 llvm-5.0 llvm-5.0-dev llvm-5.0-doc llvm-5.0-examples llvm-5.0-runtime clang-format-5.0 python-clang-5.0
@@ -92,7 +92,7 @@ sudo mv ./ROC-smi /opt/AMD/
 cp -R $BASE_DIR/../support_files/rocm-smi ~/Downloads/software/temp_rocm_smi
 sudo chown root:root ./rocm-smi
 sudo chmod a+x ./rocm-smi
-sudo mv ./rocm-smi /usr/bin
+sudo mv ./rocm-smi /opt/rocm/bin/
 sudo sh -c "echo rocm-smi /opt/AMD/ROC-smi/real_rocm-smi :video uid=0 >> /etc/super.tab"
 
 #Install ROCm CMake Modules
