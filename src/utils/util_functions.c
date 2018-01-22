@@ -39,6 +39,7 @@
 #include "util_functions.h"
 
 uint32_t global_tool_stats_flags = 0;
+char * global_tool_stats_outfile = NULL;
 
 // Get the Unix environment variable that matches the env_var_nm_ input param.
 // This is then stored into a newly malloced C-string that will be returned
@@ -191,6 +192,32 @@ int get_tool_perf_envvar(void)
         }
         else
             ret_val = 0;
+
+        return ret_val;
+    }
+}
+
+char* get_tool_perf_outfile_envvar(void)
+{
+    char * perf_envvar = NULL;
+    if (getenv(__CLARMOR_PERFSTAT_OUTFILE__) == NULL)
+    {
+        return 0;
+    }
+    else
+    {
+        char *ret_val;
+        if (!get_env_util(&perf_envvar, __CLARMOR_PERFSTAT_OUTFILE__))
+        {
+            if (perf_envvar != NULL)
+            {
+                ret_val = perf_envvar;
+            }
+            else
+                ret_val = NULL;
+        }
+        else
+            ret_val = NULL;
 
         return ret_val;
     }
