@@ -2092,12 +2092,15 @@ clEnqueueSVMMap(cl_command_queue command_queue,
         {
             main_svm = m1->main_buff;
 #ifdef UNDERFLOW_CHECK
-            flags &= ~CL_MAP_WRITE_INVALIDATE_REGION;
             size_aug += POISON_FILL_LENGTH;
 #endif
         }
 
         err = EnqueueSVMMap(command_queue, blocking_map, flags, main_svm, size_aug, num_events_in_wait_list, event_wait_list, event);
+#ifdef UNDERFLOW_CHECK
+        if(map_flags & CL_MAP_WRITE_INVALIDATE_REGION)
+            memset(main_svm, POISON_FILL, POISON_FILL_LENGTH);
+#endif
     }
     else
     {
