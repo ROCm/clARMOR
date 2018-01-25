@@ -128,7 +128,7 @@ fi
 AMD_OCL_APPSDK=1
 
 if [ $AMD_OCL -eq 1 ]; then
-    uname -a | grep rocm &> /dev/null
+    ls /opt/rocm &> /dev/null
     if [ $? -eq 0 ]; then
         AMD_OCL_APPSDK=0
     fi

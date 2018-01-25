@@ -70,7 +70,7 @@ else
 fi
 
 if [ $AMD_OCL_APPSDK -eq 1 ]; then
-    BENCH="$BENCH_CL_CPP"
+    BENCH+=" $BENCH_CL_CPP"
 fi
 
 if [ ! -f /usr/lib/libOpenCL.so.1 ]; then
