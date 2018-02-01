@@ -2292,6 +2292,58 @@ static cl_int kernelLaunchFunc(void * thread_args_)
     return(cl_err);
 }
 
+/*
+ * just in case a work group size was violated
+ *
+ * 1 for replaced local_work_size
+ * 0 if did nothing
+ */
+uint32_t fixOclArgs(launchOclKernelStruct *ocl_args)
+{
+    cl_int cl_err;
+    cl_device_id device;
+    cl_uint dim=0;
+    size_t *max_size;
+    size_t max_wg_size=0;
+
+    if(ocl_args->local_work_size == NULL)
+        return 0;
+
+    cl_err = clGetCommandQueueInfo(ocl_args->command_queue, CL_QUEUE_DEVICE, sizeof(cl_device_id), &device, NULL);
+    check_cl_error(__FILE__, __LINE__, cl_err);
+
+    cl_err = clGetDeviceInfo(device, CL_DEVICE_MAX_WORK_ITEM_DIMENSIONS, sizeof(cl_uint), &dim, NULL);
+    check_cl_error(__FILE__, __LINE__, cl_err);
+
+    max_size = calloc(sizeof(size_t), dim);
+    for(size_t i = 0; i < dim; i++)
+        max_size[i] = 1;
+
+    cl_err = clGetDeviceInfo(device, CL_DEVICE_MAX_WORK_ITEM_SIZES, sizeof(size_t)*dim, max_size, NULL);
+    check_cl_error(__FILE__, __LINE__, cl_err);
+
+    cl_err = clGetDeviceInfo(device, CL_DEVICE_MAX_WORK_GROUP_SIZE, sizeof(size_t), &max_wg_size, NULL);
+    check_cl_error(__FILE__, __LINE__, cl_err);
+
+    uint32_t failed = 0;
+    size_t wg_size = 1;
+    for(uint32_t i=0; i < ocl_args->work_dim && i < dim; i++)
+    {
+        wg_size *= ocl_args->local_work_size[i];
+        if(ocl_args->local_work_size[i] > max_size[i] || wg_size > max_wg_size)
+            failed = 1;
+    }
+    if(failed)
+    {
+        //let the opencl implementation figure it out
+        ocl_args->local_work_size = NULL;
+    }
+
+    free(max_size);
+
+    return failed;
+}
+
 CL_API_ENTRY cl_int CL_API_CALL
 clEnqueueNDRangeKernel(cl_command_queue command_queue,
         cl_kernel         kernel,
@@ -2318,6 +2370,8 @@ clEnqueueNDRangeKernel(cl_command_queue command_queue,
         ocl_args.num_events_in_wait_list = num_events;
         ocl_args.event_wait_list = event_list;
         ocl_args.event = event;
+
+        fixOclArgs(&ocl_args);
 
         //do work of swapping out buffers in a function here
         err = kernelLaunchFunc((void*)&ocl_args);

@@ -29,6 +29,7 @@ import logging
 import time
 import subprocess
 import imp
+import tempfile
 
 from ctypes import cdll, c_char_p
 
@@ -136,7 +137,7 @@ def add_arguments(parser):
                                 '1=kernel enqueue time. ' +
                                 '2=checker time. ' +
                                 '4=memory overhead.'))
-    parser.add_argument('--perf_outfile', default="%s/perf_stat_out.csv" % current_dir, dest='perf_outfile',
+    parser.add_argument('--perf_outfile', default="{working_directory}/perf_stat_out.csv", dest='perf_outfile',
             help='Perf statistics will be dumped to this file.')
     parser.add_argument('--backtrace', default=False, action='store_true',
             help='Print backtraces with errors.')
@@ -379,12 +380,9 @@ def run_detect_overflow(args, parser):
         if (int(args["perf_stat"]) < 0):
             print "ERROR. --perf_stat must be >= 0."
             bad_command_line = 1
-        outf = str(args["perf_outfile"])
-        if outf[0] != '/' and outf[0] != '~':
-            outf = "%s/%s" % (current_dir, outf)
-        args["perf_outfile"] = outf
+
         string_to_add = " CLARMOR_PERFSTAT_MODE=%s " % str(args["perf_stat"])
-        string_to_add += " CLARMOR_PERFSTAT_OUTFILE=%s " % outf
+        string_to_add += " CLARMOR_PERFSTAT_OUTFILE=%s " % args["perf_outfile"]
         prefix += string_to_add
 
     if args["backtrace"]:
@@ -505,24 +503,32 @@ def main():
         import pdb
         pdb.set_trace()
 
+    wk_dir = args["working_dir"]
+    if wk_dir[0] != '/' and wk_dir[0] != '~':
+        wk_dir = "%s/%s" % (current_dir, wk_dir)
+    args["working_dir"] = wk_dir
+
+    outf = args["perf_outfile"].replace("{working_directory}", args["working_dir"])
+    if outf[0] != '/' and outf[0] != '~':
+        outf = "%s/%s" % (args["working_dir"], outf)
+    args["perf_outfile"] = outf
+
     # If we want to run a benchmark group, then we must first check to see if
     # the group exists, then we try to run all of the benchmarks in that group
     # back to back.
-
     time_file = None
-    mem_temp_fname = "%s/mem_overhead_part.csv" % current_dir
-    mem_out_file = None
+    mem_tmp_file = None
     if args["time_file"] != None:
         time_file = open("%s/%s" % (args["working_dir"], args["time_file"]), "w")
 
-    if args["group"] != None:
-        if args["perf_stat"] != None and int(args["perf_stat"]) & 4:
-            try:
-                mem_out_file = open(mem_temp_fname, 'w')
-                mem_out_file.write("bench_name, total_user_mem, total_overhead_mem, high_user_mem, high_overhead_mem\n")
-            except IOError:
-                mem_out_file = None
+    if args["perf_stat"] != None and int(args["perf_stat"]) & 4:
+        try:
+            mem_tmp_file = tempfile.TemporaryFile()
+            mem_tmp_file.write("bench_name, total_user_mem, total_overhead_mem, high_user_mem, high_overhead_mem\n")
+        except IOError:
+            mem_tmp_file = None
 
+    if args["group"] != None:
         group = args["group"]
         if not hasattr(benchmarks, group):
             print ("Benchmark group '%s' not found" % group)
@@ -553,23 +559,16 @@ def main():
                 fields, values = csv_parse(args["perf_outfile"])
                 if not fields is None:
                     memstr = args["benchmark"]
-                    if mem_out_file != None:
+                    if mem_tmp_file != None:
                         for val in values[0]:
                             memstr += ", "+str(val)
                         memstr += '\n'
-                    mem_out_file.write(memstr)
+                        mem_tmp_file.write(memstr)
 
             sys.stdout.flush()
     else:
         real_t, sys_t, usr_t = run_detect_overflow(args, parser)
         if args["benchmark"] != None:
-            if args["perf_stat"] != None and int(args["perf_stat"]) & 4:
-                try:
-                    mem_out_file = open(mem_temp_fname, 'w')
-                    mem_out_file.write("bench_name, total_user_mem, total_overhead_mem, high_user_mem, high_overhead_mem\n")
-                except IOError:
-                    mem_out_file = None
-
             if time_file != None:
                 outstr = "%s, %f, %f, %f\n" % (args["benchmark"], real_t, sys_t, usr_t)
                 print outstr
@@ -579,11 +578,11 @@ def main():
                 fields, values = csv_parse(args["perf_outfile"])
                 if not fields is None:
                     memstr = args["benchmark"]
-                    if mem_out_file != None:
+                    if mem_tmp_file != None:
                         for val in values[0]:
                             memstr += ", "+str(val)
                         memstr += '\n'
-                    mem_out_file.write(memstr)
+                        mem_tmp_file.write(memstr)
         else:
             if time_file != None:
                 outstr = "%s, %f, %f, %f\n" % (args["cmd_line"], real_t, sys_t, usr_t)
@@ -593,22 +592,22 @@ def main():
 
     if time_file != None:
         time_file.close()
-    if mem_out_file != None:
-        mem_out_file.close()
 
     if args["perf_stat"] != None and int(args["perf_stat"]) & 4:
         try:
-            mem_file_from = open(mem_temp_fname, 'r')
+            mem_file_from = mem_tmp_file
+            mem_file_from.seek(0, 0)
             mem_file_to = open(args["perf_outfile"], 'w')
 
             for line in mem_file_from:
                 mem_file_to.write(line)
 
-            mem_file_from.close()
             mem_file_to.close()
-            os.system("rm %s" % mem_temp_fname)
         except IOError:
             pass
+
+    if mem_tmp_file != None:
+        mem_tmp_file.close()
 
 
 if __name__ == "__main__":
