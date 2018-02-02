@@ -33,6 +33,12 @@ RODINIA_NV+="particlefilter pathfinder srad streamcluster "
 # that crashes on those systems, as far as I can tell.
 RODINIA=RODINIA_NV+"dwt2d "
 
+RODINIA_ROCVEGA="backprop bfs b+tree cfd gaussian heartwall hotspot hotspot3D "
+RODINIA_ROCVEGA+="kmeans leukocyte lud myocyte nn nw "
+RODINIA_ROCVEGA+="particlefilter pathfinder srad streamcluster "
+RODINIA_ROCVEGA+="dwt2d "
+#RODINIA=RODINIA_ROCVEGA
+
 # Benchmarks: 14
 SHOC="DeviceMemory MaxFlops BFS FFT GEMM MD md5hash Reduction Sort Scan Spmv "
 SHOC+="Stencil2D Triad S3D"
@@ -73,6 +79,10 @@ AMDAPP_CL2+="SVMBinaryTreeSearch "
 PARBOIL="pb-bfs stencil mri-gridding lbm sad histo mri-q cutcp pb-sgemm "
 PARBOIL=="pb-spmv tpacf"
 #mri-gridding has an overflow by default
+PARBOIL_ROCVEGA="pb-bfs stencil mri-gridding lbm sad mri-q cutcp pb-sgemm "
+PARBOIL_ROCVEGA=="pb-spmv tpacf"
+#PARBOIL = PARBOIL_ROCVEGA
+
 
 # Benchmarks: 6
 PANNOTIA="bc color fw mis prk sssp"
@@ -90,12 +100,18 @@ POLYBENCH+="convolution-3d fdtd-2d jacobi-1d-imper jacobi-2d-imper"
 # Benchmarks: 2
 FINANCEBENCH="FB-Black-Scholes FB-Monte-Carlo"
 
+FINANCEBENCH_ROCVEGA="FB-Black-Scholes"
+#FINANCEBENCH=FINANCEBENCH_ROCVEGA
+
 # Benchmarks: 1
 GPUSTREAM="gpustream"
 
 # Benchmarks: 4
 MANTEVO_ON_NV="cloverleaf cloverleaf3d tealeaf "
 MANTEVO=MANTEVO_ON_NV+"tealeaf3d"
+
+MANTEVO_ROCVEGA="cloverleaf cloverleaf3d"
+#MANTEVO=MANTEVO_ROCVEGA
 
 # Benchmarks: 7
 HETEROMARK="aes_hm fir_hm hmm_hm iir_hm kmeans_hm pagerank_hm sw_hm"

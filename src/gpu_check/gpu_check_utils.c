@@ -403,15 +403,12 @@ void output_kern_runtime(void)
 {
     if(get_tool_perf_envvar() & STATS_CHECKER_TIME)
     {
-        static FILE *debug_out = NULL;
+        FILE *perf_out_f = NULL;
 
-        if(debug_out)
-            debug_out = fopen("debug_check_time.csv", "a");
-        else
-            debug_out = fopen("debug_check_time.csv", "w");
+        perf_out_f = fopen(global_tool_stats_outfile, "a");
 
-        fprintf(debug_out, "%lu\n", check_kern_runtime_us);
-        fclose(debug_out);
+        fprintf(perf_out_f, "%lu\n", check_kern_runtime_us);
+        fclose(perf_out_f);
     }
 }
 

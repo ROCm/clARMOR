@@ -51,11 +51,13 @@ extern "C" {
 #define STATS_KERN_ENQ_TIME     1
 #define STATS_CHECKER_TIME      2
 #define STATS_MEM_OVERHEAD      4
+extern uint32_t global_tool_stats_flags;
+
+#define __CLARMOR_PERFSTAT_OUTFILE__ "CLARMOR_PERFSTAT_OUTFILE"
+extern char * global_tool_stats_outfile;
 
 #define __BACKTRACE__ "CLARMOR_PRINT_BACKTRACE"
 #define __CLARMOR_DISABLE_API_CHECK__ "CLARMOR_DISABLE_API_CHECK"
-
-extern uint32_t global_tool_stats_flags;
 
 #define __CLARMOR_DEVICE_SELECT__ "CLARMOR_DEVICE_SELECT"
 
@@ -120,6 +122,14 @@ int get_disable_api_check_envvar(void);
  *      0 default
  */
 int get_tool_perf_envvar(void);
+
+/*!
+ * Retrieve CLARMOR_PERFSTAT_OUTFILE from environment
+ *
+ * \return
+ *      0 default
+ */
+char* get_tool_perf_outfile_envvar(void);
 
 /*!
  * Get the environment variable that tells the buffer overflow detector

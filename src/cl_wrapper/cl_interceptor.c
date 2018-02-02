@@ -51,9 +51,6 @@ const char * OPENCL_NAME_SO = "libOpenCL.so.1";
 
 pthread_mutex_t command_queue_cache_lock = PTHREAD_MUTEX_INITIALIZER;
 
-static FILE *kern_enq_time_out_f = NULL;
-
-FILE *mem_overhead_out_f = NULL;
 __thread uint8_t internal_create = 0;
 pthread_mutex_t memory_overhead_lock = PTHREAD_MUTEX_INITIALIZER;
 uint64_t total_user_mem = 0;
@@ -250,6 +247,37 @@ static int cl_function_addresses( void* oclDllHandle )
     return(ret);
 }
 
+void init_perf_outfile(void)
+{
+    FILE *perf_out_f = NULL;
+    perf_out_f = fopen(global_tool_stats_outfile, "w");
+
+    if(global_tool_stats_flags & STATS_KERN_ENQ_TIME)
+    {
+        fprintf(perf_out_f, "total_durr_us, enq_durr_us, checker_enqueue_overhead_us\n");
+    }
+    else if(global_tool_stats_flags & STATS_CHECKER_TIME)
+    {
+        fprintf(perf_out_f, "checker_time_us\n");
+    }
+    else if(global_tool_stats_flags & STATS_MEM_OVERHEAD)
+    {
+        fprintf(perf_out_f, "total_user_mem_B, total_overhead_mem_B, high_user_mem_B, high_overhead_mem_B\n");
+    }
+    fclose(perf_out_f);
+}
+
+void write_out_mem_perf_stats(void)
+{
+    FILE *perf_out_f = NULL;
+    pthread_mutex_lock(&memory_overhead_lock);
+    perf_out_f = fopen(global_tool_stats_outfile, "w");
+    fprintf(perf_out_f, "total_user_mem_B, total_overhead_mem_B, high_user_mem_B, high_overhead_mem_B\n");
+    fprintf(perf_out_f, "%lu, %lu, %lu, %lu\n", total_user_mem, total_overhead_mem, high_user_mem, high_overhead_mem);
+    fclose(perf_out_f);
+    pthread_mutex_unlock(&memory_overhead_lock);
+}
+
 static void * oclDllHandle = NULL;
 static int cl_wrapper_init( void )
 {
@@ -272,6 +300,9 @@ static int cl_wrapper_init( void )
         }
 
         global_tool_stats_flags = get_tool_perf_envvar();
+        global_tool_stats_outfile = get_tool_perf_outfile_envvar();
+        if(global_tool_stats_outfile)
+            init_perf_outfile();
     }
     return(ret);
 }
@@ -346,6 +377,9 @@ __attribute__((constructor)) static void wrapper_constructor ( void )
 
 __attribute__((destructor)) static void cl__destructor ( void )
 {
+    if(global_tool_stats_flags & STATS_MEM_OVERHEAD)
+        write_out_mem_perf_stats();
+
     finalize_detector();
 }
 
@@ -1526,11 +1560,14 @@ clEnqueueMapBuffer(cl_command_queue command_queue,
     {
         cl_mem main_buffer = buffer;
         size_t offset_aug = offset;
+
         cl_memobj *m1 = cl_mem_find(get_cl_mem_alloc(), buffer);
         if(m1 && m1->main_buff)
         {
-            offset_aug += POISON_FILL_LENGTH;
             main_buffer = m1->main_buff;
+#ifdef UNDERFLOW_CHECK
+            offset_aug += POISON_FILL_LENGTH;
+#endif
         }
 
         ret = EnqueueMapBuffer(command_queue, main_buffer, blocking_map, map_flags, offset_aug, size, num_events_in_wait_list, event_wait_list, event, errcode_ret);
@@ -2047,16 +2084,23 @@ clEnqueueSVMMap(cl_command_queue command_queue,
     {
         void *main_svm = svm_ptr;
         size_t size_aug = size;
+        cl_map_flags flags = map_flags;
 
         cl_svm_memobj *m1;
         m1 = cl_svm_mem_find(get_cl_svm_mem_alloc(), svm_ptr);
         if(m1)
         {
             main_svm = m1->main_buff;
+#ifdef UNDERFLOW_CHECK
             size_aug += POISON_FILL_LENGTH;
+#endif
         }
 
-        err = EnqueueSVMMap(command_queue, blocking_map, map_flags, main_svm, size_aug, num_events_in_wait_list, event_wait_list, event);
+        err = EnqueueSVMMap(command_queue, blocking_map, flags, main_svm, size_aug, num_events_in_wait_list, event_wait_list, event);
+#ifdef UNDERFLOW_CHECK
+        if(map_flags & CL_MAP_WRITE_INVALIDATE_REGION)
+            memset(main_svm, POISON_FILL, POISON_FILL_LENGTH);
+#endif
     }
     else
     {
@@ -2188,14 +2232,6 @@ static cl_int kernelLaunchFunc(void * thread_args_)
 
     disallowCanaryAccess();
     internal_create = 0;
-    if(global_tool_stats_flags & STATS_MEM_OVERHEAD)
-    {
-        pthread_mutex_lock(&memory_overhead_lock);
-        mem_overhead_out_f = fopen("debug_mem_overhead.csv", "w");
-        fprintf(mem_overhead_out_f, "%lu, %lu, %lu, %lu\n", total_user_mem, total_overhead_mem, high_user_mem, high_overhead_mem);
-        fclose(mem_overhead_out_f);
-        pthread_mutex_unlock(&memory_overhead_lock);
-    }
 
     // Later, if the user wants to profile the output event of this enqueue,
     // we will check the list to see what real NDRangeKernelEnqueue event
@@ -2246,16 +2282,66 @@ static cl_int kernelLaunchFunc(void * thread_args_)
         total_durr_us = timeval_diff_us(&total_stop, &total_start);
         enq_durr_us = timeval_diff_us(&enq_stop, &enq_start);
 
-        if(kern_enq_time_out_f)
-            kern_enq_time_out_f = fopen("debug_enqueue_time.csv", "a");
-        else
-            kern_enq_time_out_f = fopen("debug_enqueue_time.csv", "w");
+        FILE *perf_out_f = NULL;
+        perf_out_f = fopen(global_tool_stats_outfile, "a");
 
-        fprintf(kern_enq_time_out_f, "%lu, %lu, %lu\n", total_durr_us, enq_durr_us, total_durr_us - enq_durr_us);
-        fclose(kern_enq_time_out_f);
+        fprintf(perf_out_f, "%lu, %lu, %lu\n", total_durr_us, enq_durr_us, total_durr_us - enq_durr_us);
+        fclose(perf_out_f);
     }
 
     return(cl_err);
+}
+
+/*
+ * just in case a work group size was violated
+ *
+ * 1 for replaced local_work_size
+ * 0 if did nothing
+ */
+uint32_t fixOclArgs(launchOclKernelStruct *ocl_args)
+{
+    cl_int cl_err;
+    cl_device_id device;
+    cl_uint dim=0;
+    size_t *max_size;
+    size_t max_wg_size=0;
+
+    if(ocl_args->local_work_size == NULL)
+        return 0;
+
+    cl_err = clGetCommandQueueInfo(ocl_args->command_queue, CL_QUEUE_DEVICE, sizeof(cl_device_id), &device, NULL);
+    check_cl_error(__FILE__, __LINE__, cl_err);
+
+    cl_err = clGetDeviceInfo(device, CL_DEVICE_MAX_WORK_ITEM_DIMENSIONS, sizeof(cl_uint), &dim, NULL);
+    check_cl_error(__FILE__, __LINE__, cl_err);
+
+    max_size = calloc(sizeof(size_t), dim);
+    for(size_t i = 0; i < dim; i++)
+        max_size[i] = 1;
+
+    cl_err = clGetDeviceInfo(device, CL_DEVICE_MAX_WORK_ITEM_SIZES, sizeof(size_t)*dim, max_size, NULL);
+    check_cl_error(__FILE__, __LINE__, cl_err);
+
+    cl_err = clGetDeviceInfo(device, CL_DEVICE_MAX_WORK_GROUP_SIZE, sizeof(size_t), &max_wg_size, NULL);
+    check_cl_error(__FILE__, __LINE__, cl_err);
+
+    uint32_t failed = 0;
+    size_t wg_size = 1;
+    for(uint32_t i=0; i < ocl_args->work_dim && i < dim; i++)
+    {
+        wg_size *= ocl_args->local_work_size[i];
+        if(ocl_args->local_work_size[i] > max_size[i] || wg_size > max_wg_size)
+            failed = 1;
+    }
+    if(failed)
+    {
+        //let the opencl implementation figure it out
+        ocl_args->local_work_size = NULL;
+    }
+
+    free(max_size);
+
+    return failed;
 }
 
 CL_API_ENTRY cl_int CL_API_CALL
@@ -2284,6 +2370,8 @@ clEnqueueNDRangeKernel(cl_command_queue command_queue,
         ocl_args.num_events_in_wait_list = num_events;
         ocl_args.event_wait_list = event_list;
         ocl_args.event = event;
+
+        fixOclArgs(&ocl_args);
 
         //do work of swapping out buffers in a function here
         err = kernelLaunchFunc((void*)&ocl_args);

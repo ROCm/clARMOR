@@ -46,19 +46,15 @@ static void stop_profile_and_print(struct timeval* start, struct timeval* stop)
 {
     if(global_tool_stats_flags & STATS_CHECKER_TIME)
     {
-        static FILE * debug_out = NULL;
+        FILE *perf_out_f = NULL;
 
         gettimeofday(stop, NULL);
         uint64_t durr_us = timeval_diff_us(stop, start);
 
-        // If this is our second time through the print, append
-        if(debug_out != NULL)
-            debug_out = fopen("debug_check_time.csv", "a");
-        else
-            debug_out = fopen("debug_check_time.csv", "w");
+        perf_out_f = fopen(global_tool_stats_outfile, "a");
 
-        fprintf(debug_out, "%lu\n", durr_us);
-        fclose(debug_out);
+        fprintf(perf_out_f, "%lu\n", durr_us);
+        fclose(perf_out_f);
     }
 }
 
