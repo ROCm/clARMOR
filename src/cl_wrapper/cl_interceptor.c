@@ -2315,6 +2315,9 @@ uint32_t fixOclArgs(launchOclKernelStruct *ocl_args)
     cl_err = clGetDeviceInfo(device, CL_DEVICE_MAX_WORK_ITEM_DIMENSIONS, sizeof(cl_uint), &dim, NULL);
     check_cl_error(__FILE__, __LINE__, cl_err);
 
+    if (dim <= 0)
+        return 0;
+
     max_size = calloc(sizeof(size_t), dim);
     for(size_t i = 0; i < dim; i++)
         max_size[i] = 1;

@@ -96,10 +96,13 @@ def string_convert(input_array):
     return outstr
 
 def add_arguments(parser):
+    # Options to learn more about clARMOR
     parser.add_argument('-h', '--help', action='store_true', dest="help",
             default=False, help='Print out this help menu.')
     parser.add_argument('-v', '--version', action='store_true', dest="version",
             default=False, help='Print out current clARMOR veresion number.')
+
+    # Options to configure what clARMOR will do as it runs
     parser.add_argument('-d', '--detector_path', dest='detector_path',
             default=bin_dir+'/..',
             help='Path to the root of the detector installation directory.')
@@ -117,10 +120,10 @@ def add_arguments(parser):
     parser.add_argument('-f', '--logfile', dest='logfile_location',
             default='{working_directory}/buffer_overflow_detector.out',
             help='Location to store output log if using --log.')
-    parser.add_argument('--prefix', default="clARMOR: ", dest='prefix',
+    parser.add_argument('-p', '--prefix', default="clARMOR: ", dest='prefix',
             help='Add this string to each error output line before it prints.')
-    parser.add_argument('-t', '--time_file', dest='time_file',
-            default=None, help='Record application runtime to named file in CSV format.')
+
+    # Options to configure how clARMOR will execute its analyses
     parser.add_argument('-c', '--device_select', dest='device_select',
             default=None, help=('force check onto specific device. ' +
                                 '1=DEVICE_GPU. ' +
@@ -132,29 +135,39 @@ def add_arguments(parser):
                                 '0=multiple buffers with SVM pointers, ' +
                                 '1=multiple buffers (copied canaries) per kernel, ' +
                                 '2=single buffer per kernel'))
-    parser.add_argument('-p', '--perf_stat', dest='perf_stat',
-            default=None, help=('Boolean flags to log perf statistics. (only 1 at a time)' +
+    parser.add_argument('-t', '--backtrace', default=False, action='store_true',
+            help='Print backtraces with errors.')
+    parser.add_argument('-n', '--no_api_check', default=False, action='store_true',
+            help='Disable API checking.')
+
+    # Options to save off analyses for how applications run while under clARMOR
+    parser.add_argument('--time', action='store_true', dest='time',
+            default=False, help='Record application runtime to a file.')
+    parser.add_argument('--time_file', dest='time_file_location',
+            default='{working_directory}/time_file.csv',
+            help='Location to store time file if using --time')
+    parser.add_argument('--perf_stat', dest='perf_stat',
+            default=None, help=('Log performance statistics statistics about clARMOR (only 1 at a time). ' +
                                 '1=kernel enqueue time. ' +
                                 '2=checker time. ' +
                                 '4=memory overhead.'))
-    parser.add_argument('--perf_outfile', default="{working_directory}/perf_stat_out.csv", dest='perf_outfile',
-            help='Perf statistics will be dumped to this file.')
-    parser.add_argument('--backtrace', default=False, action='store_true',
-            help='Print backtraces with errors.')
-    parser.add_argument('--no_api_check', default=False, action='store_true',
-            help='Disable API checking.')
-    parser.add_argument('--use_gdb', default=False, action='store_true',
-            help='Use GDB to debug programs invoked by this script.')
-    parser.add_argument('--use_pdb', default=False, action='store_true',
-            help='Use PDB to debug this script.')
+    parser.add_argument('--perf_file', default="{working_directory}/perf_stat_out.csv", dest='perf_file_location',
+            help='Location to store performance analysis statistics if using --perf_stat.')
     parser.add_argument('-b', '--benchmark', default=None,
             help='Run a benchmark. See clarmor-benchmarks for a list.')
     parser.add_argument('-g', '--group', default=None,
             help=('Name of benchmark group to run. See clarmor-benchmarks.'))
 
+    # Options to help debug clARMOR
+    parser.add_argument('--use_gdb', default=False, action='store_true',
+            help='Use GDB to debug programs invoked by this script.')
+    parser.add_argument('--use_pdb', default=False, action='store_true',
+            help='Use PDB to debug this clARMOR runscript.')
+
+    # Option to actually run a command under clARMOR.
     parser.add_argument('cmd_line', nargs="*",
             help='Command line of the application to run through the detector.'\
-			'\nIf your command line uses "-" or "--" arguments, you should '\
+            '\nIf your command line uses "-" or "--" arguments, you should '\
             'either wrap the command line in double quotes ("cmd line") or '\
             'put the entire command line after a double dash ( -- cmd line)'\
             '\nThis will be combined with WORKING_DIR if '\
@@ -382,7 +395,7 @@ def run_detect_overflow(args, parser):
             bad_command_line = 1
 
         string_to_add = " CLARMOR_PERFSTAT_MODE=%s " % str(args["perf_stat"])
-        string_to_add += " CLARMOR_PERFSTAT_OUTFILE=%s " % args["perf_outfile"]
+        string_to_add += " CLARMOR_PERFSTAT_OUTFILE=%s " % args["perf_file_location"]
         prefix += string_to_add
 
     if args["backtrace"]:
@@ -508,18 +521,24 @@ def main():
         wk_dir = "%s/%s" % (current_dir, wk_dir)
     args["working_dir"] = wk_dir
 
-    outf = args["perf_outfile"].replace("{working_directory}", args["working_dir"])
+    outf = args["perf_file_location"].replace("{working_directory}", args["working_dir"])
     if outf[0] != '/' and outf[0] != '~':
         outf = "%s/%s" % (args["working_dir"], outf)
-    args["perf_outfile"] = outf
+    args["perf_file_location"] = outf
 
     # If we want to run a benchmark group, then we must first check to see if
     # the group exists, then we try to run all of the benchmarks in that group
     # back to back.
-    time_file = None
+    time_file_location = None
     mem_tmp_file = None
-    if args["time_file"] != None:
-        time_file = open("%s/%s" % (args["working_dir"], args["time_file"]), "w")
+
+    if args["time_file_location"] == "{working_directory}/time_file.csv":
+        args["time_file_location"] = args["working_dir"] + "/time_file.csv"
+    if not args["time_file_location"]:
+        args["time_file_location"] = args["working_dir"] + "/time_file.csv"
+
+    if args["time"]:
+        time_file_location = open(args["time_file_location"], "w")
 
     if args["perf_stat"] != None and int(args["perf_stat"]) & 4:
         try:
@@ -549,14 +568,14 @@ def main():
             sys.stdout.flush()
             # For benchmarking purposes, we print out the amount of time this
             # application took (wall clock time from unix 'time').
-            if time_file != None:
+            if time_file_location != None:
                 outstr = "%s, %f, %f, %f\n" % (benchmark, real_t, sys_t, usr_t)
-                time_file.write(outstr)
-                print 'wrote to %s' % args['time_file']
+                time_file_location.write(outstr)
+                print 'wrote to %s' % args['time_file_location']
                 print outstr
 
             if args["perf_stat"] != None and int(args["perf_stat"]) & 4:
-                fields, values = csv_parse(args["perf_outfile"])
+                fields, values = csv_parse(args["perf_file_location"])
                 if not fields is None:
                     memstr = args["benchmark"]
                     if mem_tmp_file != None:
@@ -569,13 +588,13 @@ def main():
     else:
         real_t, sys_t, usr_t = run_detect_overflow(args, parser)
         if args["benchmark"] != None:
-            if time_file != None:
+            if time_file_location != None:
                 outstr = "%s, %f, %f, %f\n" % (args["benchmark"], real_t, sys_t, usr_t)
                 print outstr
-                time_file.write(outstr)
+                time_file_location.write(outstr)
 
             if args["perf_stat"] != None and int(args["perf_stat"]) & 4:
-                fields, values = csv_parse(args["perf_outfile"])
+                fields, values = csv_parse(args["perf_file_location"])
                 if not fields is None:
                     memstr = args["benchmark"]
                     if mem_tmp_file != None:
@@ -584,20 +603,20 @@ def main():
                         memstr += '\n'
                         mem_tmp_file.write(memstr)
         else:
-            if time_file != None:
+            if time_file_location != None:
                 outstr = "%s, %f, %f, %f\n" % (args["cmd_line"], real_t, sys_t, usr_t)
                 print outstr
-                time_file.write(outstr)
+                time_file_location.write(outstr)
 
 
-    if time_file != None:
-        time_file.close()
+    if time_file_location != None:
+        time_file_location.close()
 
     if args["perf_stat"] != None and int(args["perf_stat"]) & 4:
         try:
             mem_file_from = mem_tmp_file
             mem_file_from.seek(0, 0)
-            mem_file_to = open(args["perf_outfile"], 'w')
+            mem_file_to = open(args["perf_file_location"], 'w')
 
             for line in mem_file_from:
                 mem_file_to.write(line)
