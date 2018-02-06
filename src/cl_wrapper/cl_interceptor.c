@@ -120,7 +120,6 @@ CL_INTERCEPTOR_FUNCTION(EnqueueUnmapMemObject);
 #ifdef CL_VERSION_2_0
 CL_INTERCEPTOR_FUNCTION(SVMAlloc);
 CL_INTERCEPTOR_FUNCTION(SVMFree);
-CL_INTERCEPTOR_FUNCTION(EnqueueMapBuffer);
 CL_INTERCEPTOR_FUNCTION(EnqueueSVMFree);
 CL_INTERCEPTOR_FUNCTION(EnqueueSVMMap);
 CL_INTERCEPTOR_FUNCTION(EnqueueSVMMemcpy);
@@ -205,7 +204,6 @@ static int cl_function_addresses( void* oclDllHandle )
 #ifdef CL_VERSION_2_0
     CL_INTERCEPTOR_FUNCTION_ADDRESS( SVMAlloc );
     CL_INTERCEPTOR_FUNCTION_ADDRESS( SVMFree );
-    CL_INTERCEPTOR_FUNCTION_ADDRESS( EnqueueMapBuffer );
     CL_INTERCEPTOR_FUNCTION_ADDRESS( EnqueueSVMFree );
     CL_INTERCEPTOR_FUNCTION_ADDRESS( EnqueueSVMMap );
     CL_INTERCEPTOR_FUNCTION_ADDRESS( EnqueueSVMMemcpy );
@@ -2026,43 +2024,7 @@ clSVMFree(cl_context    context,
     }
     return;
 }
-#endif
 
-CL_API_ENTRY void* CL_API_CALL
-clEnqueueMapBuffer(cl_command_queue command_queue,
-            cl_mem buffer,
-            cl_bool blocking_map,
-            cl_map_flags map_flags,
-            size_t offset,
-            size_t size,
-            cl_uint num_events_in_wait_list,
-            const cl_event *event_wait_list,
-            cl_event *event,
-            cl_int *errcode_ret)
-{
-    void *ret = NULL;
-    if(EnqueueMapBuffer)
-    {
-        cl_mem main_buffer = buffer;
-        size_t offset_aug = offset;
-        cl_memobj *m1 = cl_mem_find(get_cl_mem_alloc(), buffer);
-        if(m1 && m1->main_buff)
-        {
-            offset_aug += POISON_FILL_LENGTH;
-            main_buffer = m1->main_buff;
-        }
-
-        ret = EnqueueMapBuffer(command_queue, main_buffer, blocking_map, map_flags, offset_aug, size, num_events_in_wait_list, event_wait_list, event, errcode_ret);
-    }
-    else
-    {
-        CL_MSG("NOT FOUND!");
-    }
-
-    return ret;
-}
-
-#ifdef CL_VERSION_2_0
 CL_API_ENTRY cl_int CL_API_CALL
 clEnqueueSVMFree(cl_command_queue command_queue,
         cl_uint         num_svm_pointers,
