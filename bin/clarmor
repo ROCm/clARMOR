@@ -109,6 +109,8 @@ def add_arguments(parser):
     parser.add_argument('-w', '--working_directory', dest='working_dir',
             default=current_dir,
             help='Directory from which to run the application.')
+    parser.add_argument('-r', '--run', nargs='+', dest='cmd_line', default=None,
+            help='Command line of the application to run through the detector.')
     parser.add_argument('-e', '--exit_on_overflow', action='store_true',
             dest='exit_on_overflow', default=False,
             help=('Exit the application with an error upon detecting the ' +
