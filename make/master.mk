@@ -24,7 +24,7 @@
 
 HERE := $(dir $(lastword $(MAKEFILE_LIST)))
 
-CLARMOR_VERSION=$(shell git -C "$(HERE)" describe --dirty --long --match [0-9]*)
+CLARMOR_VERSION=$(shell git -C "$(HERE)" describe --tags --dirty --long --match [0-9]*)
 
 ifeq ($(CC),cc)
 CC=gcc
