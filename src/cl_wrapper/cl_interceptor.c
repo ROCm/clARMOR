@@ -1,5 +1,5 @@
 /********************************************************************************
- * Copyright (c) 2016 Advanced Micro Devices, Inc. All rights reserved.
+ * Copyright (c) 2016-2017 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -51,9 +51,6 @@ const char * OPENCL_NAME_SO = "libOpenCL.so.1";
 
 pthread_mutex_t command_queue_cache_lock = PTHREAD_MUTEX_INITIALIZER;
 
-static FILE *kern_enq_time_out_f = NULL;
-
-FILE *mem_overhead_out_f = NULL;
 __thread uint8_t internal_create = 0;
 pthread_mutex_t memory_overhead_lock = PTHREAD_MUTEX_INITIALIZER;
 uint64_t total_user_mem = 0;
@@ -116,6 +113,8 @@ CL_INTERCEPTOR_FUNCTION(CreateImage2D);
 CL_INTERCEPTOR_FUNCTION(CreateImage3D);
 CL_INTERCEPTOR_FUNCTION(RetainMemObject);
 CL_INTERCEPTOR_FUNCTION(ReleaseMemObject);
+CL_INTERCEPTOR_FUNCTION(EnqueueMapBuffer);
+CL_INTERCEPTOR_FUNCTION(EnqueueUnmapMemObject);
 
 /* SVM APIs */
 #ifdef CL_VERSION_2_0
@@ -127,7 +126,6 @@ CL_INTERCEPTOR_FUNCTION(EnqueueSVMMap);
 CL_INTERCEPTOR_FUNCTION(EnqueueSVMMemcpy);
 CL_INTERCEPTOR_FUNCTION(EnqueueSVMMemFill);
 CL_INTERCEPTOR_FUNCTION(EnqueueSVMUnmap);
-CL_INTERCEPTOR_FUNCTION(EnqueueUnmapMemObject);
 #endif
 
 /* Kernel APIs */
@@ -201,6 +199,8 @@ static int cl_function_addresses( void* oclDllHandle )
     CL_INTERCEPTOR_FUNCTION_ADDRESS( CreateImage3D );
     CL_INTERCEPTOR_FUNCTION_ADDRESS( RetainMemObject );
     CL_INTERCEPTOR_FUNCTION_ADDRESS( ReleaseMemObject );
+    CL_INTERCEPTOR_FUNCTION_ADDRESS( EnqueueMapBuffer );
+    CL_INTERCEPTOR_FUNCTION_ADDRESS( EnqueueUnmapMemObject );
 
 #ifdef CL_VERSION_2_0
     CL_INTERCEPTOR_FUNCTION_ADDRESS( SVMAlloc );
@@ -211,7 +211,6 @@ static int cl_function_addresses( void* oclDllHandle )
     CL_INTERCEPTOR_FUNCTION_ADDRESS( EnqueueSVMMemcpy );
     CL_INTERCEPTOR_FUNCTION_ADDRESS( EnqueueSVMMemFill );
     CL_INTERCEPTOR_FUNCTION_ADDRESS( EnqueueSVMUnmap );
-    CL_INTERCEPTOR_FUNCTION_ADDRESS( EnqueueUnmapMemObject );
 #endif
 
     /* Kernel Object APIs */
@@ -250,6 +249,37 @@ static int cl_function_addresses( void* oclDllHandle )
     return(ret);
 }
 
+void init_perf_outfile(void)
+{
+    FILE *perf_out_f = NULL;
+    perf_out_f = fopen(global_tool_stats_outfile, "w");
+
+    if(global_tool_stats_flags & STATS_KERN_ENQ_TIME)
+    {
+        fprintf(perf_out_f, "total_durr_us, enq_durr_us, checker_enqueue_overhead_us\n");
+    }
+    else if(global_tool_stats_flags & STATS_CHECKER_TIME)
+    {
+        fprintf(perf_out_f, "checker_time_us\n");
+    }
+    else if(global_tool_stats_flags & STATS_MEM_OVERHEAD)
+    {
+        fprintf(perf_out_f, "total_user_mem_B, total_overhead_mem_B, high_user_mem_B, high_overhead_mem_B\n");
+    }
+    fclose(perf_out_f);
+}
+
+void write_out_mem_perf_stats(void)
+{
+    FILE *perf_out_f = NULL;
+    pthread_mutex_lock(&memory_overhead_lock);
+    perf_out_f = fopen(global_tool_stats_outfile, "w");
+    fprintf(perf_out_f, "total_user_mem_B, total_overhead_mem_B, high_user_mem_B, high_overhead_mem_B\n");
+    fprintf(perf_out_f, "%lu, %lu, %lu, %lu\n", total_user_mem, total_overhead_mem, high_user_mem, high_overhead_mem);
+    fclose(perf_out_f);
+    pthread_mutex_unlock(&memory_overhead_lock);
+}
+
 static void * oclDllHandle = NULL;
 static int cl_wrapper_init( void )
 {
@@ -272,6 +302,9 @@ static int cl_wrapper_init( void )
         }
 
         global_tool_stats_flags = get_tool_perf_envvar();
+        global_tool_stats_outfile = get_tool_perf_outfile_envvar();
+        if(global_tool_stats_outfile)
+            init_perf_outfile();
     }
     return(ret);
 }
@@ -341,12 +374,14 @@ clGetDeviceInfo(cl_device_id device,
 
 __attribute__((constructor)) static void wrapper_constructor ( void )
 {
-    dll_init();
     cl_wrapper_init();
 }
 
 __attribute__((destructor)) static void cl__destructor ( void )
 {
+    if(global_tool_stats_flags & STATS_MEM_OVERHEAD)
+        write_out_mem_perf_stats();
+
     finalize_detector();
 }
 
@@ -602,7 +637,7 @@ clGetMemObjectInfo(cl_mem memobj,
                 }
                 else
                 {
-                    //*p_val -= POISON_FILL_LENGTH;
+                    *p_val = m1->size;
                 }
             }
         }
@@ -652,31 +687,40 @@ clCreateBuffer(cl_context   context,
             pthread_mutex_unlock(&memory_overhead_lock);
         }
 
+        flags &= ~CL_MEM_WRITE_ONLY;
+        flags &= ~CL_MEM_READ_ONLY;
+        flags |= CL_MEM_READ_WRITE;
+
         if(flags & CL_MEM_USE_HOST_PTR)
         {
             fill_ptr = host_ptr;
         }
         else
         {
-            fill_ptr = (char*)calloc(sizeof(char), size + 2*POISON_FILL_LENGTH);
+            fill_ptr = (char*)calloc(sizeof(char), size + POISON_REGIONS*POISON_FILL_LENGTH);
 
             if(fill_ptr)
             {
-                if(flags & CL_MEM_COPY_HOST_PTR)
-                    memcpy(fill_ptr + POISON_FILL_LENGTH, host_ptr, size);
-
+                uint32_t offset = 0;
+#ifdef UNDERFLOW_CHECK
                 memset(fill_ptr, POISON_FILL, POISON_FILL_LENGTH);
-                memset(fill_ptr + POISON_FILL_LENGTH + size, POISON_FILL, POISON_FILL_LENGTH);
-                flags = flags | CL_MEM_COPY_HOST_PTR;
+                offset = POISON_FILL_LENGTH;
+#endif
+                if(flags & CL_MEM_COPY_HOST_PTR)
+                    memcpy(fill_ptr + offset, host_ptr, size);
+
+                offset += size;
+                memset(fill_ptr + offset, POISON_FILL, POISON_FILL_LENGTH);
+                flags |= CL_MEM_COPY_HOST_PTR;
 
                 if(global_tool_stats_flags & STATS_MEM_OVERHEAD)
                 {
                     pthread_mutex_lock(&memory_overhead_lock);
-                    total_overhead_mem += 2*POISON_FILL_LENGTH;
-                    current_overhead_mem += 2*POISON_FILL_LENGTH;
+                    total_overhead_mem += POISON_REGIONS*POISON_FILL_LENGTH;
+                    current_overhead_mem += POISON_REGIONS*POISON_FILL_LENGTH;
                     pthread_mutex_unlock(&memory_overhead_lock);
                 }
-                size_aug += 2*POISON_FILL_LENGTH;
+                size_aug += POISON_REGIONS*POISON_FILL_LENGTH;
             }
         }
 
@@ -700,16 +744,41 @@ clCreateBuffer(cl_context   context,
         if(main_buff && !(flags & CL_MEM_USE_HOST_PTR))
         {
             cl_buffer_region sub_region;
+            sub_region.origin = 0;
+#ifdef UNDERFLOW_CHECK
             sub_region.origin = POISON_FILL_LENGTH;
+#endif
             sub_region.size = size;
+            cl_mem_flags passDownFlags, ptrFlags;
+            ptrFlags = CL_MEM_USE_HOST_PTR | CL_MEM_ALLOC_HOST_PTR | CL_MEM_COPY_HOST_PTR;
+            passDownFlags = flags & ~ptrFlags;
 
             ret =
                 CreateSubBuffer( main_buff,
-                        flags,
+                        passDownFlags,
                         CL_BUFFER_CREATE_TYPE_REGION,
                         (void*)&sub_region,
                         &internal_err );
             check_cl_error(__FILE__, __LINE__, internal_err);
+
+            if(is_nvidia_platform(context))
+            {
+                // Force the buffer allocation to contiguous gpu memory space.
+                // This will ensure that the whole buffer is in the same memory.
+                // Later when we act on the sub-buffer, any overflows will spill
+                //   into the main buffer.
+                cl_command_queue command_queue;
+                int weCreated = !getCommandQueueForContext(context, &command_queue);
+                if(!weCreated)
+                    clRetainCommandQueue(command_queue);
+
+                void *read_ptr = malloc(size_aug);
+                EnqueueReadBuffer(command_queue, main_buff, CL_TRUE, 0, size_aug, read_ptr,
+                                    0, NULL, NULL);
+                free(read_ptr);
+
+                clReleaseCommandQueue(command_queue);
+            }
         }
         else
         {
@@ -763,41 +832,33 @@ CL_API_ENTRY cl_mem CL_API_CALL
     {
         initialize_logging();
 
+        cl_memobj *superBuff = cl_mem_find(get_cl_mem_alloc(), buffer);
+        cl_buffer_region buffer_region_info = *(cl_buffer_region*)buffer_create_info;
+        if(superBuff->has_canary == 1)
+        {
+            buffer = superBuff->main_buff;
+#ifdef UNDERFLOW_CHECK
+            buffer_region_info.origin += POISON_FILL_LENGTH;
+#endif
+        }
+
         ret =
             CreateSubBuffer(
                     buffer,
                     flags,
                     buffer_create_type,
-                    buffer_create_info,
+                    &buffer_region_info,
                     errcode_ret);
 
         if(ret)
         {
-            cl_memobj *superBuff = cl_mem_find(get_cl_mem_alloc(), buffer);
-            cl_mem_flags passDownFlags, ptrFlags, gpuFlags;
-            ptrFlags = CL_MEM_USE_HOST_PTR | CL_MEM_ALLOC_HOST_PTR | CL_MEM_COPY_HOST_PTR;
-            gpuFlags = CL_MEM_READ_ONLY | CL_MEM_WRITE_ONLY | CL_MEM_READ_WRITE;
-
-            passDownFlags = superBuff->flags & ptrFlags;
-            if(flags & gpuFlags)
-                passDownFlags |= flags & gpuFlags;
-            else
-                passDownFlags |= superBuff->flags & gpuFlags;
-#ifdef CL_VERSION_1_2
-            cl_mem_flags hostFlags = CL_MEM_HOST_READ_ONLY | CL_MEM_HOST_WRITE_ONLY | CL_MEM_HOST_NO_ACCESS;
-            if(flags & hostFlags)
-                passDownFlags |= flags & hostFlags;
-            else
-                passDownFlags |= superBuff->flags & hostFlags;
-#endif
-
             cl_memobj *temp = (cl_memobj*)calloc(sizeof(cl_memobj), 1);
             temp->handle = ret;
             temp->is_sub = 1;
             temp->context = superBuff->context;
-            temp->flags = passDownFlags;
-            temp->size = ((cl_buffer_region*)buffer_create_info)->size;
-            temp->origin = ((cl_buffer_region*)buffer_create_info)->origin;
+            temp->flags = flags;
+            temp->size = buffer_region_info.size;
+            temp->origin = buffer_region_info.origin;
             if(superBuff->host_ptr)
                 temp->host_ptr = (char*)superBuff->host_ptr + temp->origin;
             else
@@ -895,165 +956,173 @@ clCreateImage(cl_context              context ,
     cl_mem ret = 0;
     if ( CreateImage )
     {
-        cl_memobj *temp = (cl_memobj*)calloc(sizeof(cl_memobj), 1);
-        temp->is_image = 1;
-        temp->context = context;
-        temp->flags = flags;
+        if (!opencl_broken_images())
+        {
+            cl_memobj *temp = (cl_memobj*)calloc(sizeof(cl_memobj), 1);
+            temp->is_image = 1;
+            temp->context = context;
+            temp->flags = flags;
 
-        temp->image_format.image_channel_order = image_format->image_channel_order;
-        temp->image_format.image_channel_data_type = image_format->image_channel_data_type;
+            temp->image_format.image_channel_order = image_format->image_channel_order;
+            temp->image_format.image_channel_data_type = image_format->image_channel_data_type;
 
-        temp->image_desc.image_type = image_desc->image_type;
-        temp->image_desc.image_width = image_desc->image_width;
-        temp->image_desc.image_height = image_desc->image_height;
-        temp->image_desc.image_depth = image_desc->image_depth;
-        temp->image_desc.image_array_size = image_desc->image_array_size;
-        temp->image_desc.image_row_pitch = image_desc->image_row_pitch;
-        temp->image_desc.image_slice_pitch = image_desc->image_slice_pitch;
-        temp->image_desc.num_mip_levels = image_desc->num_mip_levels;
-        temp->image_desc.num_samples = image_desc->num_samples;
-        temp->image_desc.buffer = image_desc->buffer;
+            temp->image_desc.image_type = image_desc->image_type;
+            temp->image_desc.image_width = image_desc->image_width;
+            temp->image_desc.image_height = image_desc->image_height;
+            temp->image_desc.image_depth = image_desc->image_depth;
+            temp->image_desc.image_array_size = image_desc->image_array_size;
+            temp->image_desc.image_row_pitch = image_desc->image_row_pitch;
+            temp->image_desc.image_slice_pitch = image_desc->image_slice_pitch;
+            temp->image_desc.num_mip_levels = image_desc->num_mip_levels;
+            temp->image_desc.num_samples = image_desc->num_samples;
+            temp->image_desc.buffer = image_desc->buffer;
 
-        //doing some error correcting here
-        //some of these fields may be unchecked for certain image types
-        //i want to be able to use these fields generically so i'm enforcing standards here
-        if(image_desc->image_type == CL_MEM_OBJECT_IMAGE1D)
-        {
-            temp->image_desc.image_height = 1;
-            temp->image_desc.image_depth = 1;
-            temp->image_desc.image_array_size = 1;
-        }
-        else if(image_desc->image_type == CL_MEM_OBJECT_IMAGE1D_BUFFER)
-        {
-            temp->image_desc.image_height = 1;
-            temp->image_desc.image_depth = 1;
-            temp->image_desc.image_array_size = 1;
-        }
-        else if(image_desc->image_type == CL_MEM_OBJECT_IMAGE1D_ARRAY)
-        {
-            temp->image_desc.image_height = 1;
-            temp->image_desc.image_depth = 1;
-        }
-        else if(image_desc->image_type == CL_MEM_OBJECT_IMAGE2D)
-        {
-            temp->image_desc.image_depth = 1;
-            temp->image_desc.image_array_size = 1;
-        }
-        else if(image_desc->image_type == CL_MEM_OBJECT_IMAGE2D_ARRAY)
-        {
-            temp->image_desc.image_depth = 1;
-        }
-        else if(image_desc->image_type == CL_MEM_OBJECT_IMAGE3D)
-        {
-            temp->image_desc.image_array_size = 1;
-        }
-        else
-        {
-            det_fprintf(stderr, "failed to find image type");
-            exit(-1);
-        }
-
-        size_t dataSize = getImageDataSize(image_format);
-        temp->size = temp->image_desc.image_width * temp->image_desc.image_height * temp->image_desc.image_depth * temp->image_desc.image_array_size * dataSize;
-        uint64_t img_size = temp->size;
-        if(global_tool_stats_flags & STATS_MEM_OVERHEAD)
-        {
-            pthread_mutex_lock(&memory_overhead_lock);
-            if(internal_create)
+            //doing some error correcting here
+            //some of these fields may be unchecked for certain image types
+            //i want to be able to use these fields generically so i'm enforcing standards here
+            if(image_desc->image_type == CL_MEM_OBJECT_IMAGE1D)
             {
-                total_overhead_mem += img_size;
-                current_overhead_mem += img_size;
+                temp->image_desc.image_height = 1;
+                temp->image_desc.image_depth = 1;
+                temp->image_desc.image_array_size = 1;
+            }
+            else if(image_desc->image_type == CL_MEM_OBJECT_IMAGE1D_BUFFER)
+            {
+                temp->image_desc.image_height = 1;
+                temp->image_desc.image_depth = 1;
+                temp->image_desc.image_array_size = 1;
+            }
+            else if(image_desc->image_type == CL_MEM_OBJECT_IMAGE1D_ARRAY)
+            {
+                temp->image_desc.image_height = 1;
+                temp->image_desc.image_depth = 1;
+            }
+            else if(image_desc->image_type == CL_MEM_OBJECT_IMAGE2D)
+            {
+                temp->image_desc.image_depth = 1;
+                temp->image_desc.image_array_size = 1;
+            }
+            else if(image_desc->image_type == CL_MEM_OBJECT_IMAGE2D_ARRAY)
+            {
+                temp->image_desc.image_depth = 1;
+            }
+            else if(image_desc->image_type == CL_MEM_OBJECT_IMAGE3D)
+            {
+                temp->image_desc.image_array_size = 1;
             }
             else
             {
-                total_user_mem += img_size;
-                current_user_mem += img_size;
+                det_fprintf(stderr, "failed to find image type");
+                exit(-1);
             }
-            pthread_mutex_unlock(&memory_overhead_lock);
-        }
 
-        char *fill_ptr = NULL;
-
-        if(flags & CL_MEM_USE_HOST_PTR || image_desc->buffer)
-        {
-            fill_ptr = host_ptr;
-        }
-        else
-        {
-            expandLastDimForFill(&temp->image_desc);
+            size_t dataSize = getImageDataSize(image_format);
             temp->size = temp->image_desc.image_width * temp->image_desc.image_height * temp->image_desc.image_depth * temp->image_desc.image_array_size * dataSize;
+            uint64_t img_size = temp->size;
             if(global_tool_stats_flags & STATS_MEM_OVERHEAD)
             {
                 pthread_mutex_lock(&memory_overhead_lock);
-                total_overhead_mem += temp->size - img_size;
-                current_overhead_mem += temp->size - img_size;
+                if(internal_create)
+                {
+                    total_overhead_mem += img_size;
+                    current_overhead_mem += img_size;
+                }
+                else
+                {
+                    total_user_mem += img_size;
+                    current_user_mem += img_size;
+                }
                 pthread_mutex_unlock(&memory_overhead_lock);
             }
 
-            allocFlatImageCopy(&fill_ptr, host_ptr, temp);
+            char *fill_ptr = NULL;
 
-            temp->flags = flags | CL_MEM_COPY_HOST_PTR;
-            // reset the pitches because they no longer exist after
-            // the flat image copy
-            temp->image_desc.image_row_pitch = 0;
-            temp->image_desc.image_slice_pitch = 0;
-            temp->has_canary = 1;
-        }
-
-        if(global_tool_stats_flags & STATS_MEM_OVERHEAD)
-        {
-            pthread_mutex_lock(&memory_overhead_lock);
-            high_user_mem = (high_user_mem > current_user_mem) ? high_user_mem : current_user_mem;
-            high_overhead_mem = (high_overhead_mem > current_overhead_mem) ? high_overhead_mem : current_overhead_mem;
-            pthread_mutex_unlock(&memory_overhead_lock);
-        }
-
-        if (temp->flags & CL_MEM_COPY_HOST_PTR)
-        {
-            // Bug workaround.
-            // On the AMD ROCm software stack, CL_MEM_COPY_HOST_PTR causes
-            // memory corruption on the CPU side. As such, we replace the
-            // implicit copy with an explicit copy to make things work.
-            cl_int internal_err = CL_SUCCESS;
-            temp->flags &= ~CL_MEM_COPY_HOST_PTR;
-            ret = CreateImage(context, temp->flags, image_format,
-                    &temp->image_desc, NULL, errcode_ret);
-
-            if (errcode_ret != NULL)
-                *errcode_ret = internal_err;
-            temp->handle = ret;
-
-            if(internal_err != CL_IMAGE_FORMAT_NOT_SUPPORTED &&
-                    internal_err != CL_INVALID_IMAGE_FORMAT_DESCRIPTOR)
+            if(flags & CL_MEM_USE_HOST_PTR || image_desc->buffer)
             {
-                const size_t zero_origin[3] = {0,0,0};
-                const size_t region[3] = {temp->image_desc.image_width,
-                    temp->image_desc.image_height,
-                    temp->image_desc.image_depth};
-
-                cl_command_queue command_queue;
-                getCommandQueueForContext(context, &command_queue);
-                internal_err = EnqueueWriteImage(command_queue, ret, CL_BLOCKING,
-                        zero_origin, region, 0, 0, fill_ptr, 0, NULL, NULL);
-                check_cl_error(__FILE__, __LINE__, internal_err);
+                fill_ptr = host_ptr;
             }
+            else
+            {
+                expandLastDimForFill(&temp->image_desc);
+                temp->size = temp->image_desc.image_width * temp->image_desc.image_height * temp->image_desc.image_depth * temp->image_desc.image_array_size * dataSize;
+                if(global_tool_stats_flags & STATS_MEM_OVERHEAD)
+                {
+                    pthread_mutex_lock(&memory_overhead_lock);
+                    total_overhead_mem += temp->size - img_size;
+                    current_overhead_mem += temp->size - img_size;
+                    pthread_mutex_unlock(&memory_overhead_lock);
+                }
+
+                allocFlatImageCopy(&fill_ptr, host_ptr, temp);
+
+                temp->flags = flags | CL_MEM_COPY_HOST_PTR;
+                // reset the pitches because they no longer exist after
+                // the flat image copy
+                temp->image_desc.image_row_pitch = 0;
+                temp->image_desc.image_slice_pitch = 0;
+                temp->has_canary = 1;
+            }
+
+            if(global_tool_stats_flags & STATS_MEM_OVERHEAD)
+            {
+                pthread_mutex_lock(&memory_overhead_lock);
+                high_user_mem = (high_user_mem > current_user_mem) ? high_user_mem : current_user_mem;
+                high_overhead_mem = (high_overhead_mem > current_overhead_mem) ? high_overhead_mem : current_overhead_mem;
+                pthread_mutex_unlock(&memory_overhead_lock);
+            }
+
+            if (temp->flags & CL_MEM_COPY_HOST_PTR)
+            {
+                // Bug workaround.
+                // On the AMD ROCm software stack, CL_MEM_COPY_HOST_PTR causes
+                // memory corruption on the CPU side. As such, we replace the
+                // implicit copy with an explicit copy to make things work.
+                cl_int internal_err = CL_SUCCESS;
+                temp->flags &= ~CL_MEM_COPY_HOST_PTR;
+                ret = CreateImage(context, temp->flags, image_format,
+                        &temp->image_desc, NULL, errcode_ret);
+
+                if (errcode_ret != NULL)
+                    *errcode_ret = internal_err;
+                temp->handle = ret;
+
+                if(internal_err != CL_IMAGE_FORMAT_NOT_SUPPORTED &&
+                        internal_err != CL_INVALID_IMAGE_FORMAT_DESCRIPTOR)
+                {
+                    const size_t zero_origin[3] = {0,0,0};
+                    const size_t region[3] = {temp->image_desc.image_width,
+                        temp->image_desc.image_height,
+                        temp->image_desc.image_depth};
+
+                    cl_command_queue command_queue;
+                    getCommandQueueForContext(context, &command_queue);
+                    internal_err = EnqueueWriteImage(command_queue, ret, CL_BLOCKING,
+                            zero_origin, region, 0, 0, fill_ptr, 0, NULL, NULL);
+                    check_cl_error(__FILE__, __LINE__, internal_err);
+                }
+            }
+            else
+            {
+                ret = CreateImage(context, temp->flags, image_format,
+                        &temp->image_desc, fill_ptr, errcode_ret);
+            }
+
+            if(fill_ptr && fill_ptr != host_ptr)
+                free(fill_ptr);
+
+            temp->host_ptr = NULL;
+            if(flags & CL_MEM_USE_HOST_PTR)
+                temp->host_ptr = host_ptr;
+
+            temp->ref_count = 1;
+            temp->detector_internal_buffer = 0; // will set this outside if need be.
+            cl_mem_insert(get_cl_mem_alloc(), temp);
         }
         else
         {
-            ret = CreateImage(context, temp->flags, image_format,
-                    &temp->image_desc, fill_ptr, errcode_ret);
+            return CreateImage(context, flags, image_format, image_desc,
+                    host_ptr, errcode_ret);
         }
-
-        if(fill_ptr && fill_ptr != host_ptr)
-            free(fill_ptr);
-
-        temp->host_ptr = NULL;
-        if(flags & CL_MEM_USE_HOST_PTR)
-            temp->host_ptr = host_ptr;
-
-        temp->ref_count = 1;
-        temp->detector_internal_buffer = 0; // will set this outside if need be.
-        cl_mem_insert(get_cl_mem_alloc(), temp);
     }
     else
     {
@@ -1076,126 +1145,134 @@ clCreateImage2D(cl_context              context ,
     cl_mem ret = 0;
     if ( CreateImage2D )
     {
-        cl_memobj *temp = (cl_memobj*)calloc(sizeof(cl_memobj), 1);
-        temp->is_image = 1;
-        temp->context = context;
-        temp->flags = flags;
-
-        temp->image_format.image_channel_order = image_format->image_channel_order;
-        temp->image_format.image_channel_data_type = image_format->image_channel_data_type;
-
-        temp->image_desc.image_type = CL_MEM_OBJECT_IMAGE2D;
-        temp->image_desc.image_width = image_width;
-        temp->image_desc.image_height = image_height;
-        temp->image_desc.image_depth = 1;
-        temp->image_desc.image_array_size = 1;
-        temp->image_desc.image_row_pitch = image_row_pitch;
-        temp->image_desc.image_slice_pitch = 0;
-        temp->image_desc.num_mip_levels = 0;
-        temp->image_desc.num_samples = 0;
-        temp->image_desc.buffer = NULL;
-
-        size_t dataSize = getImageDataSize(image_format);
-        temp->size = image_width * image_height * dataSize;
-        uint64_t img_size = temp->size;
-        if(global_tool_stats_flags & STATS_MEM_OVERHEAD)
+        if (!opencl_broken_images())
         {
-            pthread_mutex_lock(&memory_overhead_lock);
-            if(internal_create)
-            {
-                total_overhead_mem += img_size;
-                current_overhead_mem += img_size;
-            }
-            else
-            {
-                total_user_mem += img_size;
-                current_user_mem += img_size;
-            }
-            pthread_mutex_unlock(&memory_overhead_lock);
-        }
+            cl_memobj *temp = (cl_memobj*)calloc(sizeof(cl_memobj), 1);
+            temp->is_image = 1;
+            temp->context = context;
+            temp->flags = flags;
 
-        char *fill_ptr = NULL;
+            temp->image_format.image_channel_order = image_format->image_channel_order;
+            temp->image_format.image_channel_data_type = image_format->image_channel_data_type;
 
-        if(flags & CL_MEM_USE_HOST_PTR)
-        {
-            fill_ptr = host_ptr;
-        }
-        else
-        {
-            expandLastDimForFill(&temp->image_desc);
-            temp->size = temp->image_desc.image_width * temp->image_desc.image_height * temp->image_desc.image_depth * temp->image_desc.image_array_size * dataSize;
+            temp->image_desc.image_type = CL_MEM_OBJECT_IMAGE2D;
+            temp->image_desc.image_width = image_width;
+            temp->image_desc.image_height = image_height;
+            temp->image_desc.image_depth = 1;
+            temp->image_desc.image_array_size = 1;
+            temp->image_desc.image_row_pitch = image_row_pitch;
+            temp->image_desc.image_slice_pitch = 0;
+            temp->image_desc.num_mip_levels = 0;
+            temp->image_desc.num_samples = 0;
+            temp->image_desc.buffer = NULL;
+
+            size_t dataSize = getImageDataSize(image_format);
+            temp->size = image_width * image_height * dataSize;
+            uint64_t img_size = temp->size;
             if(global_tool_stats_flags & STATS_MEM_OVERHEAD)
             {
                 pthread_mutex_lock(&memory_overhead_lock);
-                total_overhead_mem += temp->size - img_size;
-                current_overhead_mem += temp->size - img_size;
+                if(internal_create)
+                {
+                    total_overhead_mem += img_size;
+                    current_overhead_mem += img_size;
+                }
+                else
+                {
+                    total_user_mem += img_size;
+                    current_user_mem += img_size;
+                }
                 pthread_mutex_unlock(&memory_overhead_lock);
             }
 
-            allocFlatImageCopy(&fill_ptr, host_ptr, temp);
+            char *fill_ptr = NULL;
 
-            temp->flags = flags | CL_MEM_COPY_HOST_PTR;
-            temp->has_canary = 1;
-        }
-
-        if(global_tool_stats_flags & STATS_MEM_OVERHEAD)
-        {
-            pthread_mutex_lock(&memory_overhead_lock);
-            high_user_mem = (high_user_mem > current_user_mem) ? high_user_mem : current_user_mem;
-            high_overhead_mem = (high_overhead_mem > current_overhead_mem) ? high_overhead_mem : current_overhead_mem;
-            pthread_mutex_unlock(&memory_overhead_lock);
-        }
-
-        if (temp->flags & CL_MEM_COPY_HOST_PTR)
-        {
-            // Bug workaround.
-            // On the AMD ROCm software stack, CL_MEM_COPY_HOST_PTR causes
-            // memory corruption on the CPU side. As such, we replace the
-            // implicit copy with an explicit copy to make things work.
-            cl_int internal_err = CL_SUCCESS;
-            temp->flags &= ~CL_MEM_COPY_HOST_PTR;
-            ret = CreateImage2D(context, temp->flags, image_format,
-                    temp->image_desc.image_width,
-                    temp->image_desc.image_height,
-                    0, NULL, &internal_err);
-
-            if (errcode_ret != NULL)
-                *errcode_ret = internal_err;
-            temp->handle = ret;
-
-            if(internal_err != CL_IMAGE_FORMAT_NOT_SUPPORTED &&
-                internal_err != CL_INVALID_IMAGE_FORMAT_DESCRIPTOR)
+            if(flags & CL_MEM_USE_HOST_PTR)
             {
-                const size_t zero_origin[3] = {0,0,0};
-                const size_t region[3] = {temp->image_desc.image_width,
-                    temp->image_desc.image_height, 1};
-
-                cl_command_queue command_queue;
-                getCommandQueueForContext(context, &command_queue);
-                internal_err = EnqueueWriteImage(command_queue, ret,
-                        CL_BLOCKING, zero_origin, region, 0, 0, fill_ptr, 0,
-                        NULL, NULL);
-                check_cl_error(__FILE__, __LINE__, internal_err);
+                fill_ptr = host_ptr;
             }
+            else
+            {
+                expandLastDimForFill(&temp->image_desc);
+                temp->size = temp->image_desc.image_width * temp->image_desc.image_height * temp->image_desc.image_depth * temp->image_desc.image_array_size * dataSize;
+                if(global_tool_stats_flags & STATS_MEM_OVERHEAD)
+                {
+                    pthread_mutex_lock(&memory_overhead_lock);
+                    total_overhead_mem += temp->size - img_size;
+                    current_overhead_mem += temp->size - img_size;
+                    pthread_mutex_unlock(&memory_overhead_lock);
+                }
+
+                allocFlatImageCopy(&fill_ptr, host_ptr, temp);
+
+                temp->flags = flags | CL_MEM_COPY_HOST_PTR;
+                temp->has_canary = 1;
+            }
+
+            if(global_tool_stats_flags & STATS_MEM_OVERHEAD)
+            {
+                pthread_mutex_lock(&memory_overhead_lock);
+                high_user_mem = (high_user_mem > current_user_mem) ? high_user_mem : current_user_mem;
+                high_overhead_mem = (high_overhead_mem > current_overhead_mem) ? high_overhead_mem : current_overhead_mem;
+                pthread_mutex_unlock(&memory_overhead_lock);
+            }
+
+            if (temp->flags & CL_MEM_COPY_HOST_PTR)
+            {
+                // Bug workaround.
+                // On the AMD ROCm software stack, CL_MEM_COPY_HOST_PTR causes
+                // memory corruption on the CPU side. As such, we replace the
+                // implicit copy with an explicit copy to make things work.
+                cl_int internal_err = CL_SUCCESS;
+                temp->flags &= ~CL_MEM_COPY_HOST_PTR;
+                ret = CreateImage2D(context, temp->flags, image_format,
+                        temp->image_desc.image_width,
+                        temp->image_desc.image_height,
+                        0, NULL, &internal_err);
+
+                if (errcode_ret != NULL)
+                    *errcode_ret = internal_err;
+                temp->handle = ret;
+
+                if(internal_err != CL_IMAGE_FORMAT_NOT_SUPPORTED &&
+                        internal_err != CL_INVALID_IMAGE_FORMAT_DESCRIPTOR)
+                {
+                    const size_t zero_origin[3] = {0,0,0};
+                    const size_t region[3] = {temp->image_desc.image_width,
+                        temp->image_desc.image_height, 1};
+
+                    cl_command_queue command_queue;
+                    getCommandQueueForContext(context, &command_queue);
+                    internal_err = EnqueueWriteImage(command_queue, ret,
+                            CL_BLOCKING, zero_origin, region, 0, 0, fill_ptr, 0,
+                            NULL, NULL);
+                    check_cl_error(__FILE__, __LINE__, internal_err);
+                }
+            }
+            else
+            {
+                ret = CreateImage2D(context, temp->flags, image_format,
+                        temp->image_desc.image_width,
+                        temp->image_desc.image_height,
+                        0, fill_ptr, errcode_ret);
+            }
+
+            if(fill_ptr && fill_ptr != host_ptr)
+                free(fill_ptr);
+
+            temp->host_ptr = NULL;
+            if(flags & CL_MEM_USE_HOST_PTR)
+                temp->host_ptr = host_ptr;
+
+            temp->ref_count = 1;
+            temp->detector_internal_buffer = 0; // will set this outside if need be.
+            cl_mem_insert(get_cl_mem_alloc(), temp);
         }
         else
         {
-            ret = CreateImage2D(context, temp->flags, image_format,
-                    temp->image_desc.image_width,
-                    temp->image_desc.image_height,
-                    0, fill_ptr, errcode_ret);
+            return CreateImage2D(context, flags, image_format, image_width,
+                    image_height, image_row_pitch, host_ptr, errcode_ret);
         }
-
-        if(fill_ptr && fill_ptr != host_ptr)
-            free(fill_ptr);
-
-        temp->host_ptr = NULL;
-        if(flags & CL_MEM_USE_HOST_PTR)
-            temp->host_ptr = host_ptr;
-
-        temp->ref_count = 1;
-        temp->detector_internal_buffer = 0; // will set this outside if need be.
-        cl_mem_insert(get_cl_mem_alloc(), temp);
     }
     else
     {
@@ -1219,127 +1296,136 @@ clCreateImage3D(cl_context              context ,
     cl_mem ret = 0;
     if ( CreateImage3D )
     {
-        cl_memobj *temp = (cl_memobj*)calloc(sizeof(cl_memobj), 1);
-        temp->is_image = 1;
-        temp->context = context;
-        temp->flags = flags;
-
-        temp->image_format.image_channel_order = image_format->image_channel_order;
-        temp->image_format.image_channel_data_type = image_format->image_channel_data_type;
-
-        temp->image_desc.image_type = CL_MEM_OBJECT_IMAGE3D;
-        temp->image_desc.image_width = image_width;
-        temp->image_desc.image_height = image_height;
-        temp->image_desc.image_depth = image_depth;
-        temp->image_desc.image_array_size = 1;
-        temp->image_desc.image_row_pitch = image_row_pitch;
-        temp->image_desc.image_slice_pitch = image_slice_pitch;
-        temp->image_desc.num_mip_levels = 0;
-        temp->image_desc.num_samples = 0;
-        temp->image_desc.buffer = NULL;
-
-        size_t dataSize = getImageDataSize(image_format);
-        temp->size = image_width * image_height * image_depth * dataSize;
-        uint64_t img_size = temp->size;
-        if(global_tool_stats_flags & STATS_MEM_OVERHEAD)
+        if (!opencl_broken_images())
         {
-            pthread_mutex_lock(&memory_overhead_lock);
-            if(internal_create)
-            {
-                total_overhead_mem += img_size;
-                current_overhead_mem += img_size;
-            }
-            else
-            {
-                total_user_mem += img_size;
-                current_user_mem += img_size;
-            }
-            pthread_mutex_unlock(&memory_overhead_lock);
-        }
+            cl_memobj *temp = (cl_memobj*)calloc(sizeof(cl_memobj), 1);
+            temp->is_image = 1;
+            temp->context = context;
+            temp->flags = flags;
 
-        char *fill_ptr = NULL;
+            temp->image_format.image_channel_order = image_format->image_channel_order;
+            temp->image_format.image_channel_data_type = image_format->image_channel_data_type;
 
-        if(flags & CL_MEM_USE_HOST_PTR)
-        {
-            fill_ptr = host_ptr;
-        }
-        else
-        {
-            expandLastDimForFill(&temp->image_desc);
-            temp->size = temp->image_desc.image_width * temp->image_desc.image_height * temp->image_desc.image_depth * temp->image_desc.image_array_size * dataSize;
+            temp->image_desc.image_type = CL_MEM_OBJECT_IMAGE3D;
+            temp->image_desc.image_width = image_width;
+            temp->image_desc.image_height = image_height;
+            temp->image_desc.image_depth = image_depth;
+            temp->image_desc.image_array_size = 1;
+            temp->image_desc.image_row_pitch = image_row_pitch;
+            temp->image_desc.image_slice_pitch = image_slice_pitch;
+            temp->image_desc.num_mip_levels = 0;
+            temp->image_desc.num_samples = 0;
+            temp->image_desc.buffer = NULL;
+
+            size_t dataSize = getImageDataSize(image_format);
+            temp->size = image_width * image_height * image_depth * dataSize;
+            uint64_t img_size = temp->size;
             if(global_tool_stats_flags & STATS_MEM_OVERHEAD)
             {
                 pthread_mutex_lock(&memory_overhead_lock);
-                total_overhead_mem += temp->size - img_size;
-                current_overhead_mem += temp->size - img_size;
+                if(internal_create)
+                {
+                    total_overhead_mem += img_size;
+                    current_overhead_mem += img_size;
+                }
+                else
+                {
+                    total_user_mem += img_size;
+                    current_user_mem += img_size;
+                }
                 pthread_mutex_unlock(&memory_overhead_lock);
             }
 
-            allocFlatImageCopy(&fill_ptr, host_ptr, temp);
+            char *fill_ptr = NULL;
 
-            temp->flags = flags | CL_MEM_COPY_HOST_PTR;
-            temp->has_canary = 1;
-        }
-
-        if(global_tool_stats_flags & STATS_MEM_OVERHEAD)
-        {
-            pthread_mutex_lock(&memory_overhead_lock);
-            high_user_mem = (high_user_mem > current_user_mem) ? high_user_mem : current_user_mem;
-            high_overhead_mem = (high_overhead_mem > current_overhead_mem) ? high_overhead_mem : current_overhead_mem;
-            pthread_mutex_unlock(&memory_overhead_lock);
-        }
-
-        if (temp->flags & CL_MEM_COPY_HOST_PTR)
-        {
-            // Bug workaround.
-            // On the AMD ROCm software stack, CL_MEM_COPY_HOST_PTR causes
-            // memory corruption on the CPU side. As such, we replace the
-            // implicit copy with an explicit copy to make things work.
-            cl_int internal_err = CL_SUCCESS;
-            temp->flags &= ~CL_MEM_COPY_HOST_PTR;
-            ret = CreateImage3D(context, temp->flags, image_format,
-                    temp->image_desc.image_width,
-                    temp->image_desc.image_height,
-                    temp->image_desc.image_depth,
-                    0, 0, NULL, &internal_err);
-
-            if (errcode_ret != NULL)
-                *errcode_ret = internal_err;
-            temp->handle = ret;
-
-            if(internal_err != CL_IMAGE_FORMAT_NOT_SUPPORTED &&
-                    internal_err != CL_INVALID_IMAGE_FORMAT_DESCRIPTOR)
+            if(flags & CL_MEM_USE_HOST_PTR)
             {
-                const size_t zero_origin[3] = {0,0,0};
-                const size_t region[3] = {temp->image_desc.image_width,
-                    temp->image_desc.image_height, temp->image_desc.image_depth};
-
-                cl_command_queue command_queue;
-                getCommandQueueForContext(context, &command_queue);
-                internal_err = EnqueueWriteImage(command_queue, ret, CL_BLOCKING,
-                        zero_origin, region, 0, 0, fill_ptr, 0, NULL, NULL);
-                check_cl_error(__FILE__, __LINE__, internal_err);
+                fill_ptr = host_ptr;
             }
+            else
+            {
+                expandLastDimForFill(&temp->image_desc);
+                temp->size = temp->image_desc.image_width * temp->image_desc.image_height * temp->image_desc.image_depth * temp->image_desc.image_array_size * dataSize;
+                if(global_tool_stats_flags & STATS_MEM_OVERHEAD)
+                {
+                    pthread_mutex_lock(&memory_overhead_lock);
+                    total_overhead_mem += temp->size - img_size;
+                    current_overhead_mem += temp->size - img_size;
+                    pthread_mutex_unlock(&memory_overhead_lock);
+                }
+
+                allocFlatImageCopy(&fill_ptr, host_ptr, temp);
+
+                temp->flags = flags | CL_MEM_COPY_HOST_PTR;
+                temp->has_canary = 1;
+            }
+
+            if(global_tool_stats_flags & STATS_MEM_OVERHEAD)
+            {
+                pthread_mutex_lock(&memory_overhead_lock);
+                high_user_mem = (high_user_mem > current_user_mem) ? high_user_mem : current_user_mem;
+                high_overhead_mem = (high_overhead_mem > current_overhead_mem) ? high_overhead_mem : current_overhead_mem;
+                pthread_mutex_unlock(&memory_overhead_lock);
+            }
+
+            if (temp->flags & CL_MEM_COPY_HOST_PTR)
+            {
+                // Bug workaround.
+                // On the AMD ROCm software stack, CL_MEM_COPY_HOST_PTR causes
+                // memory corruption on the CPU side. As such, we replace the
+                // implicit copy with an explicit copy to make things work.
+                cl_int internal_err = CL_SUCCESS;
+                temp->flags &= ~CL_MEM_COPY_HOST_PTR;
+                ret = CreateImage3D(context, temp->flags, image_format,
+                        temp->image_desc.image_width,
+                        temp->image_desc.image_height,
+                        temp->image_desc.image_depth,
+                        0, 0, NULL, &internal_err);
+
+                if (errcode_ret != NULL)
+                    *errcode_ret = internal_err;
+                temp->handle = ret;
+
+                if(internal_err != CL_IMAGE_FORMAT_NOT_SUPPORTED &&
+                        internal_err != CL_INVALID_IMAGE_FORMAT_DESCRIPTOR)
+                {
+                    const size_t zero_origin[3] = {0,0,0};
+                    const size_t region[3] = {temp->image_desc.image_width,
+                        temp->image_desc.image_height, temp->image_desc.image_depth};
+
+                    cl_command_queue command_queue;
+                    getCommandQueueForContext(context, &command_queue);
+                    internal_err = EnqueueWriteImage(command_queue, ret, CL_BLOCKING,
+                            zero_origin, region, 0, 0, fill_ptr, 0, NULL, NULL);
+                    check_cl_error(__FILE__, __LINE__, internal_err);
+                }
+            }
+            else
+            {
+                ret = CreateImage3D(context, temp->flags, image_format,
+                        temp->image_desc.image_width,
+                        temp->image_desc.image_height,
+                        temp->image_desc.image_depth,
+                        0, 0, fill_ptr, errcode_ret);
+            }
+
+            if(fill_ptr && fill_ptr != host_ptr)
+                free(fill_ptr);
+
+            temp->host_ptr = NULL;
+            if(flags & CL_MEM_USE_HOST_PTR)
+                temp->host_ptr = host_ptr;
+
+            temp->ref_count = 1;
+            temp->detector_internal_buffer = 0; // will set this outside if need be.
+            cl_mem_insert(get_cl_mem_alloc(), temp);
         }
         else
         {
-            ret = CreateImage3D(context, temp->flags, image_format,
-                    temp->image_desc.image_width,
-                    temp->image_desc.image_height,
-                    temp->image_desc.image_depth,
-                    0, 0, fill_ptr, errcode_ret);
+            return CreateImage3D(context, flags, image_format, image_width,
+                    image_height, image_depth, image_row_pitch,
+                    image_slice_pitch, host_ptr, errcode_ret);
         }
-
-        if(fill_ptr && fill_ptr != host_ptr)
-            free(fill_ptr);
-
-        temp->host_ptr = NULL;
-        if(flags & CL_MEM_USE_HOST_PTR)
-            temp->host_ptr = host_ptr;
-
-        temp->ref_count = 1;
-        temp->detector_internal_buffer = 0; // will set this outside if need be.
-        cl_mem_insert(get_cl_mem_alloc(), temp);
     }
     else
     {
@@ -1402,7 +1488,7 @@ clReleaseMemObject(cl_mem memobj )
                     {
                         current_overhead_mem -= findme->size;
                         if(!findme->is_image)
-                            current_overhead_mem -= 2*POISON_FILL_LENGTH;
+                            current_overhead_mem -= POISON_REGIONS*POISON_FILL_LENGTH;
                     }
                     else if( !findme->has_canary )
                         current_user_mem -= findme->size;
@@ -1436,7 +1522,7 @@ clReleaseMemObject(cl_mem memobj )
                     else
                     {
                         current_user_mem -= findme->size;
-                        current_overhead_mem -= 2*POISON_FILL_LENGTH;
+                        current_overhead_mem -= POISON_REGIONS*POISON_FILL_LENGTH;
                     }
                     pthread_mutex_unlock(&memory_overhead_lock);
                 }
@@ -1458,6 +1544,72 @@ clReleaseMemObject(cl_mem memobj )
     }
     return(err);
 }
+
+CL_API_ENTRY void* CL_API_CALL
+clEnqueueMapBuffer(cl_command_queue command_queue,
+            cl_mem buffer,
+            cl_bool blocking_map,
+            cl_map_flags map_flags,
+            size_t offset,
+            size_t size,
+            cl_uint num_events_in_wait_list,
+            const cl_event *event_wait_list,
+            cl_event *event,
+            cl_int *errcode_ret)
+{
+    void *ret = NULL;
+    if(EnqueueMapBuffer)
+    {
+        cl_mem main_buffer = buffer;
+        size_t offset_aug = offset;
+
+        cl_memobj *m1 = cl_mem_find(get_cl_mem_alloc(), buffer);
+        if(m1 && m1->main_buff)
+        {
+            main_buffer = m1->main_buff;
+#ifdef UNDERFLOW_CHECK
+            offset_aug += POISON_FILL_LENGTH;
+#endif
+        }
+
+        ret = EnqueueMapBuffer(command_queue, main_buffer, blocking_map, map_flags, offset_aug, size, num_events_in_wait_list, event_wait_list, event, errcode_ret);
+    }
+    else
+    {
+        CL_MSG("NOT FOUND!");
+    }
+
+    return ret;
+}
+
+CL_API_ENTRY cl_int CL_API_CALL
+clEnqueueUnmapMemObject(cl_command_queue command_queue,
+            cl_mem memobj,
+            void *mapped_ptr,
+            cl_uint num_events_in_wait_list,
+            const cl_event *event_wait_list,
+            cl_event *event)
+{
+    cl_int err = INT_MIN;
+    if(EnqueueUnmapMemObject)
+    {
+        cl_mem main_buffer = memobj;
+        cl_memobj *m1 = cl_mem_find(get_cl_mem_alloc(), memobj);
+        if(m1 && m1->main_buff)
+        {
+            main_buffer = m1->main_buff;
+        }
+
+        err = EnqueueUnmapMemObject(command_queue, main_buffer, mapped_ptr, num_events_in_wait_list, event_wait_list, event);
+    }
+    else
+    {
+        CL_MSG("NOT FOUND!");
+    }
+
+    return err;
+}
+
 
 CL_API_ENTRY cl_int CL_API_CALL
 clRetainKernel(cl_kernel     kernel )
@@ -1748,38 +1900,28 @@ clSVMAlloc(cl_context           context,
         size_t size_aug = size;
 
         initialize_logging();
-        // Workaround for a strange bug in the AMD OpenCL runtime.
-        // If we start allocating small SVM buffers, some memory gets corrupted
-        // This is exemplified by fir_cl20, which will segfault in the OpenCL
-        // runtime iff you use some of its smaller buffers.
-        // This workaround likely does not fix the problem, and may breka some
-        // of your apps that really do require small SVM buffers. Sorry..
-        /*
-        if (size < 128)
-            size = 10000000;
-        */
 
         if(global_tool_stats_flags & STATS_MEM_OVERHEAD)
         {
             pthread_mutex_lock(&memory_overhead_lock);
             if(internal_create)
             {
-                total_overhead_mem += size + 2*POISON_FILL_LENGTH;
-                current_overhead_mem += size + 2*POISON_FILL_LENGTH;
+                total_overhead_mem += size + POISON_REGIONS*POISON_FILL_LENGTH;
+                current_overhead_mem += size + POISON_REGIONS*POISON_FILL_LENGTH;
             }
             else
             {
                 total_user_mem += size;
                 current_user_mem += size;
-                total_overhead_mem += 2*POISON_FILL_LENGTH;
-                current_overhead_mem += 2*POISON_FILL_LENGTH;
+                total_overhead_mem += POISON_REGIONS*POISON_FILL_LENGTH;
+                current_overhead_mem += POISON_REGIONS*POISON_FILL_LENGTH;
             }
 
             high_user_mem = (high_user_mem > current_user_mem) ? high_user_mem : current_user_mem;
             high_overhead_mem = (high_overhead_mem > current_overhead_mem) ? high_overhead_mem : current_overhead_mem;
             pthread_mutex_unlock(&memory_overhead_lock);
         }
-        size_aug += 2*POISON_FILL_LENGTH;
+        size_aug += POISON_REGIONS*POISON_FILL_LENGTH;
 
         ret = internalSVMAlloc(context, flags, size_aug, alignment);
 
@@ -1787,7 +1929,10 @@ clSVMAlloc(cl_context           context,
             return NULL;
 
         void * user_ptr;
-        user_ptr = (void*)((char*)ret + POISON_FILL_LENGTH);
+        user_ptr = ret;
+#ifdef UNDERFLOW_CHECK
+        user_ptr = (char*)user_ptr + POISON_FILL_LENGTH;
+#endif
 
         cl_int cl_err;
         cl_command_queue cmdQueue;
@@ -1795,10 +1940,15 @@ clSVMAlloc(cl_context           context,
         if(!weCreated)
             clRetainCommandQueue(cmdQueue);
 
+        uint32_t offset = size;
         cl_event finish[2];
-        cl_err = clEnqueueSVMMemFill(cmdQueue, (char*)ret, &poisonFill_8b, sizeof(uint8_t), POISON_FILL_LENGTH, 0, 0, &finish[0]);
+#ifdef UNDERFLOW_CHECK
+        cl_err = clEnqueueSVMMemFill(cmdQueue, (char*)ret, &poisonFill_8b, sizeof(uint8_t), POISON_FILL_LENGTH, 0, 0, &finish[1]);
         check_cl_error(__FILE__, __LINE__, cl_err);
-        cl_err = clEnqueueSVMMemFill(cmdQueue, (char*)ret + size + POISON_FILL_LENGTH, &poisonFill_8b, sizeof(uint8_t), POISON_FILL_LENGTH, 0, 0, &finish[1]);
+
+        offset += POISON_FILL_LENGTH;
+#endif
+        cl_err = clEnqueueSVMMemFill(cmdQueue, (char*)ret + offset, &poisonFill_8b, sizeof(uint8_t), POISON_FILL_LENGTH, 0, 0, &finish[0]);
         check_cl_error(__FILE__, __LINE__, cl_err);
 
         cl_svm_memobj *temp = (cl_svm_memobj*)calloc(sizeof(cl_svm_memobj), 1);
@@ -1811,7 +1961,7 @@ clSVMAlloc(cl_context           context,
         temp->detector_internal_buffer = 0; // will set this outside if need be.
         cl_svm_mem_insert(get_cl_svm_mem_alloc(), temp);
 
-        clWaitForEvents(2, finish);
+        clWaitForEvents(POISON_REGIONS, finish);
 
         clReleaseCommandQueue(cmdQueue);
 
@@ -1842,11 +1992,11 @@ clSVMFree(cl_context    context,
             {
                 main_svm = temp->main_buff;
                 if(internal_create)
-                    current_overhead_mem -= temp->size + 2*POISON_FILL_LENGTH;
+                    current_overhead_mem -= temp->size + POISON_REGIONS*POISON_FILL_LENGTH;
                 else
                 {
                     current_user_mem -= temp->size;
-                    current_overhead_mem -= 2*POISON_FILL_LENGTH;
+                    current_overhead_mem -= POISON_REGIONS*POISON_FILL_LENGTH;
                 }
             }
             pthread_mutex_unlock(&memory_overhead_lock);
@@ -1972,16 +2122,23 @@ clEnqueueSVMMap(cl_command_queue command_queue,
     {
         void *main_svm = svm_ptr;
         size_t size_aug = size;
+        cl_map_flags flags = map_flags;
 
         cl_svm_memobj *m1;
         m1 = cl_svm_mem_find(get_cl_svm_mem_alloc(), svm_ptr);
         if(m1)
         {
             main_svm = m1->main_buff;
+#ifdef UNDERFLOW_CHECK
             size_aug += POISON_FILL_LENGTH;
+#endif
         }
 
-        err = EnqueueSVMMap(command_queue, blocking_map, map_flags, main_svm, size_aug, num_events_in_wait_list, event_wait_list, event);
+        err = EnqueueSVMMap(command_queue, blocking_map, flags, main_svm, size_aug, num_events_in_wait_list, event_wait_list, event);
+#ifdef UNDERFLOW_CHECK
+        if(map_flags & CL_MAP_WRITE_INVALIDATE_REGION)
+            memset(main_svm, POISON_FILL, POISON_FILL_LENGTH);
+#endif
     }
     else
     {
@@ -2018,36 +2175,7 @@ clEnqueueSVMUnmap(cl_command_queue command_queue,
     return(err);
 }
 
-
 #endif
-
-CL_API_ENTRY cl_int CL_API_CALL
-clEnqueueUnmapMemObject(cl_command_queue command_queue,
-            cl_mem memobj,
-            void *mapped_ptr,
-            cl_uint num_events_in_wait_list,
-            const cl_event *event_wait_list,
-            cl_event *event)
-{
-    cl_int err = INT_MIN;
-    if(EnqueueUnmapMemObject)
-    {
-        cl_mem main_buffer = memobj;
-        cl_memobj *m1 = cl_mem_find(get_cl_mem_alloc(), memobj);
-        if(m1 && m1->main_buff)
-        {
-            main_buffer = m1->main_buff;
-        }
-
-        err = EnqueueUnmapMemObject(command_queue, main_buffer, mapped_ptr, num_events_in_wait_list, event_wait_list, event);
-    }
-    else
-    {
-        CL_MSG("NOT FOUND!");
-    }
-
-    return err;
-}
 
 /****************************************************************/
 cl_int runNDRangeKernel(launchOclKernelStruct *ocl_args)
@@ -2142,14 +2270,6 @@ static cl_int kernelLaunchFunc(void * thread_args_)
 
     disallowCanaryAccess();
     internal_create = 0;
-    if(global_tool_stats_flags & STATS_MEM_OVERHEAD)
-    {
-        pthread_mutex_lock(&memory_overhead_lock);
-        mem_overhead_out_f = fopen("debug_mem_overhead.csv", "w");
-        fprintf(mem_overhead_out_f, "%lu, %lu, %lu, %lu\n", total_user_mem, total_overhead_mem, high_user_mem, high_overhead_mem);
-        fclose(mem_overhead_out_f);
-        pthread_mutex_unlock(&memory_overhead_lock);
-    }
 
     // Later, if the user wants to profile the output event of this enqueue,
     // we will check the list to see what real NDRangeKernelEnqueue event
@@ -2168,8 +2288,6 @@ static cl_int kernelLaunchFunc(void * thread_args_)
         evt_info->internal_event = internal_event;
         cl_event_insert(get_cl_evt_list(), evt_info);
     }
-
-    //clFinish( ocl_args->command_queue );
 
     //------------------------------------END-RUN-------------------------------
 
@@ -2202,16 +2320,69 @@ static cl_int kernelLaunchFunc(void * thread_args_)
         total_durr_us = timeval_diff_us(&total_stop, &total_start);
         enq_durr_us = timeval_diff_us(&enq_stop, &enq_start);
 
-        if(kern_enq_time_out_f)
-            kern_enq_time_out_f = fopen("debug_enqueue_time.csv", "a");
-        else
-            kern_enq_time_out_f = fopen("debug_enqueue_time.csv", "w");
+        FILE *perf_out_f = NULL;
+        perf_out_f = fopen(global_tool_stats_outfile, "a");
 
-        fprintf(kern_enq_time_out_f, "%lu, %lu, %lu\n", total_durr_us, enq_durr_us, total_durr_us - enq_durr_us);
-        fclose(kern_enq_time_out_f);
+        fprintf(perf_out_f, "%lu, %lu, %lu\n", total_durr_us, enq_durr_us, total_durr_us - enq_durr_us);
+        fclose(perf_out_f);
     }
 
     return(cl_err);
+}
+
+/*
+ * just in case a work group size was violated
+ *
+ * 1 for replaced local_work_size
+ * 0 if did nothing
+ */
+uint32_t fixOclArgs(launchOclKernelStruct *ocl_args)
+{
+    cl_int cl_err;
+    cl_device_id device;
+    cl_uint dim=0;
+    size_t *max_size;
+    size_t max_wg_size=0;
+
+    if(ocl_args->local_work_size == NULL)
+        return 0;
+
+    cl_err = clGetCommandQueueInfo(ocl_args->command_queue, CL_QUEUE_DEVICE, sizeof(cl_device_id), &device, NULL);
+    check_cl_error(__FILE__, __LINE__, cl_err);
+
+    cl_err = clGetDeviceInfo(device, CL_DEVICE_MAX_WORK_ITEM_DIMENSIONS, sizeof(cl_uint), &dim, NULL);
+    check_cl_error(__FILE__, __LINE__, cl_err);
+
+    if (dim == 0)
+        return 0;
+
+    max_size = calloc(sizeof(size_t), dim);
+    for(size_t i = 0; i < dim; i++)
+        max_size[i] = 1;
+
+    cl_err = clGetDeviceInfo(device, CL_DEVICE_MAX_WORK_ITEM_SIZES, sizeof(size_t)*dim, max_size, NULL);
+    check_cl_error(__FILE__, __LINE__, cl_err);
+
+    cl_err = clGetDeviceInfo(device, CL_DEVICE_MAX_WORK_GROUP_SIZE, sizeof(size_t), &max_wg_size, NULL);
+    check_cl_error(__FILE__, __LINE__, cl_err);
+
+    uint32_t failed = 0;
+    size_t wg_size = 1;
+    for(uint32_t i=0; i < ocl_args->work_dim && i < dim; i++)
+    {
+        wg_size *= ocl_args->local_work_size[i];
+        if(ocl_args->local_work_size[i] > max_size[i] || wg_size > max_wg_size)
+            failed = 1;
+    }
+    if(failed)
+    {
+        //let the opencl implementation figure it out
+        ocl_args->local_work_size = NULL;
+    }
+
+    free(max_size);
+
+    return failed;
 }
 
 CL_API_ENTRY cl_int CL_API_CALL
@@ -2240,6 +2411,8 @@ clEnqueueNDRangeKernel(cl_command_queue command_queue,
         ocl_args.num_events_in_wait_list = num_events;
         ocl_args.event_wait_list = event_list;
         ocl_args.event = event;
+
+        fixOclArgs(&ocl_args);
 
         //do work of swapping out buffers in a function here
         err = kernelLaunchFunc((void*)&ocl_args);
@@ -2691,28 +2864,11 @@ clEnqueueReadImage(cl_command_queue      command_queue ,
     cl_int err = CL_SUCCESS;
     if ( EnqueueReadImage )
     {
-/*
-        cl_memobj *m1 = cl_mem_find(get_cl_mem_alloc(), image);
-        size_t dataSize;
-        dataSize = getImageDataSize(&m1->image_format);
-        row_pitch = (row_pitch < m1->image_desc.width * dataSize) ? m1->image_desc.width * dataSize : row_pitch;
-        slice_pitch = (slice_pitch < row_pitch * m1->image_desc.height) ? row_pitch * m1->image_desc.height : slice_pitch;
-        */
-
         if( !apiImageOverflowCheck("clEnqueueReadImage", image, origin, region) )
         {
-            err =
-                EnqueueReadImage(command_queue ,
-                        image ,
-                        blocking_read ,
-                        origin ,
-                        region ,
-                        row_pitch ,
-                        slice_pitch ,
-                        ptr ,
-                        num_events ,
-                        event_list ,
-                        event );
+            err = EnqueueReadImage(command_queue, image, blocking_read,
+                    origin, region, row_pitch, slice_pitch, ptr,
+                    num_events, event_list, event);
         }
     }
     else
@@ -2849,26 +3005,29 @@ clEnqueueCopyImageToBuffer(cl_command_queue  command_queue ,
     if ( EnqueueCopyImageToBuffer )
     {
         cl_memobj *m1 = cl_mem_find(get_cl_mem_alloc(), src_image);
-        size_t dataSize;
-        dataSize = getImageDataSize(&m1->image_format);
-        size_t row_pitch = region[0] * dataSize;
-        size_t slice_pitch = region[1] * row_pitch;
-        size_t dst_origin[] = {dst_offset, 0, 0};
+		int run_real_call = 0;
+		if (m1 != NULL)
+		{
+			size_t dataSize = getImageDataSize(&m1->image_format);
+			size_t row_pitch = region[0] * dataSize;
+			size_t slice_pitch = region[1] * row_pitch;
+			size_t dst_origin[] = {dst_offset, 0, 0};
 
-        if( !apiImageOverflowCheck("clEnqueueCopyImageToBuffer", src_image, src_origin, region)
-            && !apiBufferRectOverflowCheck("clEnqueueCopyImageToBuffer", dst_buffer, dst_origin, region, row_pitch, slice_pitch) )
-        {
-        err =
-            EnqueueCopyImageToBuffer(command_queue ,
-                    src_image ,
-                    dst_buffer ,
-                    src_origin ,
-                    region ,
-                    dst_offset ,
-                    num_events ,
-                    event_list ,
-                    event );
-        }
+			if( !apiImageOverflowCheck("clEnqueueCopyImageToBuffer", src_image, src_origin, region)
+					&& !apiBufferRectOverflowCheck("clEnqueueCopyImageToBuffer", dst_buffer, dst_origin, region, row_pitch, slice_pitch) )
+			{
+				run_real_call = 1;
+			}
+		}
+		else
+			run_real_call = 1;
+
+		if (run_real_call)
+		{
+			err = EnqueueCopyImageToBuffer(command_queue, src_image,
+					dst_buffer, src_origin, region, dst_offset,
+					num_events, event_list, event);
+		}
     }
     else
     {
@@ -2893,25 +3052,28 @@ clEnqueueCopyBufferToImage(cl_command_queue  command_queue ,
     if ( EnqueueCopyBufferToImage )
     {
         cl_memobj *m1 = cl_mem_find(get_cl_mem_alloc(), dst_image);
-        size_t dataSize;
-        dataSize = getImageDataSize(&m1->image_format);
-        size_t row_pitch = region[0] * dataSize;
-        size_t slice_pitch = region[1] * row_pitch;
-        size_t src_origin[] = {src_offset, 0, 0};
-
-        if( !apiBufferRectOverflowCheck("clEnqueueCopyBufferToImage", src_buffer, src_origin, region, row_pitch, slice_pitch)
-            && !apiImageOverflowCheck("clEnqueueCopyBufferToImage", dst_image, dst_origin, region) )
+        int run_real_call = 0;
+        if (m1 != NULL)
         {
-            err =
-                EnqueueCopyBufferToImage(command_queue ,
-                        src_buffer ,
-                        dst_image ,
-                        src_offset ,
-                        dst_origin ,
-                        region ,
-                        num_events ,
-                        event_list ,
-                        event );
+            size_t dataSize = getImageDataSize(&m1->image_format);
+            size_t row_pitch = region[0] * dataSize;
+            size_t slice_pitch = region[1] * row_pitch;
+            size_t src_origin[] = {src_offset, 0, 0};
+
+            if( !apiBufferRectOverflowCheck("clEnqueueCopyBufferToImage", src_buffer, src_origin, region, row_pitch, slice_pitch)
+                    && !apiImageOverflowCheck("clEnqueueCopyBufferToImage", dst_image, dst_origin, region) )
+            {
+                run_real_call = 1;
+            }
+        }
+        else
+            run_real_call = 1;
+
+        if (run_real_call)
+        {
+            err = EnqueueCopyBufferToImage(command_queue, src_buffer,
+                    dst_image, src_offset, dst_origin, region,
+                    num_events, event_list, event);
         }
     }
     else

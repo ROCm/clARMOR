@@ -27,6 +27,9 @@
 // This includes things like setting up OpenCL platforms and devices, plus debug
 // prints and things of that nature.A
 
+#ifndef _GNU_SOURCE
+      #define _GNU_SOURCE
+#endif
 #include <stdlib.h>
 #include <stdio.h>
 #include <getopt.h>
@@ -195,5 +198,15 @@ void output_fake_errors(const char* filename, const unsigned int num_errors);
 // Returns:
 //      Returns the number of bytes for each pixel of this image
 unsigned int get_image_data_size(const cl_image_format * const format);
+
+// On some platforms, our tool is unable to analyze images properly. For
+// those platforms, we purposefully skip any buffer overflow checks on images
+// in order to prevent lockups or crashes.
+// Our 'bad' test should check if they're running in one of those platforms
+// and output the appropriate number of errors to allow tests to pass.
+// Returns:
+//      1 if this is a platform where images are broken. 0 otherwise.
+//      Note that this check will only work when done under our tool.
+int images_are_broken(void);
 
 #endif // __COMMON_TEST_FUNCTIONS_H

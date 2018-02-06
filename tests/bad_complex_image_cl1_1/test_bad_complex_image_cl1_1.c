@@ -251,6 +251,22 @@ int main(int argc, char** argv)
     reduce3dhw = reduce2d * 4;//8;
     depth = 64;
 
+    if (images_are_broken())
+    {
+		FILE *err_f = NULL, *detector_f = NULL;
+		err_f = fopen("Errfile", "w");
+		fprintf(err_f, "EXPECTED_ERRORS=0\n");
+		fclose(err_f);
+
+		detector_f = fopen("buffer_overflow_detector.out", "w");
+		fprintf(detector_f, "Found a total of 0 errors.\n");
+		fclose(detector_f);
+
+		printf("Bugs in the implementation of OpenCL images on this ");
+        printf("platform prevent us from testing them.\n");
+        printf("Skipping Bad complex_image Test.\n");
+        return 0;
+    }
 
     // Check input options.
     check_opts(argc, argv, "image_cl1_1 without Overflow",
@@ -302,26 +318,22 @@ int main(int argc, char** argv)
         program = setup_program(context, 1, &kernel_source6, device);
     cl_kernel test_kernel6 = setup_kernel(program, "test");
 
-    // In this case, we are going to create a cl_mem buffer of the appropriate
-    // size. The kernel will then correctly copy the right amount of data
-    // into that buffer, and then the program will exist.
-    // This will not create a buffer overflow.
+    // In this case, we are going to create an undersized cl_mem buffer.
+    // The kernel will then copy data
+    // into that buffer, and then the program will exit.
+    // This will create a buffer overflow.
     // Run the actual test.
 
     unsigned errors = 0;
     printf("\n\nRunning Bad complex_image_cl1_1 Test...\n");
     printf("    Using buffer size: %llu\n", (long long unsigned)buffer_size);
 
-    //cl_err = clSetKernelArg(test_kernel, 1, sizeof(cl_uint), &buffer_size);
-    //check_cl_error(__FILE__, __LINE__, cl_err);
-
     cl_mem bad_buffer;
     cl_mem_flags flags;
-    flags = CL_MEM_READ_WRITE;
+    flags = CL_MEM_WRITE_ONLY;
 
     cl_image_format format;
     uint32_t i = 0;
-    uint32_t j = 0;
     uint32_t shortWidth = 0;
     uint32_t shortHeight = 0;
     uint32_t shortDepth = 0;
@@ -351,7 +363,7 @@ int main(int argc, char** argv)
                 shortDepth = 0;
                 break;
             case 1:
-                printf("\nSecond Dimension Overflow...\n");
+                printf("\n\nSecond Dimension Overflow...\n");
                 shortWidth = 0;
                 shortHeight = 10;
                 shortDepth = 0;
@@ -374,7 +386,7 @@ int main(int argc, char** argv)
             bad_buffer = clCreateImage2D(context, flags, &format, width - shortWidth, height - shortHeight, 0, NULL, &cl_err);
             if(cl_err == CL_IMAGE_FORMAT_NOT_SUPPORTED || cl_err == CL_INVALID_IMAGE_FORMAT_DESCRIPTOR)
             {
-                //printf("doesn't support format %u:%u", j, i);
+                //printf("doesn't support format %u", i);
                 continue;
             }
             check_cl_error(__FILE__, __LINE__, cl_err);
@@ -394,13 +406,13 @@ int main(int argc, char** argv)
                     continue;
             }
 
-            //size_t origin[] = {0,0,0}, region[] = {20,1,1};
-            //char *thing = "aaaaaaaa";
-            //clEnqueueWriteImage(cmd_queue, bad_buffer, CL_TRUE, origin, region, 0, 0, thing, 0, 0, 0);
-
-            printf("%u:%u dataSize %u\n", i, j, dataSize);
 
             cl_err = clSetKernelArg(test_kernel, 0, sizeof(cl_mem), &bad_buffer);
+            if(cl_err != CL_SUCCESS)
+            {
+                //likely image format error, skip
+                continue;
+            }
             check_cl_error(__FILE__, __LINE__, cl_err);
             cl_err = clSetKernelArg(test_kernel, 1, sizeof(cl_uint), &width);
             check_cl_error(__FILE__, __LINE__, cl_err);
@@ -409,6 +421,10 @@ int main(int argc, char** argv)
 
 
             work_items_to_use = buffer_size / dataSize;//getNumWorkItems(buffer_size);
+
+            printf("%u dataSize %u, bufferSize %lu, image_channel_order:%u, image_channel_data_type:%u\n",
+                i, dataSize, width*height,
+                format.image_channel_order, format.image_channel_data_type);
 
             errors++;
             cl_err = clEnqueueNDRangeKernel(cmd_queue, test_kernel, 1, NULL,
@@ -421,7 +437,7 @@ int main(int argc, char** argv)
     }
 
 
-    printf("\nImage3D Test...\n");
+    printf("\n\nImage3D Test...\n");
     cl_err = clGetSupportedImageFormats(context, flags, CL_MEM_OBJECT_IMAGE3D, 0, NULL, &num_entries);
     check_cl_error(__FILE__, __LINE__, cl_err);
     formats_3d = calloc(num_entries, sizeof(cl_image_format));
@@ -439,13 +455,13 @@ int main(int argc, char** argv)
                 shortDepth = 0;
                 break;
             case 1:
-                printf("\nSecond Dimension Overflow...\n");
+                printf("\n\nSecond Dimension Overflow...\n");
                 shortWidth = 0;
                 shortHeight = 10;
                 shortDepth = 0;
                 break;
             case 2:
-                printf("\nThird Dimension Overflow...\n");
+                printf("\n\nThird Dimension Overflow...\n");
                 shortWidth = 0;
                 shortHeight = 0;
                 shortDepth = 10;
@@ -468,7 +484,7 @@ int main(int argc, char** argv)
             bad_buffer = clCreateImage3D(context, flags, &format, width - shortWidth, height - shortHeight, depth - shortDepth, 0, 0, NULL, &cl_err);
             if(cl_err == CL_IMAGE_FORMAT_NOT_SUPPORTED || cl_err == CL_INVALID_IMAGE_FORMAT_DESCRIPTOR)
             {
-                //printf("doesn't support format %u:%u", j, i);
+                //printf("doesn't support format %u", i);
                 continue;
             }
             check_cl_error(__FILE__, __LINE__, cl_err);
@@ -488,9 +504,12 @@ int main(int argc, char** argv)
                     continue;
             }
 
-            printf("%u:%u dataSize %u\n", i, j, dataSize);
-
             cl_err = clSetKernelArg(test_kernel, 0, sizeof(cl_mem), &bad_buffer);
+            if(cl_err != CL_SUCCESS)
+            {
+                //likely image format error, skip
+                continue;
+            }
             check_cl_error(__FILE__, __LINE__, cl_err);
             cl_err = clSetKernelArg(test_kernel, 1, sizeof(cl_uint), &width);
             check_cl_error(__FILE__, __LINE__, cl_err);
@@ -500,6 +519,10 @@ int main(int argc, char** argv)
             check_cl_error(__FILE__, __LINE__, cl_err);
 
             work_items_to_use = buffer_size / dataSize;//getNumWorkItems(buffer_size);
+
+            printf("%u dataSize %u, bufferSize %lu, image_channel_order:%u, image_channel_data_type:%u\n",
+                i, dataSize, width*height*depth,
+                format.image_channel_order, format.image_channel_data_type);
 
             errors++;
             cl_err = clEnqueueNDRangeKernel(cmd_queue, test_kernel, 1, NULL,

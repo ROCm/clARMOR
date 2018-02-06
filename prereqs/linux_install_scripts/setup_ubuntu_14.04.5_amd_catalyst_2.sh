@@ -23,7 +23,7 @@
 # with the AMD Catalyst drivers.
 
 BASE_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-INSTALLER_DIR=${BASE_DIR}/install_files/
+INSTALLER_DIR=${BASE_DIR}/../install_files/
 
 #Don't run this script again
 #==============================================================================
@@ -50,7 +50,7 @@ sudo aticonfig --initial -f
 
 #Install hacks to make OpenCL and graphics applications work over SSH
 #==============================================================================
-sudo cp $BASE_DIR/support_files/enable-amd-compute.sh /etc/enable-amd-compute.sh
+sudo cp $BASE_DIR/../support_files/enable-amd-compute.sh /etc/enable-amd-compute.sh
 sudo chmod +x /etc/enable-amd-compute.sh
 
 sudo sh -c "echo display-setup-script=/etc/enable-amd-compute.sh >> /etc/lightdm/lightdm.conf"
@@ -70,7 +70,7 @@ sudo sh -c "echo hostname=$HOSTNAME >> /etc/NetworkManager/NetworkManager.conf"
 # Install lubuntu for the graphics APIs that some of the benchmarks needs
 sudo apt-get -y install lubuntu-desktop
 # Other common build things
-sudo apt-get -y install gfortran fort77 mesa-common-dev libboost-dev binutils-dev libboost-dev libcpufreq-dev autoconf automake cmake libtool automake1.11 autotools-dev numactl cpufreqd flex bison libxml2-dev aptitude valgrind dos2unix cppcheck libx11-6:i386 libc6:i386 gcc-multilib g++-multilib libncurses5:i386 libstdc++6:i386 lib32z1 lib32ncurses5 lib32bz2-1.0 lib32stdc++6 libelf-dev libboost-dev libboost-all-dev libswitch-perl qt5-default qttools5-dev-tools libvtk5.8 libboost-thread-dev clang-3.8 clang-3.8-doc libclang-common-3.8-dev libclang-3.8-dev libclang1-3.8 libclang1-3.8-dbg libllvm3.8 llvm-3.8 llvm-3.8-dev llvm-3.8-doc llvm-3.8-examples llvm-3.8-runtime clang-format-3.8 python-clang-3.8 lldb-3.8-dev libstdc++-4.8-dev libdwarf-dev libtinfo-dev libc6-dev-i386 llvm llvm-dev llvm-runtime libc++1 libc++-dev libc++abi1 libc++abi-dev libncurses5-dev
+sudo apt-get -y install gfortran fort77 mesa-common-dev libboost-dev binutils-dev libboost-dev libcpufreq-dev autoconf automake cmake cmake-curses-gui libtool automake1.11 autotools-dev numactl cpufreqd flex bison libxml2-dev aptitude valgrind dos2unix cppcheck libx11-6:i386 libc6:i386 gcc-multilib g++-multilib libncurses5:i386 libstdc++6:i386 lib32z1 lib32ncurses5 lib32bz2-1.0 lib32stdc++6 libelf-dev libboost-dev libboost-all-dev libswitch-perl qt5-default qttools5-dev-tools libvtk5.8 libboost-thread-dev clang-3.8 clang-3.8-doc libclang-common-3.8-dev libclang-3.8-dev libclang1-3.8 libclang1-3.8-dbg libllvm3.8 llvm-3.8 llvm-3.8-dev llvm-3.8-doc llvm-3.8-examples llvm-3.8-runtime clang-format-3.8 python-clang-3.8 lldb-3.8-dev libstdc++-4.8-dev libdwarf-dev libtinfo-dev libc6-dev-i386 llvm llvm-dev llvm-runtime libc++1 libc++-dev libc++abi1 libc++abi-dev libncurses5-dev
 sudo ln -s -f /usr/bin/clang-3.8 /usr/bin/clang
 sudo ln -s -f /usr/bin/clang++-3.8 /usr/bin/clang++
 sudo ln -s -f /usr/share/clang/scan-build-3.8/bin/scan-build /usr/bin/scan-build

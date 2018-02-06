@@ -49,6 +49,19 @@ if [ ! -d ~/benchmarks/SNU_NPB-1.0.3 ]; then
     tar -xvf SNU_NPB-1.0.3.tar.gz
     cd ~/benchmarks/SNU_NPB-1.0.3/NPB3.3-OCL/;
     sed -i.bak 's#C_INC = #C_INC = -I'${OCL_INCLUDE_DIR}' #' ./config/make.def
+
+    # Patch CG to remove a broken OpenCL set of kernels that cause
+    # non-deterministic behavior and random buffer underflows / crashes
+    pushd ~/benchmarks/SNU_NPB-1.0.3/NPB3.3-OCL/CG/
+    patch cg.c ${BASE_DIR}/../support_files/npb_ocl_cg.patch
+    popd
+
+    # In IS, it is possible that if the OpenCL runtime reports a larger maximum
+    # work item size than the largest workgroup can handle, the program will
+    # error out when attempting to enqueue a kernel. This patch prevents such
+    # a case from occurring.
+    sed -i '759i  { int i; for (i = 0; i < 3; i++) { if (work_item_sizes[i] > max_work_group_size) work_item_sizes[i] = max_work_group_size; } }'  ~/benchmarks/SNU_NPB-1.0.3/NPB3.3-OCL/IS/is.c
+
     for bench in BT CG EP FT IS LU MG SP
     do
         if [ $bench == "LU" ]; then
@@ -66,7 +79,7 @@ if [ ! -d ~/benchmarks/SNU_NPB-1.0.3 ]; then
         # race between creating a sysconfig file and building the actual
         # benchmarks. It's easier to just not do a parallel build than to
         # fix this in each makefile.
-        make $bench CLASS=$class
+        LIBRARY_PATH=${OCL_LIB_DIR} make $bench CLASS=$class
         if [ $? -ne 0 ]; then
             echo -e "Failed to build $bench class $class"
             exit -1

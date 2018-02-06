@@ -34,7 +34,7 @@ MAKE_CMD="make CFLAGS=-DLARGE_DATASET"
 #Set the following lines to use double precision instead of floats
 USE_DOUBLE=1
 
-if [ ! -f ~/benchmarks/PolyBench-ACC/detector_done_building ]; then
+if [ ! -f ~/benchmarks/PolyBench-ACC/done_building ]; then
     source ${BASE_DIR}/setup_bench_install.sh
     if [ ! -d ~/benchmarks/PolyBench-ACC/ ]; then
         echo -e "\n\nAbout to log into GitHub to get PolyBench-ACC"
@@ -136,7 +136,7 @@ if [ ! -f ~/benchmarks/PolyBench-ACC/detector_done_building ]; then
         fi
         cd ~/benchmarks/PolyBench-ACC/OpenCL/
     done
-    touch ~/benchmarks/PolyBench-ACC/detector_done_building
+    touch ~/benchmarks/PolyBench-ACC/done_building
 else
-    echo -e "~/benchmarks/PolyBench-ACC/detector_done_building exists. Not rebuilding PolyBench."
+    echo -e "~/benchmarks/PolyBench-ACC/done_building exists. Not rebuilding PolyBench."
 fi

@@ -359,7 +359,10 @@ void overflowError(const kernel_info * const kernInfo,
         {
             print_and_log_err("Kernel: %s, Buffer: %s\n", kernelName, bufferName);
 
-            int overflow_pos = bad_byte - POISON_FILL_LENGTH;
+            int overflow_pos = bad_byte;
+#ifdef UNDERFLOW_CHECK
+            overflow_pos -= POISON_FILL_LENGTH;
+#endif
             if(overflow_pos >= 0)
                 print_and_log_err("   Write Overflow %u byte(s) past end.\n", overflow_pos+1);
             else
@@ -375,7 +378,10 @@ void overflowError(const kernel_info * const kernInfo,
         // Can't get buffer name for SVM pointer.
         print_and_log_err("Kernel: %s, SVM pointer: %p\n", kernelName, buffer);
 
-        int overflow_pos = bad_byte - POISON_FILL_LENGTH;
+        int overflow_pos = bad_byte;
+#ifdef UNDERFLOW_CHECK
+        overflow_pos -= POISON_FILL_LENGTH;
+#endif
         if(overflow_pos >= 0)
             print_and_log_err("   Write Overflow %u byte(s) past end.\n", overflow_pos+1);
         else

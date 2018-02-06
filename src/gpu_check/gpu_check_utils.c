@@ -168,7 +168,6 @@ static void report_kernel_overflows(uint32_t num_buffs, int *first_change,
 {
     uint32_t i;
     uint8_t found_an_overflow = 0;
-    pthread_t parentThread = data->parent;
     uint32_t *dupe = data->dupe;
 
     for(i = 0; i < num_buffs; i++)
@@ -182,6 +181,7 @@ static void report_kernel_overflows(uint32_t num_buffs, int *first_change,
 
     if(found_an_overflow)
     {
+        pthread_t parentThread = data->parent;
         printDupeWarning(kern_info->handle, dupe);
         optionalKillOnOverflow(get_exitcode_envvar(), parentThread);
     }
@@ -240,7 +240,7 @@ cl_mem create_result_buffer(cl_context kern_ctx,
     cl_mem result;
     // Create buffer to hold the results of the buffer overflow checks.
     // Fill it with INT_MAX to initialize it.
-    result = clCreateBuffer(kern_ctx, 0, sizeof(int)*num_buffers, 0, &cl_err);
+    result = clCreateBuffer(kern_ctx, CL_MEM_READ_WRITE, sizeof(int)*num_buffers, 0, &cl_err);
     check_cl_error(__FILE__, __LINE__, cl_err);
 #ifdef CL_VERSION_1_2
     int fill = INT_MAX;
@@ -249,7 +249,7 @@ cl_mem create_result_buffer(cl_context kern_ctx,
     check_cl_error(__FILE__, __LINE__, cl_err);
 #else
     int * fill_buf = malloc(sizeof(int)*num_buffers);
-    for (uint32_t i = 0; i < num_buffers && i < UINT_MAX; i++)
+    for (uint32_t i = 0; i < num_buffers; i++)
         fill_buf[i] = INT_MAX;
     // Must do a blocking write here so that we can appropriately free fill_buf
     // This will be slower, but this is only slow on old OpenCL 1.1 systems.
@@ -265,13 +265,15 @@ int * get_change_buffer(cl_command_queue cmd_queue, uint32_t num_buff,
         cl_mem result, uint32_t num_in_evts, cl_event *check_events,
         cl_event *readback_evt)
 {
+    cl_int cl_err;
 #ifdef KERN_CALLBACK
     cl_bool block = CL_FALSE;
 #else
     cl_bool block = CL_TRUE;
 #endif
+
     int *first_change = malloc(sizeof(int) * num_buff);
-    cl_int cl_err = clEnqueueReadBuffer(cmd_queue, result, block, 0,
+    cl_err = clEnqueueReadBuffer(cmd_queue, result, block, 0,
             sizeof(int)*num_buff, first_change, num_in_evts, check_events,
             readback_evt);
     check_cl_error(__FILE__, __LINE__, cl_err);
@@ -308,7 +310,8 @@ void analyze_check_results(cl_command_queue cmd_queue, cl_event readback_evt,
 
     if(get_print_backtrace_envvar())
     {
-        //clEnqueueNDRangeKernel->kernelLaunchFunc->verifyBufferInBounds->verify_on_gpu_copy_canary->verify_cl_buffer_copy->analyze_check_results
+        //clEnqueueNDRangeKernel->kernelLaunchFunc->verifyBufferInBounds
+        //->verify_on_gpu_copy_canary->verify_cl_buffer_copy->analyze_check_results
         data->backtrace_str = get_backtrace_level(5);
     }
 
@@ -324,9 +327,24 @@ void analyze_check_results(cl_command_queue cmd_queue, cl_event readback_evt,
 
     // The checker kernel will run after we are finished reading back the
     // results of the check kernel.
-    cl_err = clSetEventCallback(readback_evt, CL_COMPLETE, verify_callback,
-            data);
+    cl_context kern_ctx;
+    cl_err = clGetCommandQueueInfo(cmd_queue, CL_QUEUE_CONTEXT,
+                sizeof(cl_context), &kern_ctx, NULL);
     check_cl_error(__FILE__, __LINE__, cl_err);
+    if(!is_nvidia_platform(kern_ctx))
+    {
+        cl_err = clSetEventCallback(readback_evt, CL_COMPLETE,
+            verify_callback, data);
+        check_cl_error(__FILE__, __LINE__, cl_err);
+    }
+    else
+    {
+        cl_err = clWaitForEvents(1, &readback_evt);
+        check_cl_error(__FILE__, __LINE__, cl_err);
+        verify_callback(0, 0, data);
+    }
+
+
 #else //KERN_CALLBACK
     (void)cmd_queue;
     verif_info data;
@@ -385,15 +403,12 @@ void output_kern_runtime(void)
 {
     if(get_tool_perf_envvar() & STATS_CHECKER_TIME)
     {
-        static FILE *debug_out = NULL;
+        FILE *perf_out_f = NULL;
 
-        if(debug_out)
-            debug_out = fopen("debug_check_time.csv", "a");
-        else
-            debug_out = fopen("debug_check_time.csv", "w");
+        perf_out_f = fopen(global_tool_stats_outfile, "a");
 
-        fprintf(debug_out, "%lu\n", check_kern_runtime_us);
-        fclose(debug_out);
+        fprintf(perf_out_f, "%lu\n", check_kern_runtime_us);
+        fclose(perf_out_f);
     }
 }
 

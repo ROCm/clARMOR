@@ -555,3 +555,63 @@ unsigned int get_image_data_size(const cl_image_format * const format)
 
     return byteChannel * numChannels;
 }
+
+// Get the Unix environment variable that matches the env_var_nm_ input param.
+// This is then stored into a newly malloced C-string that will be returned
+// in the env_ parameter.
+// padding to the memory allocation.
+// Return value: 0 on success. Anything else is an error.
+static int get_env_util( char **env_, const char *env_var_nm_ )
+{
+    char  *env_root;
+    size_t var_len;
+    if (env_ == NULL)
+    {
+        fprintf(stderr, "%s (%d) error: trying ", __func__, __LINE__);
+        fprintf(stderr, "to store environment variable in NULL location.\n");
+        return -1;
+    }
+    if (env_var_nm_ == NULL)
+    {
+        fprintf(stderr, "%s (%d) error: ", __func__, __LINE__);
+        fprintf(stderr, "trying to find environment variable, ");
+        fprintf(stderr, "but variable is NULL.\n");
+        return -1;
+    }
+    env_root = getenv(env_var_nm_);
+    var_len = (env_root != NULL) ? strlen(env_root) : 0;
+    if ( var_len == 0 )
+        return 0;
+    int num_bytes = asprintf(env_, "%s", env_root);
+	if (num_bytes <= 0)
+	{
+		fprintf(stderr, "asprintf in %s:%d failed\n", __FILE__, __LINE__);
+		exit(-1);
+	}
+    if (*env_ == NULL)
+    {
+        fprintf(stderr, "%s (%d) error: asprintf failed\n", __func__, __LINE__);
+        return -1;
+    }
+    return 0;
+}
+
+int images_are_broken(void)
+{
+    char * broken_images_envvar = NULL;
+    if (getenv("CLARMOR_ROCM_HAWAII") == NULL)
+        return 0;
+    else
+    {
+        unsigned int ret_val = 0;
+        if (!get_env_util(&broken_images_envvar, "CLARMOR_ROCM_HAWAII"))
+        {
+            if (broken_images_envvar != NULL)
+            {
+                ret_val = strtoul(broken_images_envvar, NULL, 0);
+                free(broken_images_envvar);
+            }
+        }
+        return ret_val;
+    }
+}

@@ -50,7 +50,7 @@ then
     cd build
     sed -i.bak s'/-Werror//g' ../Makefile.in
     ../configure --with-opencl-sdk=${OCL_DIR} --with-apps=bwa_hmm,crc,csr,gem,nqueens,swat,tdm
-    sed -i.bak s'/LIBS = -lOpenCL/LIBS = -lm -lOpenCL/' ./Makefile
+    sed -i.bak s'#LIBS = -lOpenCL#LIBS = -lm -L'${OCL_LIB_DIR}' -lOpenCL#' ./Makefile
     sed -i.bak s'/CFLAGS =/CFLAGS = -g -O3/' ./Makefile
     make -j `nproc`
     if [ $? -ne 0 ]; then
@@ -61,5 +61,5 @@ then
     ./createcrc -n 256 -s 131072 -f ./crcfile_N256_S128K
     ./createcsr -n 131072 -d 1000 -s 0.01 -f ./csr_n131072_d1000_s01
 else
-    echo -e "~/benchmarks/OpenDwarfs/build exists. Not rebuilding OpenDwarfds"
+    echo -e "~/benchmarks/OpenDwarfs/build exists. Not rebuilding OpenDwarfs"
 fi

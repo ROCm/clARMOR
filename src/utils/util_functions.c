@@ -34,10 +34,12 @@
 #include <execinfo.h>
 #include <sys/file.h>
 #include <CL/cl.h>
+#include "cl_err.h"
 
 #include "util_functions.h"
 
 uint32_t global_tool_stats_flags = 0;
+char * global_tool_stats_outfile = NULL;
 
 // Get the Unix environment variable that matches the env_var_nm_ input param.
 // This is then stored into a newly malloced C-string that will be returned
@@ -195,6 +197,32 @@ int get_tool_perf_envvar(void)
     }
 }
 
+char* get_tool_perf_outfile_envvar(void)
+{
+    char * perf_envvar = NULL;
+    if (getenv(__CLARMOR_PERFSTAT_OUTFILE__) == NULL)
+    {
+        return 0;
+    }
+    else
+    {
+        char *ret_val;
+        if (!get_env_util(&perf_envvar, __CLARMOR_PERFSTAT_OUTFILE__))
+        {
+            if (perf_envvar != NULL)
+            {
+                ret_val = perf_envvar;
+            }
+            else
+                ret_val = NULL;
+        }
+        else
+            ret_val = NULL;
+
+        return ret_val;
+    }
+}
+
 const char *get_logging_envvar(void)
 {
     char * logging_envvar = NULL;
@@ -241,7 +269,6 @@ unsigned int get_check_on_device_envvar(void)
         }
         return ret_val;
     }
-
 }
 
 int get_print_backtrace_envvar(void)
@@ -418,6 +445,73 @@ void print_backtrace( FILE* where_to )
     free(strings);
 }
 
+
+int is_nvidia_platform(cl_context context)
+{
+    cl_int cl_err;
+    size_t size_dev, size_platform;
+    cl_device_id *device = NULL;
+    cl_platform_id *platform = NULL;
+    size_t platform_name_len = 0;
+    char *platform_name;
+
+    cl_err = clGetContextInfo(context, CL_CONTEXT_DEVICES,
+        0, NULL, &size_dev);
+    check_cl_error(__FILE__, __LINE__, cl_err);
+    device = malloc(size_dev);
+
+    cl_err = clGetContextInfo(context, CL_CONTEXT_DEVICES,
+        size_dev, device, NULL);
+    check_cl_error(__FILE__, __LINE__, cl_err);
+
+    cl_err = clGetDeviceInfo(device[0], CL_DEVICE_PLATFORM,
+        0, NULL, &size_platform);
+    check_cl_error(__FILE__, __LINE__, cl_err);
+    platform = malloc(size_platform);
+
+    cl_err = clGetDeviceInfo(device[0], CL_DEVICE_PLATFORM,
+        size_platform, platform, NULL);
+    check_cl_error(__FILE__, __LINE__, cl_err);
+
+    cl_err = clGetPlatformInfo(platform[0], CL_PLATFORM_NAME, 0, NULL,
+            &platform_name_len);
+    check_cl_error(__FILE__, __LINE__, cl_err);
+
+    platform_name = calloc(platform_name_len, sizeof(char));
+
+    cl_err = clGetPlatformInfo(platform[0], CL_PLATFORM_NAME,
+        platform_name_len, platform_name, NULL);
+    check_cl_error(__FILE__, __LINE__, cl_err);
+
+    char *found;
+    found = strstr(platform_name, "NVIDIA");
+    int ret = (found) ? 1 : 0;
+    free(platform_name);
+    free(device);
+    free(platform);
+
+    return ret;
+}
+
+int opencl_broken_images(void)
+{
+    char * broken_images_envvar = NULL;
+    if (getenv(__CLARMOR_ROCM_HAWAII__) == NULL)
+        return 0;
+    else
+    {
+        unsigned int ret_val = 0;
+        if (!get_env_util(&broken_images_envvar, __CLARMOR_ROCM_HAWAII__))
+        {
+            if (broken_images_envvar != NULL)
+            {
+                ret_val = strtoul(broken_images_envvar, NULL, 0);
+                free(broken_images_envvar);
+            }
+        }
+        return ret_val;
+    }
+}
 
 uint64_t timeval_diff_us(struct timeval *stop, struct timeval *start)
 {

@@ -37,7 +37,7 @@ static cl_mem create_clmem_copies(cl_context kern_ctx,
 {
     cl_int cl_err;
     cl_mem clmem_canary_copies = clCreateBuffer(kern_ctx, 0,
-            POISON_FILL_LENGTH*(2*num_cl_mem), 0, &cl_err);
+            POISON_FILL_LENGTH*POISON_REGIONS*num_cl_mem, 0, &cl_err);
     check_cl_error(__FILE__, __LINE__, cl_err);
     for(uint32_t i = 0; i < num_cl_mem; i++)
     {
@@ -49,16 +49,23 @@ static cl_mem create_clmem_copies(cl_context kern_ctx,
             exit(-1);
         }
 
+        uint32_t index = i * POISON_REGIONS;
+        uint32_t offset = m1->size;
+#ifdef UNDERFLOW_CHECK
         cl_buffer_copy(cmd_queue, m1->main_buff, clmem_canary_copies,
-                0, 2*i*POISON_FILL_LENGTH,
-                POISON_FILL_LENGTH, 1, evt, &events[2*i]);
+                0, index*POISON_FILL_LENGTH,
+                POISON_FILL_LENGTH, 1, evt, &events[index]);
+
+        index++;
+        offset += POISON_FILL_LENGTH;
+#endif
 
         cl_buffer_copy(cmd_queue, m1->main_buff, clmem_canary_copies,
-                m1->size + POISON_FILL_LENGTH, (2*i + 1)*POISON_FILL_LENGTH,
-                POISON_FILL_LENGTH, 1, evt, &events[(2*i + 1)]);
+                offset, index*POISON_FILL_LENGTH,
+                POISON_FILL_LENGTH, 1, evt, &events[index]);
 
         cl_event copy_finish;
-        clEnqueueMarkerWithWaitList(cmd_queue, 2, &events[2*i], &copy_finish);
+        clEnqueueMarkerWithWaitList(cmd_queue, POISON_REGIONS, &events[POISON_REGIONS*i], &copy_finish);
 
         mend_this_canary(kern_ctx, cmd_queue, m1->handle, copy_finish,
                 &mend_events[i]);
@@ -74,7 +81,7 @@ static void *create_svm_copies(cl_context kern_ctx, cl_command_queue cmd_queue,
 #ifdef CL_VERSION_2_0
     cl_svm_memobj *m1;
     svm_canary_copies = clSVMAlloc(kern_ctx, CL_MEM_READ_WRITE,
-            POISON_FILL_LENGTH*2*num_svm, 0);
+            POISON_REGIONS*POISON_FILL_LENGTH*num_svm, 0);
     if (svm_canary_copies == NULL)
     {
         det_fprintf(stderr, "Failed to SVMAlloc at %s:%d\n", __FILE__,
@@ -101,25 +108,32 @@ static void *create_svm_copies(cl_context kern_ctx, cl_command_queue cmd_queue,
         }
 
         char *base_ptr = (char*)m1->main_buff;
+        uint32_t offset = m1->size;
+        uint32_t index = i * POISON_REGIONS;
         char *canary_ptr = base_ptr;
-        char *canary_ptr2 = base_ptr + (m1->size + POISON_FILL_LENGTH);
-        char *map_ptr = ((char*)svm_canary_copies)+((2*i)*POISON_FILL_LENGTH);
-        char *map_ptr2 = ((char*)svm_canary_copies)+((2*i + 1)*POISON_FILL_LENGTH);
+        char *map_ptr = ((char*)svm_canary_copies)+(index*POISON_FILL_LENGTH);
 
         cl_int cl_err;
+#ifdef UNDERFLOW_CHECK
         cl_err = clEnqueueSVMMemcpy(cmd_queue, CL_NON_BLOCKING, map_ptr,
-                canary_ptr, POISON_FILL_LENGTH, 1, evt, &events[2*i]);
+                canary_ptr, POISON_FILL_LENGTH, 1, evt, &events[index]);
         check_cl_error(__FILE__, __LINE__, cl_err);
 
-        cl_err = clEnqueueSVMMemcpy(cmd_queue, CL_NON_BLOCKING, map_ptr2,
-                canary_ptr2, POISON_FILL_LENGTH, 1, evt, &events[2*i + 1]);
+        offset += POISON_FILL_LENGTH;
+        index += 1;
+#endif
+
+        canary_ptr = base_ptr + offset;
+        map_ptr = ((char*)svm_canary_copies)+(index*POISON_FILL_LENGTH);
+
+        cl_err = clEnqueueSVMMemcpy(cmd_queue, CL_NON_BLOCKING, map_ptr,
+                canary_ptr, POISON_FILL_LENGTH, 1, evt, &events[index]);
         check_cl_error(__FILE__, __LINE__, cl_err);
 
         cl_event copy_finish;
-        clEnqueueMarkerWithWaitList(cmd_queue, 2, &events[2*i], &copy_finish);
+        clEnqueueMarkerWithWaitList(cmd_queue, POISON_REGIONS, &events[POISON_REGIONS*i], &copy_finish);
 
-        mend_this_canary(kern_ctx, cmd_queue, m1->handle, copy_finish,
-                &mend_events[i]);
+        mend_this_canary(kern_ctx, cmd_queue, m1->handle, copy_finish, &mend_events[i]);
     }
 #else
     (void)kern_ctx;
@@ -150,8 +164,8 @@ static void ** create_svm_ptr_copies(cl_context kern_ctx,
     if (ret_clmem == NULL)
         return NULL;
 
-    ret_poison_ptrs = calloc(sizeof(void*), 2*num_svm);
-    cl_mem temp_ptr = clCreateBuffer(kern_ctx, 0, sizeof(void*) * 2*num_svm, 0,
+    ret_poison_ptrs = calloc(sizeof(void*), POISON_REGIONS*num_svm);
+    cl_mem temp_ptr = clCreateBuffer(kern_ctx, 0, sizeof(void*) * POISON_REGIONS*num_svm, 0,
             &cl_err);
     *ret_clmem = (void*)temp_ptr;
     check_cl_error(__FILE__, __LINE__, cl_err);
@@ -167,22 +181,28 @@ static void ** create_svm_ptr_copies(cl_context kern_ctx,
         }
 
         char *ptr_base = (char *)m1->main_buff;
-        ret_poison_ptrs[2*i] = ptr_base;
-        ret_poison_ptrs[2*i + 1] = ptr_base + (m1->size + POISON_FILL_LENGTH);
+        uint32_t index = i * POISON_REGIONS;
+        uint32_t offset = m1->size;
+#ifdef UNDERFLOW_CHECK
+        ret_poison_ptrs[index] = ptr_base;
+        index++;
+        offset += POISON_FILL_LENGTH;
+#endif
+        ret_poison_ptrs[index] = ptr_base + offset;
     }
     cl_err = clEnqueueWriteBuffer(cmd_queue, *ret_clmem, CL_NON_BLOCKING,
-            0, sizeof(void*) * 2*num_svm, ret_poison_ptrs, 1, evt,
+            0, sizeof(void*) * POISON_REGIONS*num_svm, ret_poison_ptrs, 1, evt,
             &events[0]);
     check_cl_error(__FILE__, __LINE__, cl_err);
     // We only need one event from this one.
-    for (uint32_t i = 1; i < 2*num_svm; i++)
+    for (uint32_t i = 1; i < POISON_REGIONS*num_svm; i++)
         events[i] = create_complete_user_event(kern_ctx);
 #else
     (void)cmd_queue;
     (void)buffer_ptrs;
     (void)ret_clmem;
     (void)evt;
-    for (uint32_t i = 0; i < 2*num_svm; i++)
+    for (uint32_t i = 0; i < POISON_REGIONS*num_svm; i++)
         events[i] = create_complete_user_event(kern_ctx);
 #endif
     return ret_poison_ptrs;
@@ -194,13 +214,14 @@ static cl_event perform_cl_buffer_checks(cl_context kern_ctx,
         void *svm_canary_copies, int copy_svm_ptrs, cl_event *init_evts,
         cl_event *mend_events, cl_mem result)
 {
-    size_t global_work[3] = {2*poisonWordLen, 1, 1};
+    size_t global_work[3] = {POISON_REGIONS*poisonWordLen, 1, 1};
     size_t local_work[3] = {256, 1, 1};
-    global_work[0] *= 2*total_buffs;
+    size_t max_work_items[3] = {1, 1, 1};
+    global_work[0] *= POISON_REGIONS*total_buffs;
 
-    uint32_t buff_end = num_cl_mem * 2*poisonWordLen;
-    uint32_t svm_end = buff_end + num_svm * 2*poisonWordLen;
-    unsigned head_tail_len_in_words = 2*poisonWordLen;
+    uint32_t buff_end = num_cl_mem * POISON_REGIONS*poisonWordLen;
+    uint32_t svm_end = buff_end + num_svm * POISON_REGIONS*poisonWordLen;
+    unsigned len_in_words = POISON_REGIONS*poisonWordLen;
 
     cl_kernel check_kern;
 #ifdef CL_VERSION_2_0
@@ -226,15 +247,21 @@ static cl_event perform_cl_buffer_checks(cl_context kern_ctx,
         check_kern = get_canary_check_kernel_no_svm(kern_ctx);
         cl_set_arg_and_check(check_kern, 5, sizeof(void*), (void*) &result);
     }
-    cl_set_arg_and_check(check_kern, 0, sizeof(unsigned), &head_tail_len_in_words);
+    cl_set_arg_and_check(check_kern, 0, sizeof(unsigned), &len_in_words);
     cl_set_arg_and_check(check_kern, 1, sizeof(unsigned), &buff_end);
     cl_set_arg_and_check(check_kern, 2, sizeof(unsigned), &svm_end);
     cl_set_arg_and_check(check_kern, 3, sizeof(unsigned), &poisonFill_32b);
     cl_set_arg_and_check(check_kern, 4, sizeof(cl_mem), &clmem_canary_copies);
 
+    cl_device_id dev_id;
+    clGetContextInfo(kern_ctx, CL_CONTEXT_DEVICES, sizeof(cl_device_id), &dev_id, NULL);
+    clGetKernelWorkGroupInfo(check_kern, dev_id, CL_KERNEL_WORK_GROUP_SIZE, sizeof(size_t), max_work_items, NULL);
+
+    local_work[0] = max_work_items[0];
+
     cl_event kern_end;
     launchOclKernelStruct ocl_args = setup_ocl_args(cmd_queue, check_kern,
-            1, NULL, global_work, local_work, 2*total_buffs + 1, init_evts,
+            1, NULL, global_work, local_work, POISON_REGIONS*total_buffs + 1, init_evts,
             &kern_end);
     cl_int cl_err = runNDRangeKernel( &ocl_args );
     check_cl_error(__FILE__, __LINE__, cl_err);
@@ -291,7 +318,7 @@ void verify_cl_buffer_copy(cl_context kern_ctx, cl_command_queue cmd_queue,
     void *svm_canary_copies = NULL;
     void **poison_pointers = NULL;
 
-    cl_event *events = calloc(sizeof(cl_event), (2*total_buffs+1));
+    cl_event *events = calloc(sizeof(cl_event), (POISON_REGIONS*total_buffs+1));
     cl_event *mend_events = calloc(sizeof(cl_event), (total_buffs));
 
     if (num_cl_mem > 0)
@@ -305,23 +332,25 @@ void verify_cl_buffer_copy(cl_context kern_ctx, cl_command_queue cmd_queue,
         check_cl_error(__FILE__, __LINE__, cl_err);
     }
 
+    uint32_t first_svm_evt_index = POISON_REGIONS*num_cl_mem;
     if (num_svm > 0 && copy_svm_ptrs)
     {
         poison_pointers = create_svm_ptr_copies(kern_ctx, cmd_queue,
                 num_svm, &(buffer_ptrs[num_cl_mem]), &svm_canary_copies,
-                evt, &(events[2*num_cl_mem]));
+                evt, &(events[first_svm_evt_index]));
         for (uint32_t i = num_cl_mem; i < total_buffs; i++)
             mend_events[i] = create_complete_user_event(kern_ctx);
     }
     else if (num_svm > 0)
     {
         svm_canary_copies = create_svm_copies(kern_ctx, cmd_queue, num_svm,
-                &(buffer_ptrs[num_cl_mem]), evt, &(events[2*num_cl_mem]),
+                &(buffer_ptrs[num_cl_mem]), evt, &(events[first_svm_evt_index]),
                 &(mend_events[num_cl_mem]));
     }
 
+    uint32_t finish_evt_index = POISON_REGIONS*total_buffs;
     cl_mem result = create_result_buffer(kern_ctx, cmd_queue, total_buffs,
-            &events[2*total_buffs]);
+            &events[finish_evt_index]);
 
     cl_event kern_end = perform_cl_buffer_checks(kern_ctx, cmd_queue,
             num_cl_mem, num_svm, total_buffs, clmem_canary_copies,
@@ -329,11 +358,14 @@ void verify_cl_buffer_copy(cl_context kern_ctx, cl_command_queue cmd_queue,
 
     for (uint32_t i = 0; i < total_buffs; i++)
     {
-        clReleaseEvent(events[2*i]);
-        clReleaseEvent(events[2*i+1]);
+        uint32_t evt_index = POISON_REGIONS*i;
+        clReleaseEvent(events[evt_index]);
+#ifdef UNDERFLOW_CHECK
+        clReleaseEvent(events[evt_index+1]);
+#endif
         clReleaseEvent(mend_events[i]);
     }
-    clReleaseEvent(events[2*total_buffs]);
+    clReleaseEvent(events[finish_evt_index]);
     free(events);
     free(mend_events);
 
@@ -348,6 +380,8 @@ void verify_cl_buffer_copy(cl_context kern_ctx, cl_command_queue cmd_queue,
             buffer_ptrs, svm_canary_copies, copy_svm_ptrs, poison_pointers,
             first_change, dupe);
 
+    clReleaseEvent(kern_end);
     clReleaseMemObject(result);
     clReleaseMemObject(clmem_canary_copies);
 }
+

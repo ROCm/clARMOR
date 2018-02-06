@@ -46,12 +46,12 @@ int main(int argc, char** argv)
 
     // Run the actual test.
     printf("\n\nRunning Bad cl_mem API Test...\n");
-    printf("    Using buffer size: %llu\n", (long long unsigned)buffer_size);
+    printf("    Using buffer size: %llu\n", (long long unsigned)(buffer_size-10));
 
     // In this case, we are going to create a cl_mem buffer of the appropriate size.
     // This will not create a buffer overflow.
     cl_mem bad_buffer = clCreateBuffer(context, CL_MEM_READ_WRITE,
-        buffer_size-10,  NULL, &cl_err);
+        (buffer_size-10),  NULL, &cl_err);
     check_cl_error(__FILE__, __LINE__, cl_err);
     cl_mem good_buffer2 = clCreateBuffer(context, CL_MEM_READ_WRITE,
         buffer_size,  NULL, &cl_err);
@@ -75,7 +75,7 @@ int main(int argc, char** argv)
             work_items_to_use, (long long unsigned)num_entries_in_buf);
     printf("This will write %llu out of %llu bytes in the buffer.\n",
             (long long unsigned)bytes_written,
-            (long long unsigned)buffer_size);
+            (long long unsigned)(buffer_size-10));
 
     char *host_ptr;
     host_ptr = calloc(1, buffer_size);

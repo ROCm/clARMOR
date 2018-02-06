@@ -1,4 +1,4 @@
-# Copyright (c) 2016 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright (c) 2016-2017 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -55,11 +55,13 @@ OpenCL 2.0:
     SDK v3.0 and fglrx 15.30.3 drivers.
 
 OpenCL 1.2:
- 1) AMD Radeon HD 7950 GPU running on 64-bit CentOS 6.4 with the AMD APP SDK
+ 1) AMD Radeon RX 580 running 64-but Ubuntu 16.04.3 with the ROCm 1.6.1
+    software stack.
+ 2) AMD Radeon HD 7950 GPU running on 64-bit CentOS 6.4 with the AMD APP SDK
     v2.8 and fglrx 13.20.6 drivers. This requires installing GCC 4.7.
- 2) AMD A10-7850K CPU running on 64-bit Ubuntu 14.04.4 with the AMD APP SDK
+ 3) AMD A10-7850K CPU running on 64-bit Ubuntu 14.04.4 with the AMD APP SDK
     v3.0 OpenCL runtime.
- 3) Nvidia TITAN X (Pascal) GPU running on 64-bit Ubuntu 14.04.5 with the
+ 4) Nvidia TITAN X (Pascal) GPU running on 64-bit Ubuntu 14.04.5 with the
     CUDA SDK v8 and Nvidia drivers v367.48.
 
 OpenCL 1.1:
@@ -133,11 +135,11 @@ Executing this tool with the '-h' or '--help' will explain its arguments.
 The '-v' or '--version' will describe describe the clARMOR version number.
 
 The simplest description of how to use the buffer overflow detector is to run:
-    bin/clarmor -w {working directory} -r "{command line}"
+    bin/clarmor -w {working directory} -- {command line}
 
 For example, the following will run the FFT benchmark in the AMD APP SDK
 through the buffer overflow detector:
-    ./bin/clarmor -w /opt/AMDAPP/samples/opencl/bin/x86_64 -r FFT
+    ./bin/clarmor -w /opt/AMDAPP/samples/opencl/bin/x86_64 -- FFT
 
 
 In the above example command line, the following two parameters were used:
@@ -148,15 +150,19 @@ In the above example command line, the following two parameters were used:
         The run script will temporarily change directories to this working dir,
         and will also temporarily add it to the PATH variable.
 
-    --run (or -r):
-        This parameter is the command line used to run the application you wish
-        to test. This includes any parameters that you wish to pass into the
-        benchmark you wish to test. Because the working directory is part of
-        the PATH, this can simply be the name of the binary you wish to run.
-        Alternately, it can contain the entire path to the program that you
-        want to run.
-        This parameter can be put into quotation marks ("") to allow for spaces
-        in the application-under-test's command line.
+    Command line:
+        The final parameter (which can most easily be put after two hyphens,
+        "--") is the command line used to run the application you wish to test
+        This includes any parameters that you wish to pass into the benchmark
+        you wish to test. Because the working directory is part of the PATH,
+        this can simply be the name of the binary you wish to run. Alternately,
+        it can contain the entire path to the program that you want to run.
+        You do not necessarily need to put the command line after the hyphens
+        if it is simple enough. However, if the command line you wish to run
+        itself contains double-hyphens, then you should either enclose the
+        command line in double-quotes (i.e., ./bin/clarmor "cmd_line --options")
+        or ensure that the command line is placed after clARMOR's double
+        hyphens (i.e., ./bin/clarmor -- cmd_line --options).
 
 Other important functions that can be controlled when using the runscript:
     --exit_on_overflow (or -e):

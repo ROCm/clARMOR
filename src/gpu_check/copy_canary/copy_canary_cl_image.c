@@ -84,6 +84,14 @@ static cl_event perform_cl_image_checks(cl_context kern_ctx,
 {
     cl_int cl_err;
     size_t global_work[3] = {total_canary_len, 1, 1};
+    size_t local_work[3] = {256, 1, 1};
+    size_t max_work_items[3] = {1, 1, 1};
+
+    cl_device_id dev_id;
+    clGetContextInfo(kern_ctx, CL_CONTEXT_DEVICES, sizeof(cl_device_id), &dev_id, NULL);
+    clGetKernelWorkGroupInfo(check_kern, dev_id, CL_KERNEL_WORK_GROUP_SIZE, sizeof(size_t), max_work_items, NULL);
+
+    local_work[0] = max_work_items[0];
 
     // Create a buffer that holds the endpoint of each buffer, so that the
     // device kernel can see it.
@@ -100,8 +108,17 @@ static cl_event perform_cl_image_checks(cl_context kern_ctx,
 
     // Launch the kernel that checks the copies of the canary values.
     cl_event kern_end;
-    launchOclKernelStruct ocl_args = setup_ocl_args(cmd_queue, check_kern,
-        1, NULL, global_work, NULL, num_init_evts, init_evts, &kern_end);
+    launchOclKernelStruct ocl_args;
+    if (global_work[0] % local_work[0] == 0)
+    {
+        ocl_args = setup_ocl_args(cmd_queue, check_kern,
+            1, NULL, global_work, local_work, num_init_evts, init_evts, &kern_end);
+    }
+    else
+    {
+        ocl_args = setup_ocl_args(cmd_queue, check_kern,
+            1, NULL, global_work, NULL, num_init_evts, init_evts, &kern_end);
+    }
     cl_err = runNDRangeKernel( &ocl_args );
     check_cl_error(__FILE__, __LINE__, cl_err);
 

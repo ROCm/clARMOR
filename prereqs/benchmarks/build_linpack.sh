@@ -33,22 +33,22 @@
 # ACML is available under the AMD ACML License Agreement.
 
 BASE_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+source ${BASE_DIR}/setup_bench_install.sh
 
-if [ ! -f ~/benchmarks/LINPACK/hpl-gpu/bin/Generic/xhpl ]; then
-    source ${BASE_DIR}/setup_bench_install.sh
+if [ $AMD_OCL -eq 1 ] && [ $AMD_HAWAII_GPU -eq 1 ] && [ ! -f ~/benchmarks/LINPACK/hpl-gpu/bin/Generic/xhpl ]; then
     if [ ! -d ~/benchmarks/LINPACK/ ]; then
         mkdir -p ~/benchmarks/LINPACK/
     fi
     cd ~/benchmarks/LINPACK/
-    cp $BASE_DIR/public_files/libgomp.patch ~/benchmarks/LINPACK/
+    cp $BASE_DIR/../support_files/libgomp.patch ~/benchmarks/LINPACK/
 
     if [ ! -d ~/benchmarks/LINPACK/acml/gfortran64_mp/ ]; then
         echo -e "Extracting ACML for LINPACK.."
         mkdir -p ~/benchmarks/LINPACK/acml/
         cd ~/benchmarks/LINPACK/acml/
-		if [ -f ~/benchmarks/acml-6.1.0.31-gfortran64.tgz ]; then
-			cp ~/benchmarks/acml-6.1.0.31-gfortran64.tgz ~/benchmarks/LINPACK/acml/
-		fi
+	if [ -f ~/benchmarks/acml-6.1.0.31-gfortran64.tgz ]; then
+	    cp ~/benchmarks/acml-6.1.0.31-gfortran64.tgz ~/benchmarks/LINPACK/acml/
+	fi
         if [ -f ~/benchmarks/libraries/acml-6.1.0.31-gfortran64.tgz ]; then
             cp ~/benchmarks/libraries/acml-6.1.0.31-gfortran64.tgz ~/benchmarks/LINPACK/acml/
         fi
@@ -154,6 +154,10 @@ if [ ! -f ~/benchmarks/LINPACK/hpl-gpu/bin/Generic/xhpl ]; then
         exit -1
     fi
     sed -i.bak s'/89088/3840/' ./bin/Generic/HPL.dat
+elif [ $AMD_OCL -ne 1 ]; then
+    echo -e "LINPACK is only supported on the AMD APP SDK. Not building LINPACK."
+elif [ $AMD_HAWAII_GPU -ne 1 ]; then
+    echo -e "This LINPACK installation requires an AMD Hawaii GPU to work. Not building LINPACK."
 else
     echo -e "~/benchmarks/LINPACK/hpl-gpu/bin/Generic/xhpl exists. Not rebuilding LINPACK."
 fi

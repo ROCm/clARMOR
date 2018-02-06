@@ -1,0 +1,34 @@
+#The Phoronix Test Suite is licensed under the GNU GPLv3 free software license.
+45a46
+> static int useDevice = 0;
+326c327
+< 			devices[0],
+---
+> 			devices[useDevice],
+353c354
+< 	status = clBuildProgram(program, 1, devices, "-I.", NULL, NULL);
+---
+> 	status = clBuildProgram(program, (int) deviceListSize / sizeof(cl_device_id), devices, "-I.", NULL, NULL);
+360c361
+< 				devices[0],
+---
+> 				devices[useDevice],
+373c374
+< 				devices[0],
+---
+> 				devices[useDevice],
+397c398
+< 			devices[0],
+---
+> 			devices[useDevice],
+674c675
+< 	fprintf(stderr, "Usage: %s <use CPU device (0 or 1)> <use GPU device (0 or 1)> <kernel file name> <window width> <window height>\n", argv[0]);
+---
+> 	fprintf(stderr, "Usage: %s <use CPU device (0 or 1)> <use GPU device (0 or 1)> <kernel file name> <window width> <window height> <device>\n", argv[0]);
+694c695
+< 	if (argc == 6) {
+---
+> 	if (argc == 6 || argc == 7) {
+700a702,703
+> 		if (argc == 7)
+> 			useDevice = atoi(argv[6]);

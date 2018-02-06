@@ -55,11 +55,18 @@ static void set_up_svm_canary_copy(cl_context kern_ctx, uint32_t num_svm,
 
         //index to beginning of canary region
         c_base_ptrs[i] = (char*)m1->main_buff;
-        canary_ptrs[2*i] = c_base_ptrs[i];
-        canary_ptrs[2*i + 1] = c_base_ptrs[i] + (m1->size + POISON_FILL_LENGTH);
+        uint32_t index = i*POISON_REGIONS;
+        uint32_t offset = m1->size;
+#ifdef UNDERFLOW_CHECK
+        canary_ptrs[index] = c_base_ptrs[i];
+
+        index++;
+        offset += POISON_FILL_LENGTH;
+#endif
+        canary_ptrs[index] = c_base_ptrs[i] + offset;
 
         map_ptrs[i] = clSVMAlloc(kern_ctx, CL_MEM_READ_WRITE,
-                2*POISON_FILL_LENGTH, 0);
+                POISON_REGIONS*POISON_FILL_LENGTH, 0);
     }
 }
 
@@ -81,18 +88,20 @@ static void copy_and_map_svm_canaries(cl_context kern_ctx,
         }
         //copy canary region for this svm to smaller svm
         cl_err = clEnqueueSVMMemcpy(cmd_queue, CL_NON_BLOCKING, map_ptrs[i],
-                canary_ptrs[2*i], POISON_FILL_LENGTH, 1, incoming_evt,
-                &copy_events[2*i]);
+                canary_ptrs[POISON_REGIONS*i], POISON_FILL_LENGTH, 1, incoming_evt,
+                &copy_events[POISON_REGIONS*i]);
         check_cl_error(__FILE__, __LINE__, cl_err);
 
+#ifdef UNDERFLOW_CHECK
         cl_err = clEnqueueSVMMemcpy(cmd_queue, CL_NON_BLOCKING, (char*)map_ptrs[i] + POISON_FILL_LENGTH,
-                canary_ptrs[2*i + 1], POISON_FILL_LENGTH, 1, incoming_evt,
-                &copy_events[2*i + 1]);
+                canary_ptrs[POISON_REGIONS*i + 1], POISON_FILL_LENGTH, 1, incoming_evt,
+                &copy_events[POISON_REGIONS*i + 1]);
         check_cl_error(__FILE__, __LINE__, cl_err);
+#endif
 
         //map in smaller svm
         cl_err = clEnqueueSVMMap(cmd_queue, CL_NON_BLOCKING, CL_MAP_READ,
-                map_ptrs[i], 2*POISON_FILL_LENGTH, 2, &copy_events[2*i],
+                map_ptrs[i], POISON_REGIONS*POISON_FILL_LENGTH, POISON_REGIONS, &copy_events[POISON_REGIONS*i],
                 &(map_events[i]));
         check_cl_error(__FILE__, __LINE__, cl_err);
     }
@@ -107,7 +116,7 @@ static void check_svm_buffers(cl_command_queue cmd_queue, uint32_t num_svm,
         if (right_context[i] == 0)
             continue;
         //parse through the canary data
-        cpu_parse_canary(cmd_queue, 2*POISON_FILL_LENGTH, map_ptrs[i], kern_info,
+        cpu_parse_canary(cmd_queue, POISON_REGIONS*POISON_FILL_LENGTH, map_ptrs[i], kern_info,
                 svm_ptrs[i], dupe);
     }
 }
@@ -126,10 +135,6 @@ static void unmap_svm_buffers(cl_context kern_ctx, cl_command_queue cmd_queue,
         }
         // unmap smaller svm
         cl_err = clEnqueueSVMUnmap(cmd_queue, map_ptrs[i], 0, NULL,
-                &(unmap_events[i]));
-        check_cl_error(__FILE__, __LINE__, cl_err);
-
-        cl_err = clEnqueueSVMUnmap(cmd_queue, (char*)map_ptrs[i] + POISON_FILL_LENGTH, 0, NULL,
                 &(unmap_events[i]));
         check_cl_error(__FILE__, __LINE__, cl_err);
     }
@@ -179,10 +184,10 @@ void verify_svm(kernel_info *kern_info, uint32_t num_svm,
     // Array that points to the original SVM buffer bases
     void **base_ptrs = malloc(num_svm * sizeof(void*));
     // Array that points to the original canary regions
-    void **canary_ptrs = malloc(2*num_svm * sizeof(void*));
+    void **canary_ptrs = malloc(POISON_REGIONS*num_svm * sizeof(void*));
     // Array that points to all the mapped canaries
     void **map_ptrs = malloc(num_svm * sizeof(void*));
-    cl_event * copy_events = malloc(2*num_svm * sizeof(cl_event));
+    cl_event * copy_events = malloc(POISON_REGIONS*num_svm * sizeof(cl_event));
     cl_event * map_events = malloc(num_svm * sizeof(cl_event));
     cl_event * unmap_events = malloc(num_svm * sizeof(cl_event));
     uint8_t * right_context = calloc(num_svm, sizeof(uint8_t));

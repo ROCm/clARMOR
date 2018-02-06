@@ -104,3 +104,5 @@ ENV/
 
 #Coverity Scan
 cov-int
+
+bin/clarmor-info

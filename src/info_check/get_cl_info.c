@@ -23,6 +23,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <CL/cl.h>
+#include <CL/cl_ext.h>
 
 char *help_string = \
 "\nThis application is for accessing device information through the generic\n"\
@@ -39,6 +40,9 @@ char *help_string = \
     "\t-n\n"
         "\t\tfind the number of cus for the selected device\n"\
         "\t\tprints number of cus for device\n"\
+    "\t-b\n"
+        "\t\tif on an AMD system, finds the board name.\n"\
+        "\t\totherwise returns 'Unknown'.\n"\
     "\t-h\n"\
         "\t\tprint the help\n"\
 "\n"\
@@ -61,6 +65,9 @@ char *help_string = \
  *      if used with -n returns number of cus
  *  -n
  *      find the number of cus for the selected device
+ *  -b
+ *      if on an AMD system, finds the board name.
+ *      otherwise returns 'Unknown'.
  *  -h
  *      print the help
  *
@@ -73,6 +80,7 @@ int main(int argc, char** argv)
     uint32_t find_cpu = 0;
     uint32_t find_gpu = 0;
     uint32_t get_cus = 0;
+    uint32_t find_board_name = 0;
     int argi;
 
     if(argc < 2)
@@ -92,6 +100,9 @@ int main(int argc, char** argv)
                 break;
             case 'g':
                 find_gpu = 1;
+                break;
+            case 'b':
+                find_board_name = 1;
                 break;
             default:
                 fprintf(stdout, "%s", help_string);
@@ -148,11 +159,44 @@ int main(int argc, char** argv)
                 uint32_t j;
                 for(j = 0; j < num_devices; j++)
                 {
-                    cl_uint this_cus;
-                    clGetDeviceInfo(devices[j], CL_DEVICE_MAX_COMPUTE_UNITS, sizeof(cl_uint), &this_cus, NULL);
+                    if (find_board_name)
+                    {
+#ifdef CL_DEVICE_BOARD_NAME_AMD
+                        char *board_name = NULL;
+                        size_t name_size = 0;
+                        cl_int cl_err = 0;
+                        cl_err = clGetDeviceInfo(devices[j], CL_DEVICE_BOARD_NAME_AMD, 0, NULL, &name_size);
+                        if (cl_err != CL_SUCCESS)
+                        {
+                            fprintf(stderr, "Error getting size of board %d name. Errcode: %d\n", j, cl_err);
+                            free(devices);
+                            free(platforms);
+                            return -1;
+                        }
+                        board_name = calloc(name_size, sizeof(char));
+                        cl_err = clGetDeviceInfo(devices[j], CL_DEVICE_BOARD_NAME_AMD, name_size, board_name, NULL);
+                        if (cl_err != CL_SUCCESS)
+                        {
+                            fprintf(stderr, "Error getting board %d name. Errcode: %d\n", j, cl_err);
+                            free(board_name);
+                            free(devices);
+                            free(platforms);
+                            return -1;
+                        }
+                        printf("Board name: %s\n", board_name);
+                        free(board_name);
+#else
+                        printf("Board name: Unknown\n");
+#endif
+                    }
+                    else
+                    {
+                        cl_uint this_cus;
+                        clGetDeviceInfo(devices[j], CL_DEVICE_MAX_COMPUTE_UNITS, sizeof(cl_uint), &this_cus, NULL);
 
-                    if(num_cus == 0 || (this_cus > 0 && this_cus < num_cus))
-                        num_cus = this_cus;
+                        if(num_cus == 0 || (this_cus > 0 && this_cus < num_cus))
+                            num_cus = this_cus;
+                    }
                 }
 
                 free(devices);
@@ -164,7 +208,7 @@ int main(int argc, char** argv)
 
     if(get_cus)
         fprintf(stdout, "%u\n", num_cus);
-    else
+    else if(!find_board_name)
         fprintf(stdout, "%u\n", (has_cpu | has_gpu) );
 
 

@@ -423,7 +423,7 @@ cl_kernel createPoisonedKernel(cl_command_queue command_queue,
                 check_cl_error(__FILE__, __LINE__, cl_err);
 #endif
             }
-            else if( !old_buffer_info->has_canary )
+            else if(!old_buffer_info->has_canary)
             {
                 cl_mem new_buffer;
                 cl_mem_flags flags;
@@ -433,7 +433,7 @@ cl_kernel createPoisonedKernel(cl_command_queue command_queue,
                 flags = old_buffer_info->flags;
 
                 flags = flags & ~CL_MEM_USE_HOST_PTR & ~CL_MEM_COPY_HOST_PTR;
-                flags = flags | CL_MEM_ALLOC_HOST_PTR;
+                flags = flags & ~CL_MEM_ALLOC_HOST_PTR;
 
                 if(old_buffer_info->is_image)
                 {
@@ -451,7 +451,7 @@ cl_kernel createPoisonedKernel(cl_command_queue command_queue,
                     desc.buffer = NULL;
                     new_buffer = clCreateImage(new_ctx, flags, &old_buffer_info->image_format, &desc, NULL, &cl_err);
 #else
-                    if (old_buffer_info->image_desc.image_type == CL_MEM_OBJECT_IMAGE3D)
+                    if(old_buffer_info->image_desc.image_type == CL_MEM_OBJECT_IMAGE3D)
                     {
                         new_buffer = clCreateImage3D(new_ctx, flags,
                                 &old_buffer_info->image_format,
@@ -554,10 +554,12 @@ void copyKernelBuffers(cl_kernel to, cl_kernel from,
     assert(from_kern_info != NULL);
     assert(to_kern_info != NULL);
 
+    int nevts = 0;
     cl_event *events;
     events = calloc(sizeof(cl_event), nargs);
 
-    clFinish(command_queue);
+    cl_err = clFinish(command_queue);
+    check_cl_error(__FILE__, __LINE__, cl_err);
     for(i = 0; i < nargs; i++)
     {
         kernel_arg *from_arg_info, *to_arg_info;
@@ -596,20 +598,22 @@ void copyKernelBuffers(cl_kernel to, cl_kernel from,
                     region[1] = (h1 > h2) ? h2 : h1;
                     region[2] = (d1 > d2) ? d2 : d1;
 
-                    cl_image_copy(command_queue, m1->handle, m2->handle, origin, origin, region, 0, 0, &events[i]);
+                    cl_image_copy(command_queue, m1->handle, m2->handle, origin, origin, region, 0, 0, &events[nevts]);
                 }
                 else
                 {
                     size_t size = m1->size;
                     if(size > m2->size)
                         size = m2->size;
-                    cl_buffer_copy(command_queue, m1->handle, m2->handle, 0, 0, size, 0, 0, &events[i]);
+                    cl_buffer_copy(command_queue, m1->handle, m2->handle, 0, 0, size, 0, 0, &events[nevts]);
                 }
+                nevts++;
             }
         }
     }
 
-    clWaitForEvents(nargs, events);
+    cl_err = clWaitForEvents(nevts, events);
+    check_cl_error(__FILE__, __LINE__, cl_err);
     free(events);
 }
 

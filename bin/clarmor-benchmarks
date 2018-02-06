@@ -22,6 +22,7 @@
 # THE SOFTWARE.
 
 import os
+import subprocess
 
 #List of test benchmarks.
 # Benchmarks: 21
@@ -31,6 +32,12 @@ RODINIA_NV+="particlefilter pathfinder srad streamcluster "
 # Removing dwt2d from NV runs, because it has some __local read overflow
 # that crashes on those systems, as far as I can tell.
 RODINIA=RODINIA_NV+"dwt2d "
+
+RODINIA_ROCVEGA="backprop bfs b+tree cfd gaussian heartwall hotspot hotspot3D "
+RODINIA_ROCVEGA+="kmeans leukocyte lud myocyte nn nw "
+RODINIA_ROCVEGA+="particlefilter pathfinder srad streamcluster "
+RODINIA_ROCVEGA+="dwt2d "
+#RODINIA=RODINIA_ROCVEGA
 
 # Benchmarks: 14
 SHOC="DeviceMemory MaxFlops BFS FFT GEMM MD md5hash Reduction Sort Scan Spmv "
@@ -56,11 +63,11 @@ AMDAPP_ON_NV+="SimpleConvolution SobelFilter StringSearch URNG "
 # These require 'convert_uchar4_sat' type commands in OpenCL.
 # NV does not properly support them.
 AMDAPP=AMDAPP_ON_NV+"AdvancedConvolution BoxFilter "
-# This uses C++ in the kernel. Unsupported on NV.
-AMDAPP+="EigenValue MersenneTwister "
 # Crash on our NV test system for some reason.
 AMDAPP+="FluidSimulation2D GaussianNoise HDRToneMapping Histogram Mandelbrot "
 AMDAPP+="MatrixMulDouble NBody PrefixSum UnsharpMask "
+# This uses C++ in the kernel. Unsupported on NV and AMD ROCm.
+AMDAPP_CL_CPP=AMDAPP+"EigenValue MersenneTwister "
 
 # Benchmarks: 6
 AMDAPP_CL2="BufferBandwidth BufferImageInterop BinarySearchDeviceSideEnqueue "
@@ -72,6 +79,10 @@ AMDAPP_CL2+="SVMBinaryTreeSearch "
 PARBOIL="pb-bfs stencil mri-gridding lbm sad histo mri-q cutcp pb-sgemm "
 PARBOIL=="pb-spmv tpacf"
 #mri-gridding has an overflow by default
+PARBOIL_ROCVEGA="pb-bfs stencil mri-gridding lbm sad mri-q cutcp pb-sgemm "
+PARBOIL_ROCVEGA=="pb-spmv tpacf"
+#PARBOIL = PARBOIL_ROCVEGA
+
 
 # Benchmarks: 6
 PANNOTIA="bc color fw mis prk sssp"
@@ -89,12 +100,18 @@ POLYBENCH+="convolution-3d fdtd-2d jacobi-1d-imper jacobi-2d-imper"
 # Benchmarks: 2
 FINANCEBENCH="FB-Black-Scholes FB-Monte-Carlo"
 
+FINANCEBENCH_ROCVEGA="FB-Black-Scholes"
+#FINANCEBENCH=FINANCEBENCH_ROCVEGA
+
 # Benchmarks: 1
 GPUSTREAM="gpustream"
 
 # Benchmarks: 4
 MANTEVO_ON_NV="cloverleaf cloverleaf3d tealeaf "
 MANTEVO=MANTEVO_ON_NV+"tealeaf3d"
+
+MANTEVO_ROCVEGA="cloverleaf cloverleaf3d"
+#MANTEVO=MANTEVO_ROCVEGA
 
 # Benchmarks: 7
 HETEROMARK="aes_hm fir_hm hmm_hm iir_hm kmeans_hm pagerank_hm sw_hm"
@@ -116,23 +133,60 @@ VIENNACL+="blas3_solve-test-opencl sparse_prod-test-opencl"
 NPB_OCL="npb_ocl_bt npb_ocl_cg npb_ocl_ep npb_ocl_ft npb_ocl_is npb_ocl_lu "
 NPB_OCL+="npb_ocl_mg npb_ocl_sp"
 
-ALL_BENCHMARKS_AMD=""
-ALL_BENCHMARKS_NV=""
 
-# Benchmark suites that work on AMD GPUs (w/ OpenCL 2.0)
-for bench in [RODINIA, SHOC, PHORONIX, OPENDWARFS, PROXYAPPS, AMDAPP,
-    AMDAPP_CL2, PARBOIL, PANNOTIA, STREAMMR, POLYBENCH, FINANCEBENCH,
-    GPUSTREAM, MANTEVO, HETEROMARK, HETEROMARK_CL2, LINPACK, VIENNACL,
-    NPB_OCL]:
-    ALL_BENCHMARKS_AMD+=bench + " "
+ALL_BENCHMARKS=""
 
-# Benchmark suites that work on Nvidia GPUs
-for bench in [RODINIA_NV, SHOC, OPENDWARFS, PROXYAPPS, AMDAPP_ON_NV,
-    PARBOIL, PANNOTIA, POLYBENCH, FINANCEBENCH, GPUSTREAM,
-    MANTEVO_ON_NV, HETEROMARK, VIENNACL, NPB_OCL]:
-    ALL_BENCHMARKS_NV+=bench + ""
+null = open(os.devnull,"w")
+driver_rocm = 1
+is_not_rocm = subprocess.call(['rocminfo'], stdout=null, stderr=subprocess.STDOUT, shell=True)
+if is_not_rocm:
+    try:
+        subprocess.check_call("uname -a | grep rocm", shell=True, stdout=null, stderr=null)
+    except subprocess.CalledProcessError:
+        driver_rocm = 0
 
-ALL_BENCHMARKS=ALL_BENCHMARKS_AMD
+driver_amdgpu_pro = 1
+try:
+    subprocess.check_call("lsmod | grep ^amdkcl", shell=True, stdout=null, stderr=null)
+except subprocess.CalledProcessError:
+    driver_amdgpu_pro = 0
+
+driver_catalyst = 1
+try:
+    subprocess.check_call("lsmod | grep ^fglrx", shell=True, stdout=null, stderr=null)
+except subprocess.CalledProcessError:
+    driver_catalyst = 0
+
+if driver_rocm == 1:
+    # Skip Phoronix becuase we may not have working graphics-GPU
+    # Skip the HCC->OpenCL applications; those only work on Catalyst
+    # Skip the CL2 benchmarks as well.
+    # StreamMR is, as usual, sort of broken so we skip it too.
+    for bench in [RODINIA, SHOC, OPENDWARFS, PROXYAPPS, AMDAPP,
+        PARBOIL, PANNOTIA, POLYBENCH, FINANCEBENCH, GPUSTREAM,
+        MANTEVO, HETEROMARK, VIENNACL, NPB_OCL]:
+        ALL_BENCHMARKS+=bench + " "
+elif driver_amdgpu_pro == 1:
+    # Skip Phoronix becuase we may not have working graphics-GPU
+    # Skip the HCC->OpenCL applications; those only work on Catalyst
+    # Skip the CL2 benchmarks as well.
+    for bench in [RODINIA, SHOC, OPENDWARFS, PROXYAPPS, AMDAPP_CL_CPP,
+        PARBOIL, PANNOTIA, STREAMMR, POLYBENCH, FINANCEBENCH,
+        GPUSTREAM, MANTEVO, HETEROMARK, VIENNACL, NPB_OCL]:
+        ALL_BENCHMARKS+=bench + " "
+elif driver_catalyst == 1:
+    for bench in [RODINIA, SHOC, PHORONIX, OPENDWARFS, PROXYAPPS,
+        AMDAPP_CL_CPP, AMDAPP_CL2, PARBOIL, PANNOTIA, STREAMMR, POLYBENCH,
+        FINANCEBENCH, GPUSTREAM, MANTEVO, HETEROMARK, HETEROMARK_CL2,
+        VIENNACL, NPB_OCL]:
+        ALL_BENCHMARKS+=bench + " "
+else:
+    # Benchmark suites that work on Nvidia GPUs
+    for bench in [RODINIA_NV, SHOC, OPENDWARFS, PROXYAPPS, AMDAPP_ON_NV,
+        PARBOIL, PANNOTIA, POLYBENCH, FINANCEBENCH, GPUSTREAM,
+        MANTEVO_ON_NV, HETEROMARK, VIENNACL, NPB_OCL]:
+        ALL_BENCHMARKS+=bench + ""
+
 
 #Declare HashMaps
 benchCD = {}

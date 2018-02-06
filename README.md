@@ -92,12 +92,12 @@ Executing this tool with the '-h' or '--help' will explain its arguments.
 
 The simplest description of how to use the buffer overflow detector is to run:
 
-    bin/clarmor -w {working directory} -r "{command line}"
+    bin/clarmor -w {working directory} -- "{command line}
 
 For example, the following will run the FFT benchmark in the AMD APP SDK
 through the buffer overflow detector:
 
-    ./bin/clarmor -w /opt/AMDAPP/samples/opencl/bin/x86_64 -r FFT
+    ./bin/clarmor -w /opt/AMDAPP/samples/opencl/bin/x86_64 -- FFT
 
 
 In the above example command line, the following two parameters were used:
@@ -109,15 +109,19 @@ In the above example command line, the following two parameters were used:
         The run script will temporarily change directories to this working dir,
         and will also temporarily add it to the PATH environment variable.
 
-    --run (or -r):
-        This parameter is the command line used to run the application you wish
-        to test. This includes any parameters that you wish to pass into the
-        benchmark you wish to test. Because the working directory is part of
-        the PATH, this can simply be the name of the binary you wish to run.
-        Alternately, it can contain the entire path to the program that you
-        want to run.
-        This parameter can be put into quotation marks ("") to allow for spaces
-        in the application-under-test's command line.
+    Command line:
+        The final parameter (which can most easily be put after two hyphens,
+        "--") is the command line used to run the application you wish to test
+        This includes any parameters that you wish to pass into the benchmark
+        you wish to test. Because the working directory is part of the PATH,
+        this can simply be the name of the binary you wish to run. Alternately,
+        it can contain the entire path to the program that you want to run.
+        You do not necessarily need to put the command line after the hyphens
+        if it is simple enough. However, if the command line you wish to run
+        itself contains double-hyphens, then you should either enclose the
+        command line in double-quotes (i.e., ./bin/clarmor "cmd_line --options")
+        or ensure that the command line is placed after clARMOR's double
+        hyphens (i.e., ./bin/clarmor -- cmd_line --options).
 
 Other important functions that can be controlled when using the runscript:
 

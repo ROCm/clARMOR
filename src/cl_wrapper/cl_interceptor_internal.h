@@ -1,5 +1,5 @@
 /********************************************************************************
- * Copyright (c) 2016 Advanced Micro Devices, Inc. All rights reserved.
+ * Copyright (c) 2016-2017 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -157,6 +157,28 @@ typedef CL_API_ENTRY cl_int
 typedef CL_API_ENTRY cl_int
 (CL_API_CALL * interceptor_clReleaseMemObject)(cl_mem memobj);
 
+typedef CL_API_ENTRY void*
+    (CL_API_CALL * interceptor_clEnqueueMapBuffer)(
+            cl_command_queue command_queue,
+            cl_mem buffer,
+            cl_bool blocking_map,
+            cl_map_flags map_flags,
+            size_t offset,
+            size_t size,
+            cl_uint num_events_in_wait_list,
+            const cl_event *event_wait_list,
+            cl_event *event,
+            cl_int *errcode_ret);
+
+typedef CL_API_ENTRY cl_int
+    (CL_API_CALL * interceptor_clEnqueueUnmapMemObject)(
+            cl_command_queue command_queue,
+            cl_mem memobj,
+            void *mapped_ptr,
+            cl_uint num_events_in_wait_list,
+            const cl_event *event_wait_list,
+            cl_event *event);
+
 
 /* SVM APIs */
 #ifdef CL_VERSION_2_0
@@ -237,15 +259,6 @@ typedef CL_API_ENTRY cl_int
     (CL_API_CALL * interceptor_clEnqueueSVMUnmap)(
             cl_command_queue command_queue,
             void *svm_ptr,
-            cl_uint num_events_in_wait_list,
-            const cl_event *event_wait_list,
-            cl_event *event);
-
-typedef CL_API_ENTRY cl_int
-    (CL_API_CALL * interceptor_clEnqueueUnmapMemObject)(
-            cl_command_queue command_queue,
-            cl_mem memobj,
-            void *mapped_ptr,
             cl_uint num_events_in_wait_list,
             const cl_event *event_wait_list,
             cl_event *event);

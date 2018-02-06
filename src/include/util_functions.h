@@ -51,13 +51,17 @@ extern "C" {
 #define STATS_KERN_ENQ_TIME     1
 #define STATS_CHECKER_TIME      2
 #define STATS_MEM_OVERHEAD      4
+extern uint32_t global_tool_stats_flags;
+
+#define __CLARMOR_PERFSTAT_OUTFILE__ "CLARMOR_PERFSTAT_OUTFILE"
+extern char * global_tool_stats_outfile;
 
 #define __BACKTRACE__ "CLARMOR_PRINT_BACKTRACE"
 #define __CLARMOR_DISABLE_API_CHECK__ "CLARMOR_DISABLE_API_CHECK"
 
-extern uint32_t global_tool_stats_flags;
-
 #define __CLARMOR_DEVICE_SELECT__ "CLARMOR_DEVICE_SELECT"
+
+#define __CLARMOR_ROCM_HAWAII__ "CLARMOR_ROCM_HAWAII"
 
 #define DEFAULT_DEVICE_CHECK 0
 #define DEVICE_GPU 1
@@ -118,6 +122,14 @@ int get_disable_api_check_envvar(void);
  *      0 default
  */
 int get_tool_perf_envvar(void);
+
+/*!
+ * Retrieve CLARMOR_PERFSTAT_OUTFILE from environment
+ *
+ * \return
+ *      0 default
+ */
+char* get_tool_perf_outfile_envvar(void);
 
 /*!
  * Get the environment variable that tells the buffer overflow detector
@@ -194,6 +206,21 @@ char* get_backtrace_level(int level);
 void print_backtrace(FILE* where_to);
 
 /*!
+ * is this context on an nvidia platform
+ *
+ */
+int is_nvidia_platform(cl_context context);
+
+/*!
+ * returns 1 if this system is running on an OpenCL runtime where image
+ * functions can cause lockups when we try to wrap it with clASRMOR.
+ * An example is ROCm + Hawaii.
+ * In this case, we disable clARMOR for images.
+ *
+ */
+int opencl_broken_images(void);
+
+/*!
  *
  * \param stop
  *      stop time
@@ -239,6 +266,12 @@ int det_vfprintf(FILE * stream, const char * format, va_list arg );
  *
  */
 int is_app_sdk_2_9(void);
+
+/*!
+ * Tell whether we are using the AMD APP SDK 3.0+.
+ *
+ */
+int is_app_sdk_3_0(void);
 
 /*!
  * Returns the version number of clARMOR that is set at build time.

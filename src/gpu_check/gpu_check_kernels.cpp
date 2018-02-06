@@ -21,6 +21,8 @@
  ********************************************************************************/
 
 #include <CL/cl.h>
+#include <string>
+#include "detector_defines.h"
 
 #include "gpu_check_kernels.h"
 
@@ -142,26 +144,46 @@ const char * get_image_copy_canary_src(void)
     return image_copy_canary_src;
 }
 
-//length has to be a multiple of the local group size for this to work
+//compareWithPoison works when the canary pointer is word aligned
+//if not use compareWithPoisonByte (slower)
 const char *single_buffer_src =
-"uint compareWithPoison(uint poison,\n\
-                            uint localBuff,\n\
-                            uint index,\n\
-                            __global uchar *B)\n\
+" \n\
+uint compareWithPoison(uint poison,\n\
+                       uint index,\n\
+                       __global uint *canary)\n\
 {\n\
-    uint ret = INT_MAX;\n\
-    if(poison != ((__global uint*)B)[index])\n\
+    uint retval = INT_MAX;\n\
+    uint word = poison ^ canary[index];\n\
+    if(word)\n\
     {\n\
         uint i;\n\
         for(i=0; i < 4; i++)\n\
         {\n\
-            if((poison & 0xFF) != B[4*index+i])\n\
+            if(((uchar*)&word)[i])\n\
             {\n\
-                ret = 4*localBuff + i;\n\
+                retval = 4*index + i;\n\
                 break;\n\
             }\n\
         }\n\
-        ((__global uint*)B)[index] = poison;\n\
+        canary[index] = poison;\n\
+    }\n\
+    return retval;\n\
+}\n\
+uint compareWithPoisonByte(char poison,\n\
+                       uint index,\n\
+                       __global char *canary)\n\
+{\n\
+    uint ret = INT_MAX;\n\
+    uint i;\n\
+    uint tmpRet = INT_MAX;\n\
+    for(i=0; i < 4; i++)\n\
+    {\n\
+        if(poison != canary[index+i])\n\
+        {\n\
+            tmpRet = index+i;\n\
+            canary[index+i] = poison;\n\
+        }\n\
+        if(tmpRet < ret) ret = tmpRet;\n\
     }\n\
     return ret;\n\
 }\n\
@@ -176,17 +198,25 @@ __kernel void locateDiffParts(uint length,\n\
     int tid = get_global_id(0);\n\
     if(tid >= length) return;\n\
     int lid = get_local_id(0);\n\
-    uint ret;\n\
-    __global char *val_ptr = (B+offset);\n\
-    ret = compareWithPoison(poison, tid, tid, val_ptr);\n"
+    uint ret = INT_MAX;\n\
+    __global uint *canary = (__global uint*)(B+offset);\n\
+    int diff = offset % 4;\n\
+    if(diff)\n\
+    {\n\
+        ret = compareWithPoisonByte((char)(0xFF&poison), tid*4, (__global char*)canary);\n\
+    }\n\
+    else\n\
+    {\n\
+        ret = compareWithPoison(poison, tid, canary);\n\
+    }\n"
 #ifdef CL_VERSION_2_0
 "    uint wgRet = work_group_scan_inclusive_min(ret);\n\
     if(lid == get_local_size(0)-1 || tid == length-1)\n\
     {\n\
-        atomic_min((__global uint*)&first[buffID], (uint)wgRet);\n\
+        atomic_min(&first[buffID], wgRet);\n\
     }\n"
 #else
-    "atomic_min((__global uint*)&first[buffID], (uint)ret);\n"
+    "atomic_min(&first[buffID], ret);\n"
 #endif
 "}";
 
@@ -195,8 +225,7 @@ const char * get_single_buffer_src(void)
     return single_buffer_src;
 }
 
-//length has to be a multiple of the local group size for this to work
-const char *buffer_and_ptr_copy_src =
+std::string buffer_and_ptr_copy_src =
 "uint compareWithPoison(uint poison,\n\
                             uint localBuff,\n\
                             uint index,\n\
@@ -239,8 +268,8 @@ __kernel void locateDiffSVMPtr(uint length,\n\
 #ifdef CL_VERSION_2_0
 "    else\n\
     {\n\
-        uint index = tid % (length/2);\n\
-        __global uint *val_ptr = (__global uint*)C[(tid - endBuffs) / (length/2)];\n\
+        uint index = tid % (length/"+std::to_string(POISON_REGIONS)+");\n\
+        __global uint *val_ptr = (__global uint*)C[(tid - endBuffs) / (length/"+std::to_string(POISON_REGIONS)+")];\n\
         ret = compareWithPoison(poison, localBuff, index, (__global uchar*)val_ptr);\n\
     }\n"
     "uint wgRet = work_group_scan_inclusive_min(ret);\n\
@@ -255,5 +284,5 @@ __kernel void locateDiffSVMPtr(uint length,\n\
 
 const char * get_buffer_and_ptr_copy_src(void)
 {
-    return buffer_and_ptr_copy_src;
+    return buffer_and_ptr_copy_src.c_str();
 }

@@ -58,7 +58,7 @@ if [ $user_exists -ne 0 ]; then
 fi
 
 BASE_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-INSTALLER_DIR=${BASE_DIR}/install_files/
+INSTALLER_DIR=${BASE_DIR}/../install_files/
 mkdir -p ${INSTALLER_DIR}
 
 #Do basic post-install stuff
@@ -119,7 +119,7 @@ sudo ln -s /usr/lib/x86_64-linux-gnu/libglut.so.3 /usr/lib/x86_64-linux-gnu/libg
 #Install the AMD APP SDK - This MUST be done before installing the driver
 #==============================================================================
 cd ${INSTALLER_DIR}
-sudo ${BASE_DIR}/support_files/get_amd_app_sdk.sh -i -d $(pwd)
+sudo ${BASE_DIR}/../support_files/get_amd_app_sdk.sh -i -d $(pwd)
 
 #Set up the second-half script to run after the upcoming reboot.
 #We must reboot before installing the Catalyst drivers because we need to be
