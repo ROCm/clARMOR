@@ -181,7 +181,7 @@ void verify_cl_buffer_single(cl_context kern_ctx, cl_command_queue cmd_queue,
         uint32_t num_buff, void **buffer_ptrs, kernel_info *kern_info,
         uint32_t *dupe, const cl_event *evt, int is_svm, cl_event *ret_evt)
 {
-    if (num_buff <= 0)
+    if (num_buff == 0)
     {
         if (ret_evt != NULL)
             *ret_evt = create_complete_user_event(kern_ctx);

@@ -46,7 +46,7 @@ static void stop_profile_and_print(struct timeval* start, struct timeval* stop)
 {
     if(global_tool_stats_flags & STATS_CHECKER_TIME)
     {
-        FILE *perf_out_f = NULL;
+        FILE *perf_out_f;
 
         gettimeofday(stop, NULL);
         uint64_t durr_us = timeval_diff_us(stop, start);

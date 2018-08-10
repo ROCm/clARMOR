@@ -1,5 +1,5 @@
 #!/bin/bash
-# Copyright (c) 2016-2017 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright (c) 2016-2018 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -38,7 +38,7 @@ BASE_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 INSTALLER_DIR=${BASE_DIR}/../install_files/
 REAL_USER=`logname 2>/dev/null || echo ${SUDO_USER:-${USER}}`
 su -c "mkdir -p ${INSTALLER_DIR}" $REAL_USER
-echo "HLSim Ubuntu 16.04.3 Installation Script (ROCm drivers) Step 1/2"
+echo "HLSim Ubuntu 18.04.1 Installation Script (ROCm drivers) Step 1/2"
 
 #Do basic post-install stuff
 #==============================================================================
@@ -72,7 +72,7 @@ sudo sh -c 'echo EXTRA_GROUPS=video >> /etc/adduser.conf'
 #modules.
 #===============================================================================
 INIT_FILE="rocm_setup"
-NEXT_SCRIPT=setup_ubuntu_16.04.3_rocm_2.sh
+NEXT_SCRIPT=setup_ubuntu_18.04.1_rocm_2.sh
 sudo sh -c "echo '#!/bin/bash' > /etc/init.d/${INIT_FILE}"
 sudo sh -c "echo ${BASE_DIR}/${NEXT_SCRIPT} >> /etc/init.d/${INIT_FILE}"
 sudo chmod 755 /etc/init.d/${INIT_FILE}

@@ -77,7 +77,7 @@ static void *create_svm_copies(cl_context kern_ctx, cl_command_queue cmd_queue,
         uint32_t num_svm, void **buffer_ptrs, const cl_event *evt,
         cl_event *events, cl_event *mend_events)
 {
-    void *svm_canary_copies = NULL;
+    void *svm_canary_copies;
 #ifdef CL_VERSION_2_0
     cl_svm_memobj *m1;
     svm_canary_copies = clSVMAlloc(kern_ctx, CL_MEM_READ_WRITE,
@@ -136,6 +136,7 @@ static void *create_svm_copies(cl_context kern_ctx, cl_command_queue cmd_queue,
         mend_this_canary(kern_ctx, cmd_queue, m1->handle, copy_finish, &mend_events[i]);
     }
 #else
+    svm_canary_copies = NULL;
     (void)kern_ctx;
     (void)cmd_queue;
     (void)num_svm;
@@ -151,8 +152,8 @@ static void ** create_svm_ptr_copies(cl_context kern_ctx,
         cl_command_queue cmd_queue, uint32_t num_svm, void **buffer_ptrs,
         void **ret_clmem, const cl_event *evt, cl_event *events)
 {
-    void **ret_poison_ptrs = NULL;
-    if (num_svm <= 0)
+    void **ret_poison_ptrs;
+    if (num_svm == 0)
     {
         if (ret_clmem != NULL)
             *ret_clmem = NULL;
@@ -198,6 +199,7 @@ static void ** create_svm_ptr_copies(cl_context kern_ctx,
     for (uint32_t i = 1; i < POISON_REGIONS*num_svm; i++)
         events[i] = create_complete_user_event(kern_ctx);
 #else
+    ret_poison_ptrs = NULL;
     (void)cmd_queue;
     (void)buffer_ptrs;
     (void)ret_clmem;
@@ -307,7 +309,7 @@ void verify_cl_buffer_copy(cl_context kern_ctx, cl_command_queue cmd_queue,
     cl_int cl_err;
     uint32_t total_buffs = num_cl_mem + num_svm;
 
-    if(total_buffs <= 0)
+    if(total_buffs == 0)
     {
         if (ret_evt != NULL)
             *ret_evt = create_complete_user_event(kern_ctx);

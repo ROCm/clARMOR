@@ -191,7 +191,7 @@ cl_platform_id setup_platform(const uint32_t platform_to_use)
     platform_ids= calloc(num_platforms, sizeof(cl_platform_id));
     if (platform_ids == NULL)
     {
-        fprintf(stderr, "Unable to calloc(%u, %lu) at %s:%d\n", num_platforms,
+        fprintf(stderr, "Unable to calloc(%u, %zu) at %s:%d\n", num_platforms,
                 sizeof(cl_platform_id), __FILE__, __LINE__);
         exit(-1);
     }
@@ -248,7 +248,7 @@ cl_device_id setup_device(const uint32_t device_to_use,
     cl_device_id *device_ids = calloc(num_devices, sizeof(cl_device_id));
     if (device_ids == NULL)
     {
-        fprintf(stderr, "Unable to calloc(%u, %lu) at %s:%d\n", num_devices,
+        fprintf(stderr, "Unable to calloc(%u, %zu) at %s:%d\n", num_devices,
                 sizeof(cl_device_id), __FILE__, __LINE__);
         exit(-1);
     }
