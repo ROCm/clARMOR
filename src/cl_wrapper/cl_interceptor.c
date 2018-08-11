@@ -686,6 +686,11 @@ clCreateBuffer(cl_context   context,
         flags &= ~CL_MEM_WRITE_ONLY;
         flags &= ~CL_MEM_READ_ONLY;
         flags |= CL_MEM_READ_WRITE;
+#ifdef CL_VERSION_1_2
+        flags &= ~CL_MEM_HOST_WRITE_ONLY;
+        flags &= ~CL_MEM_HOST_READ_ONLY;
+        flags &= ~CL_MEM_HOST_NO_ACCESS;
+#endif
 
         if(flags & CL_MEM_USE_HOST_PTR)
         {
