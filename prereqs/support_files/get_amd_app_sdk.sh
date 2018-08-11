@@ -1,5 +1,5 @@
 #!/bin/bash
-# Copyright (c) 2017 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright (c) 2017-2018 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -40,9 +40,6 @@ print_usage()
     echo -e "   -h will print this help message and exit." 1>&2
     echo -e "   -d allows you to set the target directory that ./AMDAPP/ will be put into" 1>&2
     echo -e "          By default, this is the directory this script is in." 1>&2
-    echo -e "   -v sets the version of the AMD APP SDK to download, 3 or 2." 1>&2
-    echo -e "          By default, this is 3." 1>&2
-    echo -e "          v3 supports OpenCL 2.0 on AMD GPUs, v2 only supports OpenCL 1.2." 1>&2
     echo -e "   -i additionally does a full install of the APP SDK into /opt/AMDAPP/." 1>&2
 }
 
@@ -67,7 +64,6 @@ print_error_and_exit()
     exit -1
 }
 
-amdapp_version=300
 target_dir=${BASE_DIR}/AMDAPP/
 temp_dir=/tmp/fake_temp_dir/
 do_installation=0
@@ -77,15 +73,6 @@ do
     case "${option}" in
         h)
             print_help_and_exit
-            ;;
-        v)
-            if [ ${OPTARG} -eq 2 ]; then
-                amdapp_version=291
-            elif [ ${OPTARG} -eq 3 ]; then
-                amdapp_version=300
-            else
-                print_error_and_exit
-            fi
             ;;
         d)
             target_dir=${OPTARG}/AMDAPP/
@@ -106,41 +93,9 @@ then
     exit -1
 fi
 
-# Get the AMD APP SDK using the Boost.org Compute method
-temp_dir=`mktemp -d`
-cd ${temp_dir}
-git clone -n https://github.com/boostorg/compute.git --depth 1
-if [ $? -ne 0 ]
-then
-    echo -e "Failed to download amd_sdk.sh from Boost.org GitHub"
-    rm -rf ${temp_dir}
-    exit -1
-fi
-cd ./compute/
-git checkout HEAD ./.travis/amd_sdk.sh
-cp ./.travis/amd_sdk.sh ${target_dir}
-if [ $? -ne 0 ]
-then
-    echo -e "Failed to find amd_sdk.sh from Boost.org GitHub"
-    rm -rf ${temp_dir}
-    exit -1
-fi
-
-# Move back to the main directory and delete the temp dir
-cd ${target_dir}
-rm -rf ${temp_dir}
-chmod +x ./amd_sdk.sh
-
-sed -i 's#http#https#' ./amd_sdk.sh
-
-# We now have the script to download the AMD APP SDK.
-# Download the tarball of the correct version
-${target_dir}/amd_sdk.sh ${amdapp_version}
-if [ $? -ne 0 ]
-then
-    echo -e "Failed to properly download the AMD APP SDK"
-    exit -1
-fi
+cd ${target_dor}
+# Get the AMD APP SDK from sourceforge
+wget "https://sourceforge.net/projects/nicehashsgminerv5viptools/files/APP%20SDK%20A%20Complete%20Development%20Platform/AMD%20APP%20SDK%203.0%20for%2064-bit%20Linux/AMD-APP-SDKInstaller-v3.0.130.136-GA-linux64.tar.bz2/download" -O AMD-SDK.tar.bz2
 
 tar -xf AMD-SDK.tar.bz2
 if [ $? -ne 0 ]
@@ -154,11 +109,7 @@ fi
 if [ $do_installation -eq 1 ]
 then
     bash AMD-APP-SDK*.sh --nox11 --noexec --keep -- -a -s
-    if [ $amdapp_version -eq 300 ]; then
-        pushd ./AMDAPPSDK-3.0
-    else
-        pushd ./2.9.599.381/
-    fi
+    pushd ./AMDAPPSDK-3.0
     ./install.sh -s 1 -a 1
     popd
     if [ $? -ne 0 ]
@@ -166,12 +117,10 @@ then
         echo -e "Failed to install APP SDK from shell script."
         exit -1
     fi
-    if [ ${amdapp_version} -eq 300 ]; then
-        ln -s /opt/AMDAPPSDK-3.0 /opt/AMDAPP
-        ln -s /opt/AMDAPP/lib/x86_64/sdk/libamdocl64.so  /opt/AMDAPP/lib/x86_64/libamdocl64.so
-        ln -fs /opt/AMDAPP/lib/x86_64/sdk/libOpenCL.so /opt/AMDAPP/lib/x86_64/libOpenCL.so
-        ln -s /opt/AMDAPP/lib/x86_64/sdk/libOpenCL.so.1 /opt/AMDAPP/lib/x86_64/libOpenCL.so.1
-    fi
+    ln -s /opt/AMDAPPSDK-3.0 /opt/AMDAPP
+    ln -s /opt/AMDAPP/lib/x86_64/sdk/libamdocl64.so  /opt/AMDAPP/lib/x86_64/libamdocl64.so
+    ln -fs /opt/AMDAPP/lib/x86_64/sdk/libOpenCL.so /opt/AMDAPP/lib/x86_64/libOpenCL.so
+    ln -s /opt/AMDAPP/lib/x86_64/sdk/libOpenCL.so.1 /opt/AMDAPP/lib/x86_64/libOpenCL.so.1
     sed -i 's/x86_64\//x86_64\/:\$LD_LIBRARY_PATH/' /etc/profile.d/AMDAPPSDK.sh
     sed -i 's/export LD_LIBRARY_PATH/#export LD_LIBRARY_PATH/' /etc/profile.d/AMDAPPSDK.sh
     sh -c "echo export LD_LIBRARY_PATH=/usr/lib/:\\\$LD_LIBRARY_PATH >> /etc/profile.d/AMDAPPSDK.sh"
@@ -194,28 +143,25 @@ then
     exit -1
 fi
 
-if [ ${amdapp_version} -eq 300 ]
+rm -f ${AMDAPPSDKROOT}/lib/x86_64/libOpenCL.so
+ln -s ${AMDAPPSDKROOT}/lib/x86_64/sdk/libOpenCL.so.1 ${AMDAPPSDKROOT}/lib/x86_64/libOpenCL.so
+if [ $? -ne 0 ]
 then
-    rm -f ${AMDAPPSDKROOT}/lib/x86_64/libOpenCL.so
-    ln -s ${AMDAPPSDKROOT}/lib/x86_64/sdk/libOpenCL.so.1 ${AMDAPPSDKROOT}/lib/x86_64/libOpenCL.so
-    if [ $? -ne 0 ]
-    then
-        echo -e "Failed to soft-link libOpenCL.so"
-        exit -1
-    fi
-    ln -s ${AMDAPPSDKROOT}/lib/x86_64/sdk/libOpenCL.so.1 ${AMDAPPSDKROOT}/lib/x86_64/libOpenCL.so.1
-    if [ $? -ne 0 ]
-    then
-        echo -e "Failed to soft-link libOpenCL.so.1"
-        exit -1
-    fi
+echo -e "Failed to soft-link libOpenCL.so"
+exit -1
+fi
+ln -s ${AMDAPPSDKROOT}/lib/x86_64/sdk/libOpenCL.so.1 ${AMDAPPSDKROOT}/lib/x86_64/libOpenCL.so.1
+if [ $? -ne 0 ]
+then
+echo -e "Failed to soft-link libOpenCL.so.1"
+exit -1
+fi
 
-    cp ${AMDAPPSDKROOT}/lib/x86_64/libamdocl12cl64.so ${AMDAPPSDKROOT}/lib/x86_64/sdk/
-    if [ $? -ne 0 ]
-    then
-        echo -e "Failed to copy libamdocl12cl64.so."
-        exit -1
-    fi
+cp ${AMDAPPSDKROOT}/lib/x86_64/libamdocl12cl64.so ${AMDAPPSDKROOT}/lib/x86_64/sdk/
+if [ $? -ne 0 ]
+then
+echo -e "Failed to copy libamdocl12cl64.so."
+exit -1
 fi
 
 # When using this local installation,

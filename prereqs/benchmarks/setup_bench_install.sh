@@ -1,5 +1,5 @@
 #!/bin/bash
-# Copyright (c) 2016 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright (c) 2016-2018 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -89,11 +89,8 @@ then
         if [ ! -f ~/benchmarks/AMD-APP-SDKInstaller-v3.0.130.136-GA-linux64.tar.bz2 ] && [ ! -f ~/benchmarks/AMDAPP/AMD-APP-SDKInstaller-v3.0.130.136-GA-linux64.tar.bz2 ]; then
             echo -e "Failed to download the AMD APP SDK and files are unavailable."
             echo -e "Could not find ~/benchmarks/AMD-APP-SDKInstaller-v3.0.130.136-GA-linux64.tar.bz2"
-            echo -e "Downloading the AMD APP SDK requires manually agreeing to a license."
-            echo -e "We tried to get around this, but it failed."
-            echo -e "Please download the AMD APP SDK from:"
-            echo -e "     http://developer.amd.com/tools-and-sdks/opencl-zone/amd-accelerated-parallel-processing-app-sdk/"
-            echo -e "Then put it into ~/benchmarks/"
+            echo -e "AMD does not directly offer this file anymore, but can generally be found on the internet."
+            echo -e "Please download the AMD APP SDK, then put it into ~/benchmarks/"
             echo -e "You should do this even if you are using an OpenCL runtime from someone else."
             echo -e "The AMD APP SDK includes benchmarks that we automatically test against."
             exit -1
@@ -131,16 +128,6 @@ if [ $AMD_OCL -eq 1 ]; then
     ls /opt/rocm &> /dev/null
     if [ $? -eq 0 ]; then
         AMD_OCL_APPSDK=0
-    fi
-fi
-
-# Our LINPACK benchmark requires an AMD Hawaii GPU
-AMD_HAWAII_GPU=0
-
-if [ $AMD_OCL_APPSDK -eq 1 ]; then
-    lspci -mm | grep VGA | grep "Advanced Micro Devices, Inc. \[AMD/ATI\]" | grep Hawaii &> /dev/null
-    if [ $? -eq 0 ]; then
-        AMD_HAWAII_GPU=1
     fi
 fi
 
