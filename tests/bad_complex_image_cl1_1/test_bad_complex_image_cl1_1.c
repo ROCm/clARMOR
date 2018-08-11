@@ -253,7 +253,7 @@ int main(int argc, char** argv)
 
     if (images_are_broken())
     {
-		FILE *err_f = NULL, *detector_f = NULL;
+		FILE *err_f, *detector_f;
 		err_f = fopen("Errfile", "w");
 		fprintf(err_f, "EXPECTED_ERRORS=0\n");
 		fclose(err_f);
@@ -540,7 +540,7 @@ int main(int argc, char** argv)
     int ret = system(err_str);
     if(ret){}
 
-    FILE *err_f = NULL;
+    FILE *err_f;
     err_f = fopen("Errfile", "w");
     fprintf(err_f, "%s\n", err_str);
     fclose(err_f);

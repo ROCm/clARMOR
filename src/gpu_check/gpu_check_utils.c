@@ -403,7 +403,7 @@ void output_kern_runtime(void)
 {
     if(get_tool_perf_envvar() & STATS_CHECKER_TIME)
     {
-        FILE *perf_out_f = NULL;
+        FILE *perf_out_f;
 
         perf_out_f = fopen(global_tool_stats_outfile, "a");
 

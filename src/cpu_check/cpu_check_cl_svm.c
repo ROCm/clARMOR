@@ -170,7 +170,7 @@ void verify_svm(kernel_info *kern_info, uint32_t num_svm,
         void **svm_ptrs, uint32_t *dupe, const cl_event *evt)
 {
 #ifdef CL_VERSION_2_0
-    if (num_svm <= 0)
+    if (num_svm == 0)
         return;
 
     cl_context kern_ctx;

@@ -1,5 +1,5 @@
 #!/bin/bash
-# Copyright (c) 2016 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright (c) 2016-2018 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -38,12 +38,6 @@ if [ ! -d ~/benchmarks/phoronix ]; then
 fi
 if [ ! -d ~/benchmarks/mantevo ]; then
     mkdir -p ~/benchmarks/mantevo
-fi
-if [ ! -d ~/benchmarks/LINPACK/ ]; then
-    mkdir -p ~/benchmarks/LINPACK
-fi
-if [ ! -d ~/benchmarks/LINPACK/acml/ ]; then
-    mkdir -p ~/benchmarks/LINPACK/acml
 fi
 
 #---------------- Stuff that we cannot automatically download -----------------
@@ -102,19 +96,6 @@ if [ ! -d ~/benchmarks/AMDAPP/AMDAPP_install ]; then
     mkdir -p ~/benchmarks/AMDAPP/
     mv ~/benchmarks/AMDAPP_install/AMDAPP ~/benchmarks/AMDAPP/AMDAPP_install
     rm -rf ~/benchmarks/AMDAPP_install/
-fi
-#------------------------------------------------------------------------------
-
-#----------------------------------- ACML -------------------------------------
-if [ ! -f ~/benchmarks/libraries/acml-6.1.0.31-gfortran64.tgz ]; then
-    mkdir -p ~/benchmarks/libraries/
-    ${BASE_DIR}/../support_files/get_acml.sh -d ~/benchmarks/libraries/
-    if [ -f ~/benchmarks/libraries/acml-6.1.0.31-gfortran64.tgz ]; then
-        cp ~/benchmarks/libraries/acml-6.1.0.31-gfortran64.tgz ~/benchmarks/LINPACK/acml/
-    else
-        echo -e "Failed to download ACML."
-        exit -1
-    fi
 fi
 #------------------------------------------------------------------------------
 
@@ -317,39 +298,6 @@ if [ ! -d ~/benchmarks/Hetero-Mark ]; then
     git clone -b amd_fixes https://github.com/jlgreathouse/Hetero-Mark.git
 else
     echo -e "Skipping download of Hetero-Mark. It already exists."
-fi
-#------------------------------------------------------------------------------
-
-#----------------------------------- LINPACK ----------------------------------
-if [ ! -f ~/benchmarks/LINPACK/cblas.tgz ]; then
-    cd ~/benchmarks/LINPACK/
-    echo -e "\n\nAbout to download CBLAS from NetLib:"
-    wget http://www.netlib.org/blas/blast-forum/cblas.tgz
-    if [ $? -ne 0 ]; then
-        echo -e "Failed to download file"
-        exit -1
-    fi
-fi
-if [ ! -f ~/benchmarks/LINPACK/gcc-4.9.3.tar.bz2 ]; then
-    cd ~/benchmarks/LINPACK/
-    echo -e "\n\nAbout to download GCC from GNU:"
-    wget https://ftp.gnu.org/gnu/gcc/gcc-4.9.3/gcc-4.9.3.tar.bz2
-    if [ $? -ne 0 ]; then
-        echo -e "Failed to download file"
-        exit -1
-    fi
-fi
-if [ ! -d ~/benchmarks/LINPACK/caldgemm/ ]; then
-    cd ~/benchmarks/LINPACK/
-    echo -e "\n\nAbout to download CALDGEMM from GitHub:"
-    git clone https://github.com/davidrohr/caldgemm.git
-fi
-if [ ! -d ~/benchmarks/LINPACK/hpl-gpu/ ]; then
-    cd ~/benchmarks/LINPACK/
-    echo -e "\n\nAbout to download HPL-GPU from GitHub:"
-    git clone https://github.com/davidrohr/hpl-gpu.git
-else
-    echo -e "Skipping download of HPL-GPU. It already exists."
 fi
 #------------------------------------------------------------------------------
 

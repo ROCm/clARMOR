@@ -450,8 +450,8 @@ int is_nvidia_platform(cl_context context)
 {
     cl_int cl_err;
     size_t size_dev, size_platform;
-    cl_device_id *device = NULL;
-    cl_platform_id *platform = NULL;
+    cl_device_id *device;
+    cl_platform_id *platform;
     size_t platform_name_len = 0;
     char *platform_name;
 

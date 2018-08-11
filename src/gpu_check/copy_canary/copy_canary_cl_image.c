@@ -161,7 +161,7 @@ void verify_cl_images_copy(cl_context kern_ctx, cl_command_queue cmd_queue,
         uint32_t num_images, void **image_ptrs, kernel_info *kern_info,
         uint32_t *dupe, const cl_event *evt, cl_event *ret_evt)
 {
-    if(num_images <= 0)
+    if(num_images == 0)
     {
         if (ret_evt != NULL)
             *ret_evt = create_complete_user_event(kern_ctx);

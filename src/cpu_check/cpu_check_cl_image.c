@@ -188,7 +188,6 @@ static void read_image_canaries(cl_context kern_ctx,
     copy_canary_slice(kern_ctx, cmd_queue, img, canary, j_dat, k_dat, i_lim,
             j_lim, k_lim, data_size, incoming_event,
             &(out_events[out_evt_num]));
-    out_evt_num++;
 }
 
 static uint32_t number_of_image_reads(uint32_t j_dat, uint32_t k_dat)
@@ -209,7 +208,7 @@ static uint32_t number_of_image_reads(uint32_t j_dat, uint32_t k_dat)
 void verify_images(kernel_info *kern_info, uint32_t num_images,
         void **image_ptrs, uint32_t *dupe, const cl_event *evt)
 {
-    if (num_images <= 0)
+    if (num_images == 0)
         return;
 
     cl_context kern_ctx;

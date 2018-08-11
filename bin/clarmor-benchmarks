@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding=utf-8
 
-# Copyright (c) 2016 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright (c) 2016-2018 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -121,9 +121,6 @@ HETEROMARK="aes_hm fir_hm hmm_hm iir_hm kmeans_hm pagerank_hm sw_hm"
 # Benchmarks: 7
 HETEROMARK_CL2="aes_hm_cl2 fir_hm_cl2 hmm_hm_cl2 iir_hm_cl2 kmeans_hm_cl2 "
 HETEROMARK_CL2+="pagerank_hm_cl2 sw_hm_cl2"
-
-# Benchmarks: 1
-LINPACK="hpl"
 
 # Benchmarks: 8
 VIENNACL="dense_blas-bench-opencl amg bisect custom-kernels matrix-free nmf "
@@ -738,13 +735,6 @@ benchCMD["pagerank_hm_cl2"]="pagerank_cl20 -m ../../../../data/page_rank/csr_921
 #
 benchCD["sw_hm_cl2"]=os.path.join(path_to_benchmark,"Hetero-Mark/build/src/opencl20/sw_cl20")
 benchCMD["sw_hm_cl2"]="sw_cl20"
-#------------------------------------------------------------------------------
-
-
-#-----------------------------------LINPACK------------------------------------
-benchCD["hpl"]=os.path.join(path_to_benchmark,"LINPACK/hpl-gpu/bin/Generic/")
-benchCMD["hpl"]="xhpl"
-benchPrefix["hpl"]="LD_LIBRARY_PATH=/opt/AMDAPP/lib/x86_64:"+os.path.join(path_to_benchmark,"LINPACK/lib/")+":"+os.path.join(path_to_benchmark,"LINPACK/acml/gfortran64_mp/lib/")+":$LD_LIBRARY_PATH OMP_NUM_THREADS=2"
 #------------------------------------------------------------------------------
 
 
