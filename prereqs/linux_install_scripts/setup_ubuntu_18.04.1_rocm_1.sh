@@ -20,7 +20,7 @@
 # THE SOFTWARE.
 
 # The following is a step-by-step guide for installing the appropriate
-# tools and software for using clARMOR on a fresh Ubuntu 16.04.3 install
+# tools and software for using clARMOR on a fresh Ubuntu 18.04.1 install
 # using the ROCm software stack.
 
 # Note that there's very likely some overkill on the installs here. This is
@@ -29,16 +29,16 @@
 # A lot of the X11 libraries are needed for benchmarks like Phoronix, however.
 
 #==============================================================================
-#Install Ubuntu 16.04.3 LTS
+#Install Ubuntu 18.04.1 LTS
 #==============================================================================
-#Use USB thumb drive with Ubuntu 16.04.3 LTS installed to boot
+#Use USB thumb drive with Ubuntu 18.04.1 LTS installed to boot
 #After booted, select install Ubuntu
 
 BASE_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 INSTALLER_DIR=${BASE_DIR}/../install_files/
 REAL_USER=`logname 2>/dev/null || echo ${SUDO_USER:-${USER}}`
 su -c "mkdir -p ${INSTALLER_DIR}" $REAL_USER
-echo "HLSim Ubuntu 18.04.1 Installation Script (ROCm drivers) Step 1/2"
+echo "clARMOR Ubuntu 18.04.1 Installation Script (ROCm drivers) Step 1/2"
 
 #Do basic post-install stuff
 #==============================================================================
