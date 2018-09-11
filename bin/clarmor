@@ -372,9 +372,9 @@ def run_detect_overflow(args, parser):
 
     if rocm_and_hawaii():
         print(args["prefix"] + " WARNING - Using ROCm with a Hawaii GPU.")
-        print(args["prefix"] + "           clARMOR will force cl_mem and ")
-        print(args["prefix"] + "           SVM checks to run on the CPU.")
-        print(args["prefix"] + "           Image checks will be siabled.")
+        print_str = "           Will force cl_mem and SVM checks to run on the CPU."
+        print(args["prefix"] + print_str)
+        print(args["prefix"] + "           Image checks will be disabled.")
         prefix += " CLARMOR_ROCM_HAWAII=1 "
         prefix += " CLARMOR_DEVICE_SELECT=2 "
     elif args["device_select"]:
