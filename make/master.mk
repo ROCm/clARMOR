@@ -35,30 +35,37 @@ ifeq ($(CC),cc)
 CC=gcc
 endif
 
+ifndef OCL_INCLUDE_DIR
 ifdef AMDAPPSDKROOT
 OCL_INCLUDE_DIR=$(AMDAPPSDKROOT)/include
-OCL_LIB_DIR=$(AMDAPPSDKROOT)/lib/x86_64
 else ifdef ATISTREAMSDKROOT
 OCL_INCLUDE_DIR=$(ATISTREAMSDKROOT)/include
-OCL_LIB_DIR=$(ATISTREAMSDKROOT)/lib/x86_64
 else ifdef INTELOCLSDKROOT
 OCL_INCLUDE_DIR=$(INTELOCLSDKROOT)/include
-OCL_LIB_DIR=$(INTELOCLSDKROOT)/lib/x86_64
 else ifdef CUDA_INC_PATH
 OCL_INCLUDE_DIR=$(CUDA_INC_PATH)
-OCL_LIB_DIR=$(CUDA_LIB_PATH)
 else ifdef CUDA_PATH
 OCL_INCLUDE_DIR=$(CUDA_PATH)/include
-OCL_LIB_DIR=$(CUDA_PATH)/lib64
+else
+$(error OpenCL include directory environment variable is not set, so this build has failed.$newlinePlease set the environment variable OCL_INCLUDE_DIR to the include directory of your OpenCL runtime.$newlineAlternately, set one of these environment variables to your OpenCL runtime root directory:$newline    AMDAPPSDKROOT, ATISTREAMSDKROOT, INTELOCLSDKROOT, or CUDA_PATH$newline    (you could also set CUDA_INC_PATH to your CUDA include directory)$newline)
+endif
 endif
 
-ifndef OCL_INCLUDE_DIR
-$(error OpenCL environment variables are not set, so this build has failed.$(newline)Please set one of the environment variables:$(newline)OCL_INCLUDE_DIR/OCL_LIB_DIR, AMDAPPSDKROOT, ATISTREAMSDKROOT, INTELOCLSDKROOT, CUDA_PATH, or CUDA_INC_PATH/CUDA_LIB_PATH)
-endif
 ifndef OCL_LIB_DIR
-$(error OpenCL environment variables are not set, so this build has failed.$(newline)Please set one of the environment variables:$(newline)OCL_INCLUDE_DIR/OCL_LIB_DIR, AMDAPPSDKROOT, ATISTREAMSDKROOT, INTELOCLSDKROOT, CUDA_PATH, or CUDA_INC_PATH/CUDA_LIB_PATH)
+ifdef AMDAPPSDKROOT
+OCL_LIB_DIR=$(AMDAPPSDKROOT)/lib/x86_64
+else ifdef ATISTREAMSDKROOT
+OCL_LIB_DIR=$(ATISTREAMSDKROOT)/lib/x86_64
+else ifdef INTELOCLSDKROOT
+OCL_LIB_DIR=$(INTELOCLSDKROOT)/lib/x86_64
+else ifdef CUDA_LIB_PATH
+OCL_LIB_DIR=$(CUDA_LIB_PATH)
+else ifdef CUDA_PATH
+OCL_LIB_DIR=$(CUDA_PATH)/lib64
+else
+$(error OpenCL lib directory environment variable is not set, so this build has failed.$newlinePlease set the environment variable OCL_LIB_DIR to the include directory of your OpenCL runtime.$newlineAlternately, set one of these environment variables to your OpenCL runtime root directory:$newline    AMDAPPSDKROOT, ATISTREAMSDKROOT, INTELOCLSDKROOT, or CUDA_PATH$newline    (you could also set CUDA_LIB_PATH to your CUDA include directory)$newline)
 endif
-
+endif
 
 INCLUDE_DIR=${HERE}../src/include
 CL_WRAPPER_DIR=${HERE}../src/cl_wrapper
