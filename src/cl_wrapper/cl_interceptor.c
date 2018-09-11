@@ -1983,6 +1983,8 @@ clSVMFree(cl_context    context,
     if (SVMFree)
     {
         initialize_logging();
+        if (svm_pointer == NULL)
+            return;
         cl_svm_memobj *temp;
         temp = cl_svm_mem_remove(get_cl_svm_mem_alloc(), svm_pointer);
         void *main_svm = 0;
@@ -1992,7 +1994,6 @@ clSVMFree(cl_context    context,
             pthread_mutex_lock(&memory_overhead_lock);
             if(temp != NULL)
             {
-                main_svm = temp->main_buff;
                 if(internal_create)
                     current_overhead_mem -= temp->size + POISON_REGIONS*POISON_FILL_LENGTH;
                 else
@@ -2005,7 +2006,10 @@ clSVMFree(cl_context    context,
         }
 
         if(temp != NULL)
+        {
+            main_svm = temp->main_buff;
             cl_svm_mem_delete(temp);
+        }
 
         /*
          * If this was a previously-allocated fine-grained buffer, don't free
@@ -2019,8 +2023,6 @@ clSVMFree(cl_context    context,
          */
         if (main_svm && cl_svm_fg_free(context, main_svm))
             SVMFree(context, main_svm);
-        if (cl_svm_fg_free(context, svm_pointer))
-            SVMFree(context, svm_pointer);
     }
     else
     {

@@ -93,6 +93,11 @@ if [ ! -d ~/benchmarks/parboil ]; then
     # Patch 'histo' so that it works on NV GPUs without running out of local memory space.
     sed -i.bak 's#lmemKB = 48#lmemKB = 32#' ./benchmarks/histo/src/opencl_base/main.cpp
     sed -i.bak 's#lmemKB = 24#lmemKB = 16#' ./benchmarks/histo/src/opencl_base/main.cpp
+    # Patch 'histo' so that it works on ROCm devices that have a maximum local size of
+    # 1024, but which require special compilation parameters to use it.
+    sed -i.bak '163i for (int i = 0; i < workItemDimensions; i++) {' ./benchmarks/histo/src/opencl_base/main.cpp
+    sed -i.bak '164i if (workItemSizes[i] > 256)' ./benchmarks/histo/src/opencl_base/main.cpp
+    sed -i.bak '165i workItemSizes[i] = 256; }' ./benchmarks/histo/src/opencl_base/main.cpp
     for i in `./parboil list | grep "^ " | awk {'print $1'}`; do ./parboil compile $i opencl_base; done
     LIBRARY_PATH=${OCL_LIB_DIR} ./parboil compile mri-q opencl
 else
