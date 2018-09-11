@@ -52,8 +52,7 @@
 
 const unsigned poisonWordLen = POISON_FILL_LENGTH / sizeof(unsigned);
 const uint8_t poisonFill_8b = POISON_FILL;
-const unsigned poisonFill_32b = (((((POISON_FILL << 8) + POISON_FILL) << 8) +
-            POISON_FILL) << 8) + POISON_FILL;
+const unsigned poisonFill_32b = POISON_FILL_32B;
 
 cl_command_queue checkQueue = NULL;
 cl_context checkCtx = NULL;

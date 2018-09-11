@@ -1,5 +1,5 @@
 #!/bin/bash
-# Copyright (c) 2016-2017 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright (c) 2016-2018 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -20,7 +20,7 @@
 # THE SOFTWARE.
 
 # The following is a step-by-step guide for installing the appropriate
-# tools and software for using clARMOR on a fresh Ubuntu 16.04.3 install
+# tools and software for using clARMOR on a fresh Ubuntu 18.04.1 install
 # using the ROCm software stack.
 
 # Note that there's very likely some overkill on the installs here. This is
@@ -29,16 +29,16 @@
 # A lot of the X11 libraries are needed for benchmarks like Phoronix, however.
 
 #==============================================================================
-#Install Ubuntu 16.04.3 LTS
+#Install Ubuntu 18.04.1 LTS
 #==============================================================================
-#Use USB thumb drive with Ubuntu 16.04.3 LTS installed to boot
+#Use USB thumb drive with Ubuntu 18.04.1 LTS installed to boot
 #After booted, select install Ubuntu
 
 BASE_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 INSTALLER_DIR=${BASE_DIR}/../install_files/
 REAL_USER=`logname 2>/dev/null || echo ${SUDO_USER:-${USER}}`
 su -c "mkdir -p ${INSTALLER_DIR}" $REAL_USER
-echo "clARMOR Ubuntu 16.04.3 Installation Script (ROCm drivers) Step 1/2"
+echo "clARMOR Ubuntu 18.04.1 Installation Script (ROCm drivers) Step 1/2"
 
 #Do basic post-install stuff
 #==============================================================================
@@ -72,7 +72,7 @@ sudo sh -c 'echo EXTRA_GROUPS=video >> /etc/adduser.conf'
 #modules.
 #===============================================================================
 INIT_FILE="rocm_setup"
-NEXT_SCRIPT=setup_ubuntu_16.04.3_rocm_2.sh
+NEXT_SCRIPT=setup_ubuntu_18.04.1_rocm_2.sh
 sudo sh -c "echo '#!/bin/bash' > /etc/init.d/${INIT_FILE}"
 sudo sh -c "echo ${BASE_DIR}/${NEXT_SCRIPT} >> /etc/init.d/${INIT_FILE}"
 sudo chmod 755 /etc/init.d/${INIT_FILE}

@@ -1,5 +1,5 @@
 #!/bin/bash
-# Copyright (c) 2016 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright (c) 2016-2018 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -164,15 +164,6 @@ if [ -f $BASE_DIR/benchmarks/build_npb_ocl.sh ]; then
     $BASE_DIR/benchmarks/build_npb_ocl.sh
     if [ $? -ne 0 ]; then
         echo -e "Failed to build OpenCL NAS"
-        exit -1
-    fi
-fi
-
-if [ -f $BASE_DIR/benchmarks/build_linpack.sh ]; then
-    echo -e "\n\nBUILDING LINPACK\n\n"
-    $BASE_DIR/benchmarks/build_linpack.sh
-    if [ $? -ne 0 ]; then
-        echo -e "Failed to build LINPACK"
         exit -1
     fi
 fi

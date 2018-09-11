@@ -94,7 +94,7 @@ void poisonFillImageCanaries(cl_command_queue cmdQueue, cl_memobj *img, uint32_t
     //largest size for a color
     const uint32_t len = 16;
 
-    void *first_poison = NULL;
+    void *first_poison;
     void *second_poison = NULL;
     void *third_poison = NULL;
 

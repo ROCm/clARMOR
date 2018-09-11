@@ -77,7 +77,7 @@ static void read_cl_mem_canaries(cl_command_queue cmd_queue,
 void verify_cl_mem(kernel_info *kern_info, uint32_t num_cl_mem,
         void **buffer_ptrs, uint32_t *dupe, const cl_event *evt)
 {
-    if (num_cl_mem <= 0)
+    if (num_cl_mem == 0)
         return;
 
     cl_context kern_ctx;

@@ -54,6 +54,7 @@
 #define IMAGE_POISON_DEPTH 16
 
 #define POISON_FILL 0xC2
+#define POISON_FILL_32B 0xC2C2C2C2
 
 extern const uint8_t poisonFill_8b; ///< 8 bit poison fill
 extern const uint32_t poisonFill_32b; ///< 32 bit poison fill

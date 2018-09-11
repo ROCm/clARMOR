@@ -26,12 +26,14 @@ HERE := $(dir $(lastword $(MAKEFILE_LIST)))
 
 CLARMOR_VERSION=$(shell git -C "$(HERE)" describe --tags --dirty --long --match [0-9]*)
 
+define newline
+
+
+endef
+
 ifeq ($(CC),cc)
 CC=gcc
 endif
-
-OCL_INCLUDE_DIR=/
-OCL_LIB_DIR=/
 
 ifdef AMDAPPSDKROOT
 OCL_INCLUDE_DIR=$(AMDAPPSDKROOT)/include
@@ -48,8 +50,13 @@ OCL_LIB_DIR=$(CUDA_LIB_PATH)
 else ifdef CUDA_PATH
 OCL_INCLUDE_DIR=$(CUDA_PATH)/include
 OCL_LIB_DIR=$(CUDA_PATH)/lib64
-else
-$(error OpenCL environment variables are not set, so this build has failed.$nPlease set one of the environment variables:$nAMDAPPSDKROOT, ATISTREAMSDKROOT, INTELOCLSDKROOT, CUDA_PATH, or CUDA_INC_PATH/CUDA_LIB_PATH)
+endif
+
+ifndef OCL_INCLUDE_DIR
+$(error OpenCL environment variables are not set, so this build has failed.$(newline)Please set one of the environment variables:$(newline)OCL_INCLUDE_DIR/OCL_LIB_DIR, AMDAPPSDKROOT, ATISTREAMSDKROOT, INTELOCLSDKROOT, CUDA_PATH, or CUDA_INC_PATH/CUDA_LIB_PATH)
+endif
+ifndef OCL_LIB_DIR
+$(error OpenCL environment variables are not set, so this build has failed.$(newline)Please set one of the environment variables:$(newline)OCL_INCLUDE_DIR/OCL_LIB_DIR, AMDAPPSDKROOT, ATISTREAMSDKROOT, INTELOCLSDKROOT, CUDA_PATH, or CUDA_INC_PATH/CUDA_LIB_PATH)
 endif
 
 

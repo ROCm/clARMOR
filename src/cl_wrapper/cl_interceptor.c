@@ -63,9 +63,7 @@ uint64_t current_overhead_mem = 0;
 
 #define CL_MSG(msg)                                                            \
 {                                                                              \
-    if (msg != NULL) {                                                         \
-        det_fprintf(stderr, "CL_WRAPPER : %s (%d): %s\n", __func__, __LINE__, msg);\
-    }                                                                          \
+    det_fprintf(stderr, "CL_WRAPPER : %s (%d): %s\n", __func__, __LINE__, msg);\
 }
 
 #define CL_INTERCEPTOR_FUNCTION( _FUNCNAME_ ) \
@@ -249,7 +247,7 @@ static int cl_function_addresses( void* oclDllHandle )
 
 void init_perf_outfile(void)
 {
-    FILE *perf_out_f = NULL;
+    FILE *perf_out_f;
     perf_out_f = fopen(global_tool_stats_outfile, "w");
 
     if(global_tool_stats_flags & STATS_KERN_ENQ_TIME)
@@ -269,7 +267,7 @@ void init_perf_outfile(void)
 
 void write_out_mem_perf_stats(void)
 {
-    FILE *perf_out_f = NULL;
+    FILE *perf_out_f;
     pthread_mutex_lock(&memory_overhead_lock);
     perf_out_f = fopen(global_tool_stats_outfile, "w");
     fprintf(perf_out_f, "total_user_mem_B, total_overhead_mem_B, high_user_mem_B, high_overhead_mem_B\n");
@@ -688,6 +686,11 @@ clCreateBuffer(cl_context   context,
         flags &= ~CL_MEM_WRITE_ONLY;
         flags &= ~CL_MEM_READ_ONLY;
         flags |= CL_MEM_READ_WRITE;
+#ifdef CL_VERSION_1_2
+        flags &= ~CL_MEM_HOST_WRITE_ONLY;
+        flags &= ~CL_MEM_HOST_READ_ONLY;
+        flags &= ~CL_MEM_HOST_NO_ACCESS;
+#endif
 
         if(flags & CL_MEM_USE_HOST_PTR)
         {
@@ -742,9 +745,10 @@ clCreateBuffer(cl_context   context,
         if(main_buff && !(flags & CL_MEM_USE_HOST_PTR))
         {
             cl_buffer_region sub_region;
-            sub_region.origin = 0;
 #ifdef UNDERFLOW_CHECK
             sub_region.origin = POISON_FILL_LENGTH;
+#else
+            sub_region.origin = 0;
 #endif
             sub_region.size = size;
             cl_mem_flags passDownFlags, ptrFlags;
@@ -2282,7 +2286,7 @@ static cl_int kernelLaunchFunc(void * thread_args_)
         total_durr_us = timeval_diff_us(&total_stop, &total_start);
         enq_durr_us = timeval_diff_us(&enq_stop, &enq_start);
 
-        FILE *perf_out_f = NULL;
+        FILE *perf_out_f;
         perf_out_f = fopen(global_tool_stats_outfile, "a");
 
         fprintf(perf_out_f, "%lu, %lu, %lu\n", total_durr_us, enq_durr_us, total_durr_us - enq_durr_us);
