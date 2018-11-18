@@ -52,6 +52,11 @@ then
     ../configure --with-opencl-sdk=${OCL_DIR} --with-apps=bwa_hmm,crc,csr,gem,nqueens,swat,tdm
     sed -i.bak s'#LIBS = -lOpenCL#LIBS = -lm -L'${OCL_LIB_DIR}' -lOpenCL#' ./Makefile
     sed -i.bak s'/CFLAGS =/CFLAGS = -g -O3/' ./Makefile
+    sed -i.bak s'define min/define fake_min/' ./n-body-methods/gem/include/calculations.h
+    sed -i.bak s'define max/define fake_max/' ./n-body-methods/gem/include/calculations.h
+    sed -i.bak s'min(/fake_min(/' ./n-body-methods/gem/read_pqr.c
+    sed -i.bak s'max(/fake_max(/' ./n-body-methods/gem/read_pqr.c
+    sed -i.bak s'max(/fake_max(/' ./n-body-methods/gem/extrapolate_bonds.c
     make -j `nproc`
     if [ $? -ne 0 ]; then
         echo -e "Failed to build OpenDwarfs"
