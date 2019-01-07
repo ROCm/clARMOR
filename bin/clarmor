@@ -181,7 +181,7 @@ def add_arguments(parser):
 # Try to set the LD_PRELOAD for our wrapper library.
 # If the library does not exist, print out the approprirate error.
 def return_lib_path( lib, args ):
-    lib = "%s.so.1.0" %( lib )
+    lib = "%s.so.2.0" %( lib )
     path = os.path.join( args["detector_path"], "lib", lib )
     if not check_path_exists( path ):
         logging.error("Please make sure you make %s", lib)
