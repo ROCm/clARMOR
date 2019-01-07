@@ -47,7 +47,7 @@ OCL_INCLUDE_DIR=$(CUDA_INC_PATH)
 else ifdef CUDA_PATH
 OCL_INCLUDE_DIR=$(CUDA_PATH)/include
 else
-$(error OpenCL include directory environment variable is not set, so this build has failed.$newlinePlease set the environment variable OCL_INCLUDE_DIR to the include directory of your OpenCL runtime.$newlineAlternately, set one of these environment variables to your OpenCL runtime root directory:$newline    AMDAPPSDKROOT, ATISTREAMSDKROOT, INTELOCLSDKROOT, or CUDA_PATH$newline    (you could also set CUDA_INC_PATH to your CUDA include directory)$newline)
+$(error OpenCL include directory environment variable is not set, so this build has failed.${newline}Please set the environment variable OCL_INCLUDE_DIR to the include directory of your OpenCL runtime.${newline}Alternately, set one of these environment variables to your OpenCL runtime root directory:${newline}    AMDAPPSDKROOT, ATISTREAMSDKROOT, INTELOCLSDKROOT, or CUDA_PATH${newline}    (you could also set CUDA_INC_PATH to your CUDA include directory))
 endif
 endif
 
@@ -63,7 +63,7 @@ OCL_LIB_DIR=$(CUDA_LIB_PATH)
 else ifdef CUDA_PATH
 OCL_LIB_DIR=$(CUDA_PATH)/lib64
 else
-$(error OpenCL lib directory environment variable is not set, so this build has failed.$newlinePlease set the environment variable OCL_LIB_DIR to the include directory of your OpenCL runtime.$newlineAlternately, set one of these environment variables to your OpenCL runtime root directory:$newline    AMDAPPSDKROOT, ATISTREAMSDKROOT, INTELOCLSDKROOT, or CUDA_PATH$newline    (you could also set CUDA_LIB_PATH to your CUDA include directory)$newline)
+$(error OpenCL lib directory environment variable is not set, so this build has failed.${newline}Please set the environment variable OCL_LIB_DIR to the include directory of your OpenCL runtime.${newline}Alternately, set one of these environment variables to your OpenCL runtime root directory:${newline}    AMDAPPSDKROOT, ATISTREAMSDKROOT, INTELOCLSDKROOT, or CUDA_PATH${newline}    (you could also set CUDA_LIB_PATH to your CUDA include directory))
 endif
 endif
 
