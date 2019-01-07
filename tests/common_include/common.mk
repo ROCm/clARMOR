@@ -44,7 +44,7 @@ all: test
 
 .PHONY: clean
 clean:
-	$(RM) -f $(THIS_DIR)/*.exe $(THIS_DIR)/*.o $(THIS_DIR)/*.out $(THIS_DIR)/*.d $(THIS_DIR)/*.csv
+	$(RM) -f $(THIS_DIR)/*.exe $(THIS_DIR)/*.o $(THIS_DIR)/*.out $(THIS_DIR)/*.d $(THIS_DIR)/*.csv $(THIS_DIR)/Errfile
 
 .PHONY: test
 test: run_test

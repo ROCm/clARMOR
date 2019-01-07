@@ -1,5 +1,5 @@
 /********************************************************************************
- * Copyright (c) 2016 Advanced Micro Devices, Inc. All rights reserved.
+ * Copyright (c) 2016-2019 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -35,6 +35,15 @@ static void run_2d_test(const cl_device_id device, const cl_context context,
 {
     cl_int cl_err;
     size_t num_work_items[2];
+
+    if (images_are_broken(device))
+    {
+        output_fake_errors(OUTPUT_FILE_NAME, EXPECTED_ERRORS);
+        printf("This device does not properly support an implementation of ");
+        printf("OpenCL images. As such, we cannot test them.\n");
+        printf("Skipping Good image_enqueue_cl1_1 Test.\n");
+        return;
+    }
 
     printf("\nRunning 2D Image Test...\n");
     // In this case, we are going to create an image of the desired buffer

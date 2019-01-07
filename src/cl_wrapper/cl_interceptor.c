@@ -320,45 +320,52 @@ clGetDeviceInfo(cl_device_id device,
                 param_value_size_ret);
 
         cl_int cl_err;
-        size_t *p_val = param_value;
-        uint64_t width, height, depth;
-        switch(param_name)
+        cl_bool image_support = CL_FALSE;
+        cl_err = GetDeviceInfo(device, CL_DEVICE_IMAGE_SUPPORT,
+                sizeof(cl_bool), &image_support, NULL);
+        check_cl_error(__FILE__, __LINE__, cl_err);
+        if (image_support == CL_TRUE)
         {
-            case CL_DEVICE_IMAGE2D_MAX_WIDTH:
-                *p_val -= IMAGE_POISON_WIDTH;
-                break;
-            case CL_DEVICE_IMAGE2D_MAX_HEIGHT:
-                *p_val -= IMAGE_POISON_HEIGHT;
-                break;
-            case CL_DEVICE_IMAGE3D_MAX_WIDTH:
-                *p_val -= IMAGE_POISON_WIDTH;
-                break;
-            case CL_DEVICE_IMAGE3D_MAX_HEIGHT:
-                *p_val -= IMAGE_POISON_HEIGHT;
-                break;
-            case CL_DEVICE_IMAGE3D_MAX_DEPTH:
-                *p_val -= IMAGE_POISON_DEPTH;
-                break;
+            size_t *p_val = param_value;
+            uint64_t width, height, depth;
+            switch(param_name)
+            {
+                case CL_DEVICE_IMAGE2D_MAX_WIDTH:
+                    *p_val -= IMAGE_POISON_WIDTH;
+                    break;
+                case CL_DEVICE_IMAGE2D_MAX_HEIGHT:
+                    *p_val -= IMAGE_POISON_HEIGHT;
+                    break;
+                case CL_DEVICE_IMAGE3D_MAX_WIDTH:
+                    *p_val -= IMAGE_POISON_WIDTH;
+                    break;
+                case CL_DEVICE_IMAGE3D_MAX_HEIGHT:
+                    *p_val -= IMAGE_POISON_HEIGHT;
+                    break;
+                case CL_DEVICE_IMAGE3D_MAX_DEPTH:
+                    *p_val -= IMAGE_POISON_DEPTH;
+                    break;
 #ifdef CL_VERSION_1_2
-            case CL_DEVICE_IMAGE_MAX_BUFFER_SIZE:
-                *p_val -= IMAGE_POISON_WIDTH;
-                break;
+                case CL_DEVICE_IMAGE_MAX_BUFFER_SIZE:
+                    *p_val -= IMAGE_POISON_WIDTH;
+                    break;
 #endif
-            case CL_DEVICE_MAX_MEM_ALLOC_SIZE:
-                //largest canary space is from slice duplication for depth
-                cl_err = GetDeviceInfo(device, CL_DEVICE_IMAGE3D_MAX_WIDTH,
-                        sizeof(uint64_t), &width, NULL);
-                check_cl_error(__FILE__, __LINE__, cl_err);
-                cl_err = GetDeviceInfo(device, CL_DEVICE_IMAGE3D_MAX_HEIGHT,
-                        sizeof(uint64_t), &height, NULL);
-                check_cl_error(__FILE__, __LINE__, cl_err);
-                depth = *p_val / (width * height);
+                case CL_DEVICE_MAX_MEM_ALLOC_SIZE:
+                    //largest canary space is from slice duplication for depth
+                    cl_err = GetDeviceInfo(device, CL_DEVICE_IMAGE3D_MAX_WIDTH,
+                            sizeof(uint64_t), &width, NULL);
+                    check_cl_error(__FILE__, __LINE__, cl_err);
+                    cl_err = GetDeviceInfo(device, CL_DEVICE_IMAGE3D_MAX_HEIGHT,
+                            sizeof(uint64_t), &height, NULL);
+                    check_cl_error(__FILE__, __LINE__, cl_err);
+                    depth = *p_val / (width * height);
 
-                depth -= IMAGE_POISON_DEPTH;
-                height -= IMAGE_POISON_HEIGHT;
-                width -= IMAGE_POISON_WIDTH;
-                *p_val = width * height * depth;
-                break;
+                    depth -= IMAGE_POISON_DEPTH;
+                    height -= IMAGE_POISON_HEIGHT;
+                    width -= IMAGE_POISON_WIDTH;
+                    *p_val = width * height * depth;
+                    break;
+            }
         }
     }
     else
@@ -2847,6 +2854,24 @@ clEnqueueReadImage(cl_command_queue      command_queue ,
     cl_int err = CL_SUCCESS;
     if ( EnqueueReadImage )
     {
+        cl_device_id device;
+        cl_int temp_err = clGetCommandQueueInfo(command_queue, CL_QUEUE_DEVICE,
+                sizeof(cl_device_id), &device, NULL);
+        if (temp_err != CL_SUCCESS)
+        {
+            CL_MSG("Unable to get device from queue in clEnqueueReadImage wrapper.\n");
+            return CL_INVALID_COMMAND_QUEUE;
+        }
+        cl_bool image_support = CL_FALSE;
+        temp_err = clGetDeviceInfo(device, CL_DEVICE_IMAGE_SUPPORT,
+                sizeof(cl_bool), &image_support, NULL);
+        if (temp_err != CL_SUCCESS)
+        {
+            CL_MSG("Unable to get mage suport info from device clEnqueueReadImage wrapper.\n");
+            return CL_INVALID_DEVICE;
+        }
+        if (image_support == CL_FALSE)
+            return CL_INVALID_OPERATION;
         if( !apiImageOverflowCheck("clEnqueueReadImage", image, origin, region) )
         {
             err = EnqueueReadImage(command_queue, image, blocking_read,
@@ -2878,6 +2903,25 @@ clEnqueueWriteImage(cl_command_queue     command_queue ,
 
     if ( EnqueueWriteImage )
     {
+        cl_device_id device;
+        cl_int temp_err = clGetCommandQueueInfo(command_queue, CL_QUEUE_DEVICE,
+                sizeof(cl_device_id), &device, NULL);
+        if (temp_err != CL_SUCCESS)
+        {
+            CL_MSG("Unable to get device from queue in clEnqueueWriteImage wrapper.\n");
+            return CL_INVALID_COMMAND_QUEUE;
+        }
+        cl_bool image_support = CL_FALSE;
+        temp_err = clGetDeviceInfo(device, CL_DEVICE_IMAGE_SUPPORT,
+                sizeof(cl_bool), &image_support, NULL);
+        if (temp_err != CL_SUCCESS)
+        {
+            CL_MSG("Unable to get mage suport info from device clEnqueueWriteImage wrapper.\n");
+            return CL_INVALID_DEVICE;
+        }
+        if (image_support == CL_FALSE)
+            return CL_INVALID_OPERATION;
+
         if( !apiImageOverflowCheck("clEnqueueWriteImage", image, origin, region) )
         {
             err =
@@ -2915,6 +2959,25 @@ clEnqueueFillImage(cl_command_queue    command_queue ,
     cl_int err = CL_SUCCESS;
     if ( EnqueueFillImage )
     {
+        cl_device_id device;
+        cl_int temp_err = clGetCommandQueueInfo(command_queue, CL_QUEUE_DEVICE,
+                sizeof(cl_device_id), &device, NULL);
+        if (temp_err != CL_SUCCESS)
+        {
+            CL_MSG("Unable to get device from queue in clEnqueueFillImage wrapper.\n");
+            return CL_INVALID_COMMAND_QUEUE;
+        }
+        cl_bool image_support = CL_FALSE;
+        temp_err = clGetDeviceInfo(device, CL_DEVICE_IMAGE_SUPPORT,
+                sizeof(cl_bool), &image_support, NULL);
+        if (temp_err != CL_SUCCESS)
+        {
+            CL_MSG("Unable to get mage suport info from device clEnqueueFillImage wrapper.\n");
+            return CL_INVALID_DEVICE;
+        }
+        if (image_support == CL_FALSE)
+            return CL_INVALID_OPERATION;
+
         if( !apiImageOverflowCheck("clEnqueueFillImage", image, origin, region) )
         {
             err =
@@ -2950,6 +3013,25 @@ clEnqueueCopyImage(cl_command_queue      command_queue ,
     cl_int err = CL_SUCCESS;
     if ( EnqueueCopyImage )
     {
+        cl_device_id device;
+        cl_int temp_err = clGetCommandQueueInfo(command_queue, CL_QUEUE_DEVICE,
+                sizeof(cl_device_id), &device, NULL);
+        if (temp_err != CL_SUCCESS)
+        {
+            CL_MSG("Unable to get device from queue in clEnqueueCopyImage wrapper.\n");
+            return CL_INVALID_COMMAND_QUEUE;
+        }
+        cl_bool image_support = CL_FALSE;
+        temp_err = clGetDeviceInfo(device, CL_DEVICE_IMAGE_SUPPORT,
+                sizeof(cl_bool), &image_support, NULL);
+        if (temp_err != CL_SUCCESS)
+        {
+            CL_MSG("Unable to get mage suport info from device clEnqueueCopyImage wrapper.\n");
+            return CL_INVALID_DEVICE;
+        }
+        if (image_support == CL_FALSE)
+            return CL_INVALID_OPERATION;
+
         if( !apiImageOverflowCheck("clEnqueueCopyImage", src_image, src_origin, region)
             && !apiImageOverflowCheck("clEnqueueCopyImage", dst_image, dst_origin, region) )
         {
@@ -2987,6 +3069,25 @@ clEnqueueCopyImageToBuffer(cl_command_queue  command_queue ,
     cl_int err = CL_SUCCESS;
     if ( EnqueueCopyImageToBuffer )
     {
+        cl_device_id device;
+        cl_int temp_err = clGetCommandQueueInfo(command_queue, CL_QUEUE_DEVICE,
+                sizeof(cl_device_id), &device, NULL);
+        if (temp_err != CL_SUCCESS)
+        {
+            CL_MSG("Unable to get device from queue in clEnqueueCopyImageToBuffer wrapper.\n");
+            return CL_INVALID_COMMAND_QUEUE;
+        }
+        cl_bool image_support = CL_FALSE;
+        temp_err = clGetDeviceInfo(device, CL_DEVICE_IMAGE_SUPPORT,
+                sizeof(cl_bool), &image_support, NULL);
+        if (temp_err != CL_SUCCESS)
+        {
+            CL_MSG("Unable to get mage suport info from device clEnqueueCopyImageToBuffer wrapper.\n");
+            return CL_INVALID_DEVICE;
+        }
+        if (image_support == CL_FALSE)
+            return CL_INVALID_OPERATION;
+
         cl_memobj *m1 = cl_mem_find(get_cl_mem_alloc(), src_image);
         int run_real_call = 0;
         if (m1 != NULL)
@@ -3034,6 +3135,25 @@ clEnqueueCopyBufferToImage(cl_command_queue  command_queue ,
     cl_int err = CL_SUCCESS;
     if ( EnqueueCopyBufferToImage )
     {
+       cl_device_id device;
+        cl_int temp_err = clGetCommandQueueInfo(command_queue, CL_QUEUE_DEVICE,
+                sizeof(cl_device_id), &device, NULL);
+        if (temp_err != CL_SUCCESS)
+        {
+            CL_MSG("Unable to get device from queue in clEnqueueCopyBufferToImage wrapper.\n");
+            return CL_INVALID_COMMAND_QUEUE;
+        }
+        cl_bool image_support = CL_FALSE;
+        temp_err = clGetDeviceInfo(device, CL_DEVICE_IMAGE_SUPPORT,
+                sizeof(cl_bool), &image_support, NULL);
+        if (temp_err != CL_SUCCESS)
+        {
+            CL_MSG("Unable to get mage suport info from device clEnqueueCopyBufferToImage wrapper.\n");
+            return CL_INVALID_DEVICE;
+        }
+        if (image_support == CL_FALSE)
+            return CL_INVALID_OPERATION;
+
         cl_memobj *m1 = cl_mem_find(get_cl_mem_alloc(), dst_image);
         int run_real_call = 0;
         if (m1 != NULL)
