@@ -230,7 +230,7 @@ def run_cmd( args, cmd, prefix = None ):
         cmd = prefix + " " + cmd
 
     # Run the actual command here.
-    print args["prefix"] + "Final command line to run: %s\n" % cmd
+    print(args["prefix"] + "Final command line to run: " + str(cmd))
     return os.system( cmd )
 
 def rocm_and_hawaii():
@@ -263,10 +263,15 @@ def run_detect_overflow(args, parser):
         args['cmd_line'] = None
 
     if args["benchmark"] == None and args["cmd_line"] == None:
-        print "\n\nError, no program to run. Please pass a command line into "\
-            "the script (e.g., make arguments after typing '--')."
-        print "Alternately, pass a benchmark or group of benchmarks."
-        print "\n\n"
+        print(args["prefix"])
+        print(args["prefix"])
+        print(args["prefix"] + "Error, no program to run. Please pass a "\
+            "command line into the script (e.g., make arguments after "\
+            "typing '--').")
+        print(args["prefix"] + "Alternately, pass a benchmark or group "\
+            "of benchmarks.")
+        print(args["prefix"])
+        print(args["prefix"])
         parser.print_help()
         sys.exit(-1)
     elif args["benchmark"] != None and args["cmd_line"] == None:
@@ -275,10 +280,10 @@ def run_detect_overflow(args, parser):
         # Verify that the clarmor-benchmarks file was set up correctly.
         # Do we have a command? Do we have a benchmark directory?
         if benchmarkName not in benchmarks.benchCMD:
-            print "Command for %s not found in clarmor-benchmarks" % benchmarkName
+            print("Command for " + str(benchmarkName) + " not found in clarmor-benchmarks")
             sys.exit(-1)
         if benchmarkName not in benchmarks.benchCD:
-            print "Directory for %s not found in clarmor-benchmarks" % benchmarkName
+            print("Directory for " + str(benchmarkName) +" not found in clarmor-benchmarks")
             sys.exit(-1)
 
         # Set up the benchmark variables that we will use below.
@@ -312,7 +317,7 @@ def run_detect_overflow(args, parser):
     # on the GPU, or they will deadlock. This logic is used to fill in that
     # information automatically.
     if "USE_NUM_ACTIVE_CUS" in args["cmd_line"]:
-        print args["prefix"] + "Gathering the number of active compute units for this application..."
+        print(args["prefix"] + "Gathering the number of active compute units for this application...")
         cmd = bin_dir+"/clarmor-info"
         try:
             p = subprocess.Popen([cmd,"-g","-n"], stdout = subprocess.PIPE,
@@ -321,21 +326,21 @@ def run_detect_overflow(args, parser):
             out, err = p.communicate()
         except OSError as e:
             if int(e.errno) == 2:
-                print args["prefix"] + "Unable to find clarmor-info, which is required to run this test."
-                print args["prefix"] + "Please make sure it is available in the same directory as clARMOR."
-                print args["prefix"] + "If you downloaded clARMOR from source, please make sure to build it with 'make'"
+                print(args["prefix"] + "Unable to find clarmor-info, which is required to run this test.")
+                print(args["prefix"] + "Please make sure it is available in the same directory as clARMOR.")
+                print(args["prefix"] + "If you downloaded clARMOR from source, please make sure to build it with 'make'")
             else:
-                print args["prefix"] + "Generic OSError: ",e.errno
-                print args["prefix"] + "Generic OSError: ",e.strerror
-                print args["prefix"] + "Generic OSError: ",e.filename
+                print(args["prefix"] + "Generic OSError: " + str(e.errno))
+                print(args["prefix"] + "Generic OSError: " + str(e.strerror))
+                print(args["prefix"] + "Generic OSError: " + str(e.filename))
             sys.exit(-1)
         except:
-            print args["prefix"] + "Generic Error: ",sys.exc_info()[0]
+            print(args["prefix"] + "Generic Error: " + str(sys.exc_info()[0]))
             sys.exit(-1)
         num_cus = int(out)
         if num_cus == 0:
             num_cus = 1
-        print args["prefix"] + "...Found CUs to be: " + str(num_cus)
+        print(args["prefix"] + "...Found CUs to be: " + str(num_cus))
         args["cmd_line"] = args["cmd_line"].replace("USE_NUM_ACTIVE_CUS", str(num_cus))
 
 
@@ -379,21 +384,21 @@ def run_detect_overflow(args, parser):
         prefix += " CLARMOR_DEVICE_SELECT=2 "
     elif args["device_select"]:
         if (int(args["device_select"]) < 0):
-            print "ERROR. --device_select must be >= 0."
+            print(args["prefix"] + "ERROR. --device_select must be >= 0.")
             bad_command_line = 1
         string_to_add = " CLARMOR_DEVICE_SELECT=" + str(args["device_select"]) + " "
         prefix += string_to_add
 
     if args["gpu_method"]:
         if (int(args["gpu_method"]) < 0):
-            print "ERROR. --gpu_method must be >= 0."
+            print(args["prefix"] + "ERROR. --gpu_method must be >= 0.")
             bad_command_line = 1
         string_to_add = " CLARMOR_ALTERNATE_GPU_DETECTION=" + str(args["gpu_method"]) + " "
         prefix += string_to_add
 
     if args["perf_stat"]:
         if (int(args["perf_stat"]) < 0):
-            print "ERROR. --perf_stat must be >= 0."
+            print(args["prefix"] + "ERROR. --perf_stat must be >= 0.")
             bad_command_line = 1
 
         string_to_add = " CLARMOR_PERFSTAT_MODE=%s " % str(args["perf_stat"])
@@ -435,7 +440,7 @@ def run_detect_overflow(args, parser):
     # End of buffer overflow detector run.
     if bad_command_line == 1:
         sys.exit(-1)
-    print args["prefix"] + "Done!"
+    print(args["prefix"] + "Done!")
 
     # Reset LD_PRELOAD so that it doesn't continue to grow forever
     LD_PRELOAD = save_LD_PRELOAD
@@ -463,12 +468,14 @@ def print_version( lib, args ):
     os.close(dev_null_fn)
 
     lib = cdll.LoadLibrary(lib_path)
-    version=lib.get_clarmor_version()
+    version_func=lib.get_clarmor_version
+    version_func.restype=c_char_p
+    version=version_func()
 
     # Turn on prints again so we can print the version number.
     sys.stdout = os.fdopen(old_stdout, 'w')
 
-    print "clARMOR Version: " + str(c_char_p(version).value)
+    print(args["prefix"] + "clARMOR Version: " + version.decode())
 
 def csv_parse(file_name):
     fields = None
@@ -552,14 +559,14 @@ def main():
     if args["group"] != None:
         group = args["group"]
         if not hasattr(benchmarks, group):
-            print ("Benchmark group '%s' not found" % group)
+            print(args["prefix"] + "Benchmark group '%s' not found" % group)
             sys.exit(2)
 
         Group = eval("benchmarks." + group)
-        print Group
+        print(args["prefix"] + Group)
         Group = Group.split()
         for benchmark in Group:
-            print "\n\n" + args["prefix"] + "********* Running Benchmark: %s *********" % benchmark
+            print("\n\n" + args["prefix"] + "********* Running Benchmark: %s *********" % benchmark)
             sys.stdout.flush()
             # Detector function can modify args, so make fresh copy every time
             args["benchmark"]=benchmark
@@ -573,8 +580,8 @@ def main():
             if time_file_location != None:
                 outstr = "%s, %f, %f, %f\n" % (benchmark, real_t, sys_t, usr_t)
                 time_file_location.write(outstr)
-                print 'wrote to %s' % args['time_file_location']
-                print outstr
+                print(args["prefix"] + 'wrote to %s' % args['time_file_location'])
+                print(args["prefix"] + outstr)
 
             if args["perf_stat"] != None and int(args["perf_stat"]) & 4:
                 fields, values = csv_parse(args["perf_file_location"])
@@ -592,7 +599,7 @@ def main():
         if args["benchmark"] != None:
             if time_file_location != None:
                 outstr = "%s, %f, %f, %f\n" % (args["benchmark"], real_t, sys_t, usr_t)
-                print outstr
+                print(args["prefix"] + outstr)
                 time_file_location.write(outstr)
 
             if args["perf_stat"] != None and int(args["perf_stat"]) & 4:
@@ -607,7 +614,7 @@ def main():
         else:
             if time_file_location != None:
                 outstr = "%s, %f, %f, %f\n" % (args["cmd_line"], real_t, sys_t, usr_t)
-                print outstr
+                print(args["prefix"] + outstr)
                 time_file_location.write(outstr)
 
 
