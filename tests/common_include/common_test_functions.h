@@ -1,5 +1,5 @@
 /********************************************************************************
- * Copyright (c) 2016 Advanced Micro Devices, Inc. All rights reserved.
+ * Copyright (c) 2016-2019 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -207,6 +207,6 @@ unsigned int get_image_data_size(const cl_image_format * const format);
 // Returns:
 //      1 if this is a platform where images are broken. 0 otherwise.
 //      Note that this check will only work when done under our tool.
-int images_are_broken(void);
+int images_are_broken(cl_device_id device);
 
 #endif // __COMMON_TEST_FUNCTIONS_H

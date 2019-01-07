@@ -55,6 +55,7 @@ if [ ! -d ~/benchmarks/rodinia_3.1 ]; then
     sed -i.bak s'/platformID\[1/platformID\[0/' ./opencl/hybridsort/bucketsort.c
     sed -i.bak s'/properties)platformID\[num/properties)platformID[0/' ./opencl/hybridsort/bucketsort.c
     sed -i.bak s'/platformID\[1/platformID\[0/' ./opencl/hybridsort/mergesort.c
+    sed -i.bak s'/resStart\[outidx++\] = b;//' ./opencl/hybridsort/mergesort.cl
     sed -i.bak s'/cd opencl\/backprop/cd opencl\/b+tree;           make;   cp b+tree.out \$(OPENCL_BIN_DIR)\n\tcd opencl\/backprop/' ./Makefile
     sed -i.bak s'/cd opencl\/nw/cd opencl\/myocyte;         make;   cp myocyte.out \$(OPENCL_BIN_DIR)\n\tcd opencl\/nw/' ./Makefile
     rm -f ./opencl/kmeans/unistd.h

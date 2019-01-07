@@ -1,5 +1,5 @@
 /********************************************************************************
- * Copyright (c) 2016 Advanced Micro Devices, Inc. All rights reserved.
+ * Copyright (c) 2016-2019 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -583,11 +583,11 @@ static int get_env_util( char **env_, const char *env_var_nm_ )
     if ( var_len == 0 )
         return 0;
     int num_bytes = asprintf(env_, "%s", env_root);
-	if (num_bytes <= 0)
-	{
-		fprintf(stderr, "asprintf in %s:%d failed\n", __FILE__, __LINE__);
-		exit(-1);
-	}
+    if (num_bytes <= 0)
+    {
+        fprintf(stderr, "asprintf in %s:%d failed\n", __FILE__, __LINE__);
+        exit(-1);
+    }
     if (*env_ == NULL)
     {
         fprintf(stderr, "%s (%d) error: asprintf failed\n", __func__, __LINE__);
@@ -596,11 +596,20 @@ static int get_env_util( char **env_, const char *env_var_nm_ )
     return 0;
 }
 
-int images_are_broken(void)
+int images_are_broken(cl_device_id device)
 {
     char * broken_images_envvar = NULL;
     if (getenv("CLARMOR_ROCM_HAWAII") == NULL)
-        return 0;
+    {
+        cl_bool images_supported = 0;
+        cl_int cl_err = clGetDeviceInfo(device, CL_DEVICE_IMAGE_SUPPORT,
+                sizeof(cl_bool), &images_supported, NULL);
+        check_cl_error(__FILE__, __LINE__, cl_err);
+        if (images_supported)
+            return 0;
+        else
+            return 1;
+    }
     else
     {
         unsigned int ret_val = 0;

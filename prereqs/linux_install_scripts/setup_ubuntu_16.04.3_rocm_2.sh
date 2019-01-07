@@ -52,9 +52,6 @@ sudo apt-get -y install gfortran-4.8
 # Need libglew etc. for some Phoronix benchmarks which use the GUI
 sudo apt-get -y install freeglut3 freeglut3-dev libglew-dev
 
-# Prevent any further kernel updates
-for i in `aptitude --disable-columns search linux | grep "i A" | awk {'print $3'}`; do echo $i hold | sudo dpkg --set-selections; done
-
 #Install general Python
 #===============================================================================
 sudo apt-get -y install python-numpy python-scipy python-matplotlib ipython ipython-notebook python-pandas python-sympy python-nose python-setuptools python-dev python-sklearn python-argparse pylint

@@ -94,6 +94,17 @@ To build the clARMOR using your default C and C++ compilers, execute the
 following from the main directory:
     make
 
+The clARMOR build environment needs to know where your OpenCL libraries and
+headers are located. To set these, you may want to set any of the following
+environment variables before running the make command:
+
+  - OCL_INCLUDE_DIR and OCL_LIB_DIR
+  - AMDAPPSDKROOT
+  - ATISTREAMSDKROOT
+  - INTELOCLSDKROOT
+  - CUDA_INC_PATH and `CUDA_LIB_PATH
+  - CUDA_PATH
+
 To build the tool using another compiler (e.g. clang), override the CC and
 CXX environment variables. For example:
     CC=clang CXX=clang++ make
@@ -135,7 +146,7 @@ Executing this tool with the '-h' or '--help' will explain its arguments.
 The '-v' or '--version' will describe describe the clARMOR version number.
 
 The simplest description of how to use the buffer overflow detector is to run:
-    bin/clarmor -w {working directory} -- {command line}
+    bin/clarmor -w {working directory} -- "{command line}"
 
 For example, the following will run the FFT benchmark in the AMD APP SDK
 through the buffer overflow detector:

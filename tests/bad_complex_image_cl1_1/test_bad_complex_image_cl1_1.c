@@ -1,5 +1,5 @@
 /********************************************************************************
- * Copyright (c) 2016 Advanced Micro Devices, Inc. All rights reserved.
+ * Copyright (c) 2016-2019 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -251,23 +251,6 @@ int main(int argc, char** argv)
     reduce3dhw = reduce2d * 4;//8;
     depth = 64;
 
-    if (images_are_broken())
-    {
-		FILE *err_f, *detector_f;
-		err_f = fopen("Errfile", "w");
-		fprintf(err_f, "EXPECTED_ERRORS=0\n");
-		fclose(err_f);
-
-		detector_f = fopen("buffer_overflow_detector.out", "w");
-		fprintf(detector_f, "Found a total of 0 errors.\n");
-		fclose(detector_f);
-
-		printf("Bugs in the implementation of OpenCL images on this ");
-        printf("platform prevent us from testing them.\n");
-        printf("Skipping Bad complex_image Test.\n");
-        return 0;
-    }
-
     // Check input options.
     check_opts(argc, argv, "image_cl1_1 without Overflow",
             &platform_to_use, &device_to_use, &dev_type);
@@ -276,6 +259,23 @@ int main(int argc, char** argv)
     cl_platform_id platform = setup_platform(platform_to_use);
     cl_device_id device = setup_device(device_to_use, platform_to_use,
             platform, dev_type);
+    if (images_are_broken(device))
+    {
+        FILE *err_f, *detector_f;
+        err_f = fopen("Errfile", "w");
+        fprintf(err_f, "EXPECTED_ERRORS=0\n");
+        fclose(err_f);
+
+        detector_f = fopen("buffer_overflow_detector.out", "w");
+        fprintf(detector_f, "Found a total of 0 errors.\n");
+        fclose(detector_f);
+
+        printf("This device does not properly support an implementation of ");
+        printf("OpenCL images. As such, we cannot test them.\n");
+        printf("Skipping Bad complex_image Test.\n");
+        return 0;
+    }
+
     cl_context context = setup_context(platform, device);
     cl_command_queue cmd_queue = setup_cmd_queue(context, device);
 

@@ -55,6 +55,7 @@ if [ ! -f ~/benchmarks/FinanceBench/done_building ]; then
         fi
         if [ $bench == "Monte-Carlo" ]; then
             sed -i.bak s'/c =/\/\/c =/' ./monteCarloEngine.c
+            sed -i.bak s'/400000/100000/' ./monteCarloEngine.c
         fi
 		make
         if [ $? -ne 0 ]; then

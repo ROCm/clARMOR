@@ -38,7 +38,7 @@ BASE_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 INSTALLER_DIR=${BASE_DIR}/../install_files/
 REAL_USER=`logname 2>/dev/null || echo ${SUDO_USER:-${USER}}`
 su -c "mkdir -p ${INSTALLER_DIR}" $REAL_USER
-echo "HLSim Ubuntu 16.04.3 Installation Script (ROCm drivers) Step 1/2"
+echo "clARMOR Ubuntu 16.04.3 Installation Script (ROCm drivers) Step 1/2"
 
 #Do basic post-install stuff
 #==============================================================================
