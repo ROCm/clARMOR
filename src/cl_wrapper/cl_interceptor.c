@@ -1,5 +1,5 @@
 /********************************************************************************
- * Copyright (c) 2016-2017 Advanced Micro Devices, Inc. All rights reserved.
+ * Copyright (c) 2016-2019 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -1624,6 +1624,15 @@ clRetainKernel(cl_kernel     kernel )
         temp = kinfo_find(get_kern_list(), kernel);
         if (temp != NULL)
             temp->ref_count++;
+        else
+        {
+            kernel_info *kern_temp = (kernel_info*)calloc(sizeof(kernel_info), 1);
+            kern_temp->handle = kernel;
+            kern_temp->arg_list = NULL;
+            // Insert at ref_count 2 because this is the Retain function
+            kern_temp->ref_count = 2;
+            kinfo_insert(get_kern_list(), kern_temp);
+        }
         err = RetainKernel(kernel);
     }
     else
@@ -2193,6 +2202,12 @@ static cl_int kernelLaunchFunc(void * thread_args_)
 
     //getting the information grabbed about this kernel
     kinfo = kinfo_find(get_kern_list(), ocl_args->kernel);
+    if (kinfo == NULL)
+    {
+        CL_MSG("Error in the CL kernel wrapper. Unable to find kernel info!\n");
+        exit(-1);
+    }
+
     cl_err = clGetKernelInfo(ocl_args->kernel, CL_KERNEL_NUM_ARGS, sizeof(nargs), &nargs, 0);
     check_cl_error(__FILE__, __LINE__, cl_err);
 
@@ -2973,29 +2988,29 @@ clEnqueueCopyImageToBuffer(cl_command_queue  command_queue ,
     if ( EnqueueCopyImageToBuffer )
     {
         cl_memobj *m1 = cl_mem_find(get_cl_mem_alloc(), src_image);
-		int run_real_call = 0;
-		if (m1 != NULL)
-		{
-			size_t dataSize = getImageDataSize(&m1->image_format);
-			size_t row_pitch = region[0] * dataSize;
-			size_t slice_pitch = region[1] * row_pitch;
-			size_t dst_origin[] = {dst_offset, 0, 0};
+        int run_real_call = 0;
+        if (m1 != NULL)
+        {
+            size_t dataSize = getImageDataSize(&m1->image_format);
+            size_t row_pitch = region[0] * dataSize;
+            size_t slice_pitch = region[1] * row_pitch;
+            size_t dst_origin[] = {dst_offset, 0, 0};
 
-			if( !apiImageOverflowCheck("clEnqueueCopyImageToBuffer", src_image, src_origin, region)
-					&& !apiBufferRectOverflowCheck("clEnqueueCopyImageToBuffer", dst_buffer, dst_origin, region, row_pitch, slice_pitch) )
-			{
-				run_real_call = 1;
-			}
-		}
-		else
-			run_real_call = 1;
+            if( !apiImageOverflowCheck("clEnqueueCopyImageToBuffer", src_image, src_origin, region)
+                    && !apiBufferRectOverflowCheck("clEnqueueCopyImageToBuffer", dst_buffer, dst_origin, region, row_pitch, slice_pitch) )
+            {
+                run_real_call = 1;
+            }
+        }
+        else
+            run_real_call = 1;
 
-		if (run_real_call)
-		{
-			err = EnqueueCopyImageToBuffer(command_queue, src_image,
-					dst_buffer, src_origin, region, dst_offset,
-					num_events, event_list, event);
-		}
+        if (run_real_call)
+        {
+            err = EnqueueCopyImageToBuffer(command_queue, src_image,
+                    dst_buffer, src_origin, region, dst_offset,
+                    num_events, event_list, event);
+        }
     }
     else
     {
